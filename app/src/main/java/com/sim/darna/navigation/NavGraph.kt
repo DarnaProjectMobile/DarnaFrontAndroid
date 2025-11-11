@@ -19,14 +19,15 @@ object Routes {
     const val Splash = "splash"
     const val Login = "login"
     const val SignUp = "signup"
+    const val ForgotPassword = "forgot_password"
     const val IdScan = "idscan"
     const val Selfie = "selfie"
     const val Fingerprint = "fingerprint"
     const val Main = "main"
-    // Change this line
-    const val PropertyDetail = "property_detail/{propertyName}" // Add the argument placeholder
-    const val Reviews = "reviews/{propertyId}"
+    const val PropertyDetail = "property_detail"
+    const val ResetPassword = "reset_password"
 }
+
 
 @Composable
 fun AppNavGraph(navController: NavHostController = rememberNavController()) {
@@ -48,6 +49,7 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         // ✅ LOGIN → MAIN or SIGNUP
         composable(Routes.Login) {
             LoginScreen(
+                navController = navController, // ✅ pass it here
                 onLoginSuccess = {
                     navController.navigate(Routes.Main) {
                         popUpTo(Routes.Login) { inclusive = true }
@@ -58,6 +60,7 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                 }
             )
         }
+
 
         // ✅ SIGNUP → ID SCAN
         composable(Routes.SignUp) {
@@ -102,17 +105,14 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             MainScreen()
         }
 
-        composable(
-            route = Routes.PropertyDetail, // This now correctly uses "property_detail/{propertyName}"
-            arguments = listOf(navArgument("propertyName") { type = NavType.StringType })
-        ) { backStackEntry ->
-            // Extract the argument
-            val propertyName = backStackEntry.arguments?.getString("propertyName")?.let {
-                URLDecoder.decode(it, StandardCharsets.UTF_8.name())
-            }
-
-
+        composable("property_detail") { PropertyDetailScreen(navController) }
+        composable(Routes.ForgotPassword) {
+            ForgotPasswordScreen(navController)
         }
+        composable(Routes.ResetPassword) {
+            ResetPasswordScreen(navController = navController)
+        }
+
 
     }
 }

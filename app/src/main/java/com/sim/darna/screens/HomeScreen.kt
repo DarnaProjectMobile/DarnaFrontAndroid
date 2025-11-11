@@ -60,6 +60,8 @@ fun MainScreen() {
             composable(BottomNavItem.Reserve.route) { ReserveScreen() }
             composable(BottomNavItem.Profile.route) { ProfileScreen() }
 
+            // ✅ Added detail route
+            composable("property_detail") { PropertyDetailScreen(navController) }
         }
     }
 }

@@ -26,13 +26,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import com.sim.darna.R
-import com.sim.darna.auth.LoginViewModel
+import com.sim.darna.ViewModel.LoginViewModel
 import com.sim.darna.factory.LoginVmFactory
+import com.sim.darna.navigation.Routes
 import kotlinx.coroutines.launch
 
 @Composable
-fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
+fun LoginScreen(navController: NavController, onLoginSuccess: () -> Unit, onSignUp: () -> Unit
+)
+ {
 
     val context = LocalContext.current // ✅ Needed for Toast messages
 
@@ -43,7 +47,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
     var passwordVisible by remember { mutableStateOf(false) }
 
     // ✅ ViewModel setup (your base URL here)
-    val baseUrl = "http://192.168.0.233:3000/"
+    val baseUrl = "http://10.0.2.2:3000/"
     val viewModel: LoginViewModel = viewModel(factory = LoginVmFactory(baseUrl))
     val uiState = viewModel.state.collectAsState().value
 
@@ -189,7 +193,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
 
         // Forgot Password
         TextButton(
-            onClick = { /* TODO: Forgot password */ },
+            onClick = { navController.navigate(Routes.ForgotPassword) },
             modifier = Modifier.align(Alignment.End)
         ) {
             Text(
@@ -198,6 +202,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
                 fontSize = 14.sp
             )
         }
+
 
         Spacer(modifier = Modifier.height(24.dp))
 

@@ -1,4 +1,4 @@
-package com.sim.darna.auth
+package com.sim.darna.model
 
 data class LoginRequest(
     val email: String,

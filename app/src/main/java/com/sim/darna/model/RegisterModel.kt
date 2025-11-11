@@ -1,4 +1,4 @@
-package com.sim.darna.auth
+package com.sim.darna.model
 
 // ✅ Représente les données envoyées au backend NestJS lors de l'inscription
 data class RegisterRequest(
