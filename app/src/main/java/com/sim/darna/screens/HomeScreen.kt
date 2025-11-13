@@ -5,6 +5,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -26,22 +28,22 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.sim.darna.navigation.Routes
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
-// Navigation destinations
+// ---------------------- Navigation destinations ----------------------
 sealed class BottomNavItem(
     val route: String,
     val icon: ImageVector,
     val label: String
 ) {
     object Home : BottomNavItem("home", Icons.Default.Home, "Accueil")
-    object Calendar : BottomNavItem("calendar", Icons.Default.DateRange, "Calendrier")
+    object Publicite : BottomNavItem("publicite", Icons.Default.Campaign, "Publicités")
     object Reserve : BottomNavItem("reserve", Icons.Default.Star, "Réserver")
     object Profile : BottomNavItem("profile", Icons.Default.Person, "Profil")
 }
 
+// ---------------------- MainScreen ----------------------
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
@@ -56,34 +58,41 @@ fun MainScreen() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(BottomNavItem.Home.route) { HomeScreen(navController) }
-            composable(BottomNavItem.Calendar.route) { CalendarScreen() }
+
+            // Liste des publicités
+            composable(BottomNavItem.Publicite.route) {
+                PublicitesListScreen(
+                    onAddClick = { navController.navigate("add_publicite") },
+                    onEdit = { id -> navController.navigate("add_publicite/$id") }
+                )
+            }
+
+            // Ajouter / Modifier une publicité
+            composable(
+                route = "add_publicite/{id?}", // id est optionnel
+                arguments = listOf(navArgument("id") { defaultValue = "" })
+            ) { backStackEntry ->
+                val id = backStackEntry.arguments?.getString("id")
+                AddPubliciteScreen(
+                    publiciteId = id.takeIf { it?.isNotEmpty() == true },
+                    onFinish = { navController.popBackStack() },
+                    onCancel = { navController.popBackStack() }
+                )
+            }
+
             composable(BottomNavItem.Reserve.route) { ReserveScreen() }
             composable(BottomNavItem.Profile.route) { ProfileScreen() }
-
         }
+
     }
 }
 
-@Composable
-fun ProfileScreen() {
-    TODO("Not yet implemented")
-}
-
-@Composable
-fun ReserveScreen() {
-    TODO("Not yet implemented")
-}
-
-@Composable
-fun CalendarScreen() {
-    TODO("Not yet implemented")
-}
-
+// ---------------------- BottomNavBar ----------------------
 @Composable
 fun BottomNavBar(navController: NavController) {
     val items = listOf(
         BottomNavItem.Home,
-        BottomNavItem.Calendar,
+        BottomNavItem.Publicite,
         BottomNavItem.Reserve,
         BottomNavItem.Profile
     )
@@ -154,15 +163,16 @@ fun BottomNavBar(navController: NavController) {
     }
 }
 
-// Home Screen
+// ---------------------- HomeScreen ----------------------
 @Composable
 fun HomeScreen(navController: NavController) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF5F5F5))
+            .verticalScroll(rememberScrollState())
     ) {
-        // Header Section
+        // Header
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -233,101 +243,265 @@ fun HomeScreen(navController: NavController) {
             }
         }
 
-        // Content Section
-        androidx.compose.foundation.lazy.LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Categories
+        Text(
+            text = "Catégories",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF1A1A1A),
+            modifier = Modifier.padding(start = 20.dp)
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Categories Section
-            item {
-                Text(
-                    text = "Catégories",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1A1A1A)
+            CategoryCard(Icons.Default.Home, "Studios", Color(0xFF0066FF))
+            CategoryCard(Icons.Default.Build, "Maisons", Color(0xFFFF6D00))
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // À la une
+        Text(
+            text = "À la une",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF1A1A1A),
+            modifier = Modifier.padding(start = 20.dp)
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Column(
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(horizontal = 20.dp)
+        ) {
+            listOf(
+                Triple("Colocation moderne à Paris", "75011 - Bastille", Color(0xFF4A90E2)),
+                Triple("Studio lumineux Bastille", "75012 - Nation", Color(0xFF50C878)),
+                Triple("Appartement spacieux Marais", "75003 - Le Marais", Color(0xFFFF6B6B))
+            ).forEachIndexed { index, item ->
+                PropertyCard(
+                    title = item.first,
+                    location = item.second,
+                    price = listOf(650, 850, 1200)[index],
+                    roommates = listOf(3, 1, 4)[index],
+                    area = listOf(85, 45, 120)[index],
+                    imageColor = item.third,
+                    navController = navController
                 )
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+// ---------------------- PropertyCard ----------------------
+@Composable
+fun PropertyCard(
+    title: String,
+    location: String,
+    price: Int,
+    roommates: Int,
+    area: Int,
+    imageColor: Color,
+    navController: NavController
+) {
+    var isFavorite by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+
+            // Image placeholder
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(
+                                imageColor.copy(alpha = 0.7f),
+                                imageColor
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Home,
+                    contentDescription = "Property",
+                    modifier = Modifier.size(80.dp),
+                    tint = Color.White.copy(alpha = 0.3f)
+                )
+
+                // Favorite button
+                IconButton(
+                    onClick = { isFavorite = !isFavorite },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(12.dp)
                 ) {
-                    CategoryCard(
-                        icon = Icons.Default.Home,
-                        label = "Studios",
-                        color = Color(0xFF0066FF)
-                    )
-                    CategoryCard(
-                        icon = Icons.Default.Build,
-                        label = "Maisons",
-                        color = Color(0xFFFF6D00)
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color.White.copy(alpha = 0.9f)
+                    ) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = "Favorite",
+                            modifier = Modifier.padding(8.dp),
+                            tint = if (isFavorite) Color(0xFFFF6B6B) else Color(0xFF757575)
+                        )
+                    }
+                }
+
+                // New Badge
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(12.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFF00C853)
+                ) {
+                    Text(
+                        text = "NOUVEAU",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
 
-            // Featured Section
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
+            // Content
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1A1A1A)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = Color(0xFF757575)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = location,
+                        fontSize = 14.sp,
+                        color = Color(0xFF757575)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    InfoChip(icon = Icons.Default.Person, text = "$roommates pers.")
+                    InfoChip(icon = Icons.Default.Home, text = "${area}m²")
+                    Surface(
+                        color = Color(0xFF0066FF).copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = Color(0xFFFFC107)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "4.8",
+                                fontSize = 12.sp,
+                                color = Color(0xFF1A1A1A),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "À la une",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1A1A1A)
-                    )
-                    TextButton(onClick = { }) {
+                    Column {
                         Text(
-                            text = "Voir tout",
-                            color = Color(0xFF0066FF),
-                            fontSize = 14.sp
+                            text = "À partir de",
+                            fontSize = 12.sp,
+                            color = Color(0xFF757575)
+                        )
+                        Text(
+                            text = "${price}€/mois",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0066FF)
                         )
                     }
-                }
-            }
 
-            // Property Cards
-            items(3) { index ->
-                PropertyCard(
-                    title = when (index) {
-                        0 -> "Colocation moderne à Paris"
-                        1 -> "Studio lumineux Bastille"
-                        else -> "Appartement spacieux Marais"
-                    },
-                    location = when (index) {
-                        0 -> "75011 - Bastille"
-                        1 -> "75012 - Nation"
-                        else -> "75003 - Le Marais"
-                    },
-                    price = when (index) {
-                        0 -> 650
-                        1 -> 850
-                        else -> 1200
-                    },
-                    roommates = when (index) {
-                        0 -> 3
-                        1 -> 1
-                        else -> 4
-                    },
-                    area = when (index) {
-                        0 -> 85
-                        1 -> 45
-                        else -> 120
-                    },
-                    imageColor = when (index) {
-                        0 -> Color(0xFF4A90E2)
-                        1 -> Color(0xFF50C878)
-                        else -> Color(0xFFFF6B6B)
-                    },
-                    navController = navController // ✅ added
-                )
+                    Button(
+                        onClick = { /* Navigate to details */ },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0066FF)),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Voir détails", fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowRight,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
 
+// ---------------------- InfoChip ----------------------
+@Composable
+fun InfoChip(icon: ImageVector, text: String) {
+    Surface(
+        color = Color(0xFFF5F5F5),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = Color(0xFF757575)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = text,
+                fontSize = 12.sp,
+                color = Color(0xFF757575)
+            )
+        }
+    }
+}
+
+// ---------------------- CategoryCard ----------------------
 @Composable
 fun CategoryCard(icon: ImageVector, label: String, color: Color) {
     Card(
@@ -362,215 +536,8 @@ fun CategoryCard(icon: ImageVector, label: String, color: Color) {
         }
     }
 }
-@Composable
-fun PropertyCard(
-    title: String,
-    location: String,
-    price: Int,
-    roommates: Int,
-    area: Int,
-    imageColor: Color,
-    navController: NavController
-) {
-    var isFavorite by remember { mutableStateOf(false) }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-
-            // 🖼️ Image placeholder with gradient
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-                    .background(
-                        androidx.compose.ui.graphics.Brush.verticalGradient(
-                            colors = listOf(
-                                imageColor.copy(alpha = 0.7f),
-                                imageColor
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Home,
-                    contentDescription = "Property",
-                    modifier = Modifier.size(80.dp),
-                    tint = Color.White.copy(alpha = 0.3f)
-                )
-
-                // ❤️ Favorite Button
-                IconButton(
-                    onClick = { isFavorite = !isFavorite },
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(12.dp)
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = Color.White.copy(alpha = 0.9f)
-                    ) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = "Favorite",
-                            modifier = Modifier.padding(8.dp),
-                            tint = if (isFavorite) Color(0xFFFF6B6B) else Color(0xFF757575)
-                        )
-                    }
-                }
-
-                // 🟢 New Badge
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(12.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFF00C853)
-                ) {
-                    Text(
-                        text = "NOUVEAU",
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            // 🏡 Content Section
-            Column(modifier = Modifier.padding(16.dp)) {
-
-                // Title + Location
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1A1A1A)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = Color(0xFF757575)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = location,
-                            fontSize = 14.sp,
-                            color = Color(0xFF757575)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Info Chips (Roommates, Area, Rating)
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    InfoChip(icon = Icons.Default.Person, text = "$roommates pers.")
-                    InfoChip(icon = Icons.Default.Home, text = "${area}m²")
-
-                    Surface(
-                        color = Color(0xFF0066FF).copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = Color(0xFFFFC107)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "4.8",
-                                fontSize = 12.sp,
-                                color = Color(0xFF1A1A1A),
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 💶 Price and Details Button
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "À partir de",
-                            fontSize = 12.sp,
-                            color = Color(0xFF757575)
-                        )
-                        Text(
-                            text = "${price}€/mois",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0066FF)
-                        )
-                    }
-
-                    Button(
-                        onClick = { navController.navigate(Routes.PropertyDetail) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0066FF)),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Voir détails", fontSize = 14.sp)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowRight,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun InfoChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
-    Surface(
-        color = Color(0xFFF5F5F5),
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = Color(0xFF757575)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = text,
-                fontSize = 12.sp,
-                color = Color(0xFF757575)
-            )
-        }
-    }
-}
-
-
-
+// ---------------------- Placeholder Screens ----------------------
+@Composable fun ProfileScreen() { /* TODO */ }
+@Composable fun ReserveScreen() { /* TODO */ }
+@Composable fun PublicitesListScreen() { /* TODO */ }
