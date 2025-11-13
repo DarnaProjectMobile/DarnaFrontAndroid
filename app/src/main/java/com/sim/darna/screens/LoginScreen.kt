@@ -43,7 +43,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
     var passwordVisible by remember { mutableStateOf(false) }
 
     // ✅ ViewModel setup (your base URL here)
-    val baseUrl = "http://192.168.0.233:3000/"
+    val baseUrl = "http://192.168.1.11:3000/"
     val viewModel: LoginViewModel = viewModel(factory = LoginVmFactory(baseUrl))
     val uiState = viewModel.state.collectAsState().value
 
