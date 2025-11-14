@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.sim.darna.Repository.AuthRepository
 import com.sim.darna.model.LoginRequest
 import com.sim.darna.model.LoginResponse
+import com.sim.darna.model.UserDto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -16,7 +17,8 @@ data class LoginUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val success: Boolean = false,
-    val message: String? = null
+    val message: String? = null,
+    val user: UserDto? = null
 )
 
 class LoginViewModel(private val repository: AuthRepository) : ViewModel() {
@@ -33,9 +35,11 @@ class LoginViewModel(private val repository: AuthRepository) : ViewModel() {
             repository.login(request).enqueue(object : Callback<LoginResponse> {
                 override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
                     if (response.isSuccessful) {
+                        val body = response.body()
                         _state.value = LoginUiState(
                             success = true,
-                            message = "Connexion réussie ✅"
+                            message = "Connexion réussie ✅",
+                            user = body?.user
                         )
                     } else if (response.code() == 401 || response.code() == 400) {
                         _state.value = LoginUiState(

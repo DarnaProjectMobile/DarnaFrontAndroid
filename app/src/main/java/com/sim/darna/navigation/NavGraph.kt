@@ -8,9 +8,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.sim.darna.screens.*
-import java.net.URLDecoder
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
 /**
  * ✅ Centralized route definitions for clarity and reuse.
@@ -26,8 +23,8 @@ object Routes {
     const val Main = "main"
     const val PropertyDetail = "property_detail"
     const val ResetPassword = "reset_password"
+    const val Home = "home"
 }
-
 
 @Composable
 fun AppNavGraph(navController: NavHostController = rememberNavController()) {
@@ -46,21 +43,12 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             }
         }
 
-        // ✅ LOGIN → MAIN or SIGNUP
+        // ✅ LOGIN → HOME or SIGNUP
         composable(Routes.Login) {
             LoginScreen(
-                navController = navController, // ✅ pass it here
-                onLoginSuccess = {
-                    navController.navigate(Routes.Main) {
-                        popUpTo(Routes.Login) { inclusive = true }
-                    }
-                },
-                onSignUp = {
-                    navController.navigate(Routes.SignUp)
-                }
+                navController = navController
             )
         }
-
 
         // ✅ SIGNUP → ID SCAN
         composable(Routes.SignUp) {
@@ -91,29 +79,39 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             }
         }
 
-        // ✅ FINGERPRINT → MAIN
+        // ✅ FINGERPRINT → HOME
         composable(Routes.Fingerprint) {
             FingerprintScreen {
-                navController.navigate(Routes.Main) {
+                navController.navigate("${Routes.Home}?username=") {
                     popUpTo(Routes.Fingerprint) { inclusive = true }
                 }
             }
         }
 
-        // ✅ MAIN APP (Bottom Navigation / Dashboard)
-        composable(Routes.Main) {
-            MainScreen()
+        // ✅ HOME SCREEN (Main content)
+        composable(
+            route = "${Routes.Home}?username={username}",
+            arguments = listOf(
+                navArgument("username") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                }
+            )
+        ) { backStackEntry ->
+            val username = backStackEntry.arguments?.getString("username").orEmpty()
+            HomeScreen(navController = navController, username = username)
         }
 
-        composable("property_detail") { PropertyDetailScreen(navController) }
-        composable(Routes.ForgotPassword) {
-            ForgotPasswordScreen(navController)
+        composable(Routes.PropertyDetail) {
+            PropertyDetailScreen(navController = navController)
         }
+
+        composable(Routes.ForgotPassword) {
+            ForgotPasswordScreen(navController = navController)
+        }
+
         composable(Routes.ResetPassword) {
             ResetPasswordScreen(navController = navController)
         }
-
-
     }
 }
-
