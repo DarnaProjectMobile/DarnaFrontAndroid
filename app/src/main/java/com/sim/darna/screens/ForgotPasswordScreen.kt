@@ -1,5 +1,6 @@
 package com.sim.darna.screens
 
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -19,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.sim.darna.ViewModel.ForgotPasswordViewModel
+import com.sim.darna.viewmodel.ForgotPasswordViewModel
 import com.sim.darna.factory.ForgotPasswordVmFactory
 import com.sim.darna.navigation.Routes
 
@@ -32,8 +33,9 @@ fun ForgotPasswordScreen(navController: NavController) {
 
     // 🧠 ViewModel setup
     val baseUrl = "http://10.0.2.2:3000/"
+    val sharedPreferences = LocalContext.current.getSharedPreferences("DarnaPrefs", Context.MODE_PRIVATE)
     val viewModel: ForgotPasswordViewModel = viewModel(
-        factory = ForgotPasswordVmFactory(baseUrl)
+        factory = ForgotPasswordVmFactory(baseUrl, sharedPreferences)
     )
     val uiState = viewModel.state.collectAsState().value
 

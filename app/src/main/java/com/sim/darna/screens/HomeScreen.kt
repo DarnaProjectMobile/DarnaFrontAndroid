@@ -1,5 +1,6 @@
 package com.sim.darna.screens
 
+import android.content.Context
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -15,6 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -58,18 +60,17 @@ fun MainScreen() {
             composable(BottomNavItem.Home.route) { HomeScreen(navController) }
             composable(BottomNavItem.Calendar.route) { CalendarScreen() }
             composable(BottomNavItem.Reserve.route) { ReserveScreen() }
+
+            // ⭐ Correct: call your new ProfileScreen WITHOUT args
             composable(BottomNavItem.Profile.route) { ProfileScreen() }
 
-            // ✅ Added detail route
-            composable("property_detail") { PropertyDetailScreen(navController) }
+            composable("property_detail") {
+                PropertyDetailScreen(navController)
+            }
         }
     }
 }
 
-@Composable
-fun ProfileScreen() {
-    TODO("Not yet implemented")
-}
 
 @Composable
 fun ReserveScreen() {

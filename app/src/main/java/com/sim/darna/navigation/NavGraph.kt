@@ -49,7 +49,6 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         // ✅ LOGIN → MAIN or SIGNUP
         composable(Routes.Login) {
             LoginScreen(
-                navController = navController, // ✅ pass it here
                 onLoginSuccess = {
                     navController.navigate(Routes.Main) {
                         popUpTo(Routes.Login) { inclusive = true }
