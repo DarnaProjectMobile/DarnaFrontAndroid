@@ -25,7 +25,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.compose.viewModel as viewModelCompose
 import androidx.navigation.NavController
 import com.sim.darna.R
 import com.sim.darna.ViewModel.LoginViewModel
@@ -46,8 +46,8 @@ fun LoginScreen(
     var passwordError by remember { mutableStateOf<String?>(null) }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    val baseUrl = "http://10.0.2.2:3000/"
-    val viewModel: LoginViewModel = viewModel(factory = LoginVmFactory(baseUrl))
+    val baseUrl = "http://10.61.177.155:3000/"
+    val viewModel: LoginViewModel = viewModelCompose(factory = LoginVmFactory(baseUrl))
     val uiState = viewModel.state.collectAsState().value
 
     val coroutineScope = rememberCoroutineScope()
@@ -79,8 +79,8 @@ fun LoginScreen(
             Toast.makeText(context, "Connexion réussie ✅", Toast.LENGTH_SHORT).show()
             val username = uiState.user?.username ?: "User"
             val encodedUsername = URLEncoder.encode(username, StandardCharsets.UTF_8.toString())
-            navController.navigate("${Routes.Main}?username=$encodedUsername") {
-                popUpTo(0)
+            navController.navigate("${Routes.Home}?username=$encodedUsername") {
+                popUpTo(Routes.Login) { inclusive = true }
             }
         }
     }

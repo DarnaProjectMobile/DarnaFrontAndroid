@@ -1,9 +1,23 @@
 package com.sim.darna.model
 
+import com.google.gson.annotations.SerializedName
+
 data class Annonce(
-    val id: Int,
-    val titre: String,
+    @SerializedName("_id")
+    val id: String,
+    val title: String,
     val description: String,
-    val prix: Double,
-    val imageUrl: String
+    val price: Double,
+    val user: AnnonceUser,
+    @SerializedName("createdAt")
+    val createdAt: String? = null,
+    @SerializedName("updatedAt")
+    val updatedAt: String? = null
+)
+
+data class AnnonceUser(
+    @SerializedName("_id")
+    val id: String,
+    val username: String,
+    val email: String
 )

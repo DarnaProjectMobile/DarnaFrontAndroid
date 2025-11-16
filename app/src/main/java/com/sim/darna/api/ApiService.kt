@@ -5,6 +5,6 @@ import retrofit2.http.GET
 
 interface ApiService {
 
-    @GET("api/annonces")
+    @GET("annonces")
     suspend fun getAllAnnonces(): List<Annonce>
 }

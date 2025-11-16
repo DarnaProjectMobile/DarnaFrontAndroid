@@ -1,6 +1,5 @@
 package com.sim.darna.screens
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,15 +10,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import coil.compose.rememberAsyncImagePainter
-import com.sim.darna.viewmodel.AnnonceViewModel
+import com.sim.darna.ViewModel.AnnonceViewModel
 
 @Composable
 fun HomeScreen(
@@ -104,40 +100,64 @@ fun AnnonceCard(annonce: com.sim.darna.model.Annonce) {
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .height(260.dp)
+            .padding(vertical = 4.dp)
     ) {
-        Column {
-
-            // IMAGE
-            Image(
-                painter = rememberAsyncImagePainter(annonce.imageUrl),
-                contentDescription = annonce.titre,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(160.dp)
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
-                contentScale = ContentScale.Crop
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
             // TITLE
             Text(
-                text = annonce.titre,
-                fontSize = 18.sp,
+                text = annonce.title,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black,
-                modifier = Modifier.padding(horizontal = 12.dp)
+                color = Color(0xFF1B1D28),
+                modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // PRICE
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // DESCRIPTION
             Text(
-                text = "${annonce.prix} DT",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF4461F2),
-                modifier = Modifier.padding(horizontal = 12.dp)
+                text = annonce.description,
+                fontSize = 14.sp,
+                color = Color(0xFF8A8E9F),
+                modifier = Modifier.padding(bottom = 12.dp),
+                maxLines = 3,
+                lineHeight = 20.sp
             )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // PRICE
+                Text(
+                    text = "${annonce.price} DT",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF4461F2)
+                )
+
+                // USER USERNAME
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Par: ",
+                        fontSize = 12.sp,
+                        color = Color(0xFF8A8E9F)
+                    )
+                    Text(
+                        text = annonce.user.username,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF1B1D28)
+                    )
+                }
+            }
         }
     }
 }

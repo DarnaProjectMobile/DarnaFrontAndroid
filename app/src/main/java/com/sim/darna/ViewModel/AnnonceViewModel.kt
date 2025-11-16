@@ -1,4 +1,4 @@
-package com.sim.darna.viewmodel
+package com.sim.darna.ViewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
