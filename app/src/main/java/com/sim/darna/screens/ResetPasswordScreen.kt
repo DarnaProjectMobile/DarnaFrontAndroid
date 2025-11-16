@@ -32,7 +32,7 @@ fun ResetPasswordScreen(navController: NavController) {
     var confirmPassword by remember { mutableStateOf(TextFieldValue("")) }
 
     val context = LocalContext.current
-    val baseUrl = "http://10.0.2.2:3000/"
+    val baseUrl = "http://10.61.177.155:3000/"
 
     // ✅ ViewModel
     val viewModel: ResetPasswordViewModel = viewModel(

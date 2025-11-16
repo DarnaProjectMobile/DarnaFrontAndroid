@@ -3,7 +3,7 @@ package com.sim.darna.factory
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.sim.darna.auth.AuthApi
-import com.sim.darna.Repository.AuthRepository
+import com.sim.darna.repository.AuthRepository
 import com.sim.darna.ViewModel.ResetPasswordViewModel
 
 @Suppress("UNCHECKED_CAST")

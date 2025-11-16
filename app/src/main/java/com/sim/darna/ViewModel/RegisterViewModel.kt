@@ -2,7 +2,7 @@ package com.sim.darna.ViewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sim.darna.Repository.AuthRepository
+import com.sim.darna.repository.AuthRepository
 import com.sim.darna.model.RegisterRequest
 import com.sim.darna.model.RegisterResponse
 import kotlinx.coroutines.flow.MutableStateFlow

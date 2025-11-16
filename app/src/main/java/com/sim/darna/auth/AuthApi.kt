@@ -15,11 +15,9 @@ import java.util.concurrent.TimeUnit
 
 interface AuthApi {
 
-    // 🔹 Login (en JSON)
     @POST("auth/login")
     fun login(@Body body: LoginRequest): Call<LoginResponse>
 
-    // 🔹 Register (multipart/form-data)
     @Multipart
     @POST("auth/register")
     fun register(
@@ -33,35 +31,11 @@ interface AuthApi {
         @Part image: MultipartBody.Part? = null
     ): Call<RegisterResponse>
 
-    companion object {
-        fun create(baseUrl: String): AuthApi {
-            val logging = HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            }
-
-            val client = OkHttpClient.Builder()
-                .addInterceptor(logging)
-                .connectTimeout(0, TimeUnit.SECONDS)
-                .readTimeout(0, TimeUnit.SECONDS)
-                .writeTimeout(0, TimeUnit.SECONDS)
-                .build()
-
-            // 🧱 Retrofit instance
-            return Retrofit.Builder()
-                .baseUrl(baseUrl)
-                .client(client)
-                .addConverterFactory(GsonConverterFactory.create())
-                .build()
-                .create(AuthApi::class.java)
-        }
-    }
     @POST("users/forgot-password")
     fun forgotPassword(@Body body: ForgotPasswordRequest): Call<ForgotPasswordResponse>
 
-
     @POST("users/reset-password")
     fun resetPassword(@Body body: ResetPasswordRequest): Call<ResetPasswordResponse>
-
 
     data class ForgotPasswordRequest(val email: String)
     data class ForgotPasswordResponse(val message: String)
@@ -73,4 +47,25 @@ interface AuthApi {
     )
     data class ResetPasswordResponse(val message: String)
 
+    companion object {
+        fun create(baseUrl: String): AuthApi {
+            val logging = HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.BODY
+            }
+
+            val client = OkHttpClient.Builder()
+                .addInterceptor(logging)
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
+                .build()
+
+            return Retrofit.Builder()
+                .baseUrl(baseUrl)
+                .client(client)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
+                .create(AuthApi::class.java)
+        }
+    }
 }

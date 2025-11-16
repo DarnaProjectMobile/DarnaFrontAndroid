@@ -1,37 +1,79 @@
 package com.sim.darna.screens
 
+import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.sim.darna.ViewModel.AnnonceViewModel
+import com.sim.darna.navigation.Routes
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 @Composable
 fun HomeScreen(
     navController: NavController,
     username: String,
+    userId: String,
+    role: String,
     viewModel: AnnonceViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
-
+    val context = LocalContext.current
     val annonces by viewModel.annonces.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(Unit) {
-        viewModel.loadAnnonces() // Fixed: changed getAllAnnonces() to loadAnnonces()
+        viewModel.loadAnnonces()
+    }
+
+    LaunchedEffect(uiState.message) {
+        uiState.message?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            viewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            viewModel.clearError()
+        }
     }
 
     Scaffold(
-        containerColor = Color(0xFFF4F6FA)
+        containerColor = Color(0xFFF4F6FA),
+        floatingActionButton = {
+            if (role == "collocator") {
+                FloatingActionButton(
+                    onClick = {
+                        navController.navigate(Routes.AddAnnonce)
+                    },
+                    containerColor = Color(0xFF4461F2)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Ajouter une annonce",
+                        tint = Color.White
+                    )
+                }
+            }
+        }
     ) { paddingValues ->
 
         LazyColumn(
@@ -47,7 +89,27 @@ fun HomeScreen(
             }
 
             items(annonces) { annonce ->
-                AnnonceCard(annonce = annonce)
+                AnnonceCard(
+                    annonce = annonce,
+                    userId = userId,
+                    role = role,
+                    onCardClick = {
+                        val encodedId = URLEncoder.encode(annonce.id, StandardCharsets.UTF_8.toString())
+                        val encodedUserId = URLEncoder.encode(userId, StandardCharsets.UTF_8.toString())
+                        val encodedRole = URLEncoder.encode(role, StandardCharsets.UTF_8.toString())
+                        navController.navigate("${Routes.PropertyDetail}?id=$encodedId&userId=$encodedUserId&role=$encodedRole")
+                    },
+                    onEditClick = {
+                        // Navigate to edit screen or show dialog
+                        val encodedId = URLEncoder.encode(annonce.id, StandardCharsets.UTF_8.toString())
+                        val encodedUserId = URLEncoder.encode(userId, StandardCharsets.UTF_8.toString())
+                        val encodedRole = URLEncoder.encode(role, StandardCharsets.UTF_8.toString())
+                        navController.navigate("${Routes.PropertyDetail}?id=$encodedId&userId=$encodedUserId&role=$encodedRole&edit=true")
+                    },
+                    onDeleteClick = {
+                        viewModel.deleteAnnonce(annonce.id)
+                    }
+                )
             }
         }
     }
@@ -92,7 +154,18 @@ fun GreetingHome(username: String) {
 }
 
 @Composable
-fun AnnonceCard(annonce: com.sim.darna.model.Annonce) {
+fun AnnonceCard(
+    annonce: com.sim.darna.model.Annonce,
+    userId: String,
+    role: String,
+    onCardClick: () -> Unit,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit
+) {
+    // Check if user owns this annonce
+    // user.id can be the user ID string or the full user object's _id
+    val isOwner = annonce.user.id == userId
+    val showActions = role == "collocator" && isOwner && userId.isNotEmpty()
 
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -101,6 +174,7 @@ fun AnnonceCard(annonce: com.sim.darna.model.Annonce) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
+            .clickable { onCardClick() }
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -141,21 +215,52 @@ fun AnnonceCard(annonce: com.sim.darna.model.Annonce) {
                     color = Color(0xFF4461F2)
                 )
 
-                // USER USERNAME
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Par: ",
-                        fontSize = 12.sp,
-                        color = Color(0xFF8A8E9F)
-                    )
-                    Text(
-                        text = annonce.user.username,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF1B1D28)
-                    )
+                // USER USERNAME or ACTIONS
+                if (showActions) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = { onEditClick() },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Modifier",
+                                tint = Color(0xFF4461F2),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = { onDeleteClick() },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Supprimer",
+                                tint = Color(0xFFE53935),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                } else {
+                    // USER USERNAME
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Par: ",
+                            fontSize = 12.sp,
+                            color = Color(0xFF8A8E9F)
+                        )
+                        Text(
+                            text = annonce.user.username ?: "Utilisateur",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF1B1D28)
+                        )
+                    }
                 }
             }
         }

@@ -2,7 +2,7 @@ package com.sim.darna.factory
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.sim.darna.Repository.AuthRepository
+import com.sim.darna.repository.AuthRepository
 import com.sim.darna.ViewModel.ForgotPasswordViewModel
 import com.sim.darna.auth.*
 

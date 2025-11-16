@@ -24,6 +24,7 @@ object Routes {
     const val PropertyDetail = "property_detail"
     const val ResetPassword = "reset_password"
     const val Home = "home"
+    const val AddAnnonce = "add_annonce"
 }
 
 @Composable
@@ -90,20 +91,52 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
 
         // ✅ HOME SCREEN (Main content)
         composable(
-            route = "${Routes.Home}?username={username}",
+            route = "${Routes.Home}?username={username}&userId={userId}&role={role}",
             arguments = listOf(
                 navArgument("username") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument("userId") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument("role") {
                     type = NavType.StringType
                     defaultValue = ""
                 }
             )
         ) { backStackEntry ->
             val username = backStackEntry.arguments?.getString("username").orEmpty()
-            HomeScreen(navController = navController, username = username)
+            val userId = backStackEntry.arguments?.getString("userId").orEmpty()
+            val role = backStackEntry.arguments?.getString("role").orEmpty()
+            HomeScreen(navController = navController, username = username, userId = userId, role = role)
         }
 
-        composable(Routes.PropertyDetail) {
-            PropertyDetailScreen(navController = navController)
+        composable(
+            route = "${Routes.PropertyDetail}?id={id}&userId={userId}&role={role}",
+            arguments = listOf(
+                navArgument("id") {
+                    type = NavType.StringType
+                },
+                navArgument("userId") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument("role") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                }
+            )
+        ) { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("id") ?: ""
+            val userId = backStackEntry.arguments?.getString("userId").orEmpty()
+            val role = backStackEntry.arguments?.getString("role").orEmpty()
+            PropertyDetailScreen(navController = navController, annonceId = id, userId = userId, role = role)
+        }
+
+        composable(Routes.AddAnnonce) {
+            AddAnnonceScreen(navController = navController)
         }
 
         composable(Routes.ForgotPassword) {

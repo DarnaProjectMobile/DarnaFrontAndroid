@@ -31,7 +31,7 @@ fun ForgotPasswordScreen(navController: NavController) {
     val context = LocalContext.current
 
     // 🧠 ViewModel setup
-    val baseUrl = "http://10.0.2.2:3000/"
+    val baseUrl = "http://10.61.177.155:3000/"
     val viewModel: ForgotPasswordViewModel = viewModel(
         factory = ForgotPasswordVmFactory(baseUrl)
     )

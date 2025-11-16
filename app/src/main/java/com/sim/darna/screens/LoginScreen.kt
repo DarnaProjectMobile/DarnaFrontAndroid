@@ -47,7 +47,7 @@ fun LoginScreen(
     var passwordVisible by remember { mutableStateOf(false) }
 
     val baseUrl = "http://10.61.177.155:3000/"
-    val viewModel: LoginViewModel = viewModelCompose(factory = LoginVmFactory(baseUrl))
+    val viewModel: LoginViewModel = viewModelCompose(factory = LoginVmFactory(baseUrl, context))
     val uiState = viewModel.state.collectAsState().value
 
     val coroutineScope = rememberCoroutineScope()
@@ -78,8 +78,12 @@ fun LoginScreen(
         if (uiState.success) {
             Toast.makeText(context, "Connexion réussie ✅", Toast.LENGTH_SHORT).show()
             val username = uiState.user?.username ?: "User"
+            val userId = uiState.user?.id ?: ""
+            val role = uiState.user?.role ?: ""
             val encodedUsername = URLEncoder.encode(username, StandardCharsets.UTF_8.toString())
-            navController.navigate("${Routes.Home}?username=$encodedUsername") {
+            val encodedUserId = URLEncoder.encode(userId, StandardCharsets.UTF_8.toString())
+            val encodedRole = URLEncoder.encode(role, StandardCharsets.UTF_8.toString())
+            navController.navigate("${Routes.Home}?username=$encodedUsername&userId=$encodedUserId&role=$encodedRole") {
                 popUpTo(Routes.Login) { inclusive = true }
             }
         }
