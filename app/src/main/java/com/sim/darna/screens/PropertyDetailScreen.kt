@@ -18,7 +18,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.sim.darna.ViewModel.AnnonceViewModel
-import com.sim.darna.navigation.Routes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,9 +35,13 @@ fun PropertyDetailScreen(
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
+    var image by remember { mutableStateOf("") }
+    var type by remember { mutableStateOf("") }
+    var location by remember { mutableStateOf("") }
+    var startDate by remember { mutableStateOf("") }
+    var endDate by remember { mutableStateOf("") }
 
     LaunchedEffect(annonceId) {
-        // Decode the annonceId in case it was URL encoded
         val decodedId = try {
             java.net.URLDecoder.decode(annonceId, "UTF-8")
         } catch (e: Exception) {
@@ -54,6 +57,11 @@ fun PropertyDetailScreen(
             title = it.title
             description = it.description
             price = it.price.toString()
+            image = it.image ?: ""
+            type = it.type ?: ""
+            location = it.location ?: ""
+            startDate = it.startDate ?: ""
+            endDate = it.endDate ?: ""
         }
     }
 
@@ -74,11 +82,7 @@ fun PropertyDetailScreen(
         }
     }
 
-    // Check ownership - user.id can be the user ID string
-    val isOwner = selectedAnnonce?.let { annonce ->
-        val annonceUserId = annonce.user.id
-        annonceUserId == userId && userId.isNotEmpty()
-    } ?: false
+    val isOwner = selectedAnnonce?.user?.id == userId
     val canEdit = role == "collocator" && isOwner
 
     Scaffold(
@@ -87,10 +91,7 @@ fun PropertyDetailScreen(
                 title = { Text("Détails de l'annonce", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Retour"
-                        )
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
                     }
                 },
                 actions = {
@@ -131,24 +132,52 @@ fun PropertyDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
-
                     OutlinedTextField(
                         value = description,
                         onValueChange = { description = it },
                         label = { Text("Description") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp),
+                        modifier = Modifier.fillMaxWidth().height(120.dp),
                         maxLines = 5
                     )
-
                     OutlinedTextField(
                         value = price,
-                        onValueChange = { if (it.all { char -> char.isDigit() || char == '.' }) price = it },
+                        onValueChange = { if (it.all { c -> c.isDigit() || c == '.' }) price = it },
                         label = { Text("Prix") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
+                    OutlinedTextField(
+                        value = image,
+                        onValueChange = { image = it },
+                        label = { Text("Image URL") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = type,
+                        onValueChange = { type = it },
+                        label = { Text("Type") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = location,
+                        onValueChange = { location = it },
+                        label = { Text("Localisation") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = startDate,
+                        onValueChange = { startDate = it },
+                        label = { Text("Date de début (ISO 8601)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = endDate,
+                        onValueChange = { endDate = it },
+                        label = { Text("Date de fin (ISO 8601)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -161,6 +190,11 @@ fun PropertyDetailScreen(
                                     title = it.title
                                     description = it.description
                                     price = it.price.toString()
+                                    image = it.image ?: ""
+                                    type = it.type ?: ""
+                                    location = it.location ?: ""
+                                    startDate = it.startDate ?: ""
+                                    endDate = it.endDate ?: ""
                                 }
                             },
                             modifier = Modifier.weight(1f)
@@ -171,19 +205,12 @@ fun PropertyDetailScreen(
                         Button(
                             onClick = {
                                 val priceValue = price.toDoubleOrNull() ?: 0.0
-                                // Use the selected annonce ID directly to avoid encoding issues
-                                val idToUse = selectedAnnonce?.id ?: try {
-                                    java.net.URLDecoder.decode(annonceId, "UTF-8")
-                                } catch (e: Exception) {
-                                    annonceId
-                                }
-                                android.util.Log.d("PropertyDetailScreen", "Updating annonce with ID: $idToUse")
-                                if (idToUse.isNotEmpty()) {
-                                    viewModel.updateAnnonce(idToUse, title, description, priceValue)
-                                    isEditing = false
-                                } else {
-                                    Toast.makeText(context, "ID d'annonce invalide", Toast.LENGTH_SHORT).show()
-                                }
+                                val idToUse = selectedAnnonce?.id ?: annonceId
+                                viewModel.updateAnnonce(
+                                    idToUse, title, description, priceValue,
+                                    image, type, location, startDate, endDate
+                                )
+                                isEditing = false
                             },
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4461F2))
@@ -209,67 +236,28 @@ fun PropertyDetailScreen(
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF1B1D28)
                                 )
-
                                 Divider()
-
-                                Text(
-                                    text = "Description",
-                                    fontSize = 14.sp,
-                                    color = Color(0xFF8A8E9F),
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    text = annonce.description,
-                                    fontSize = 16.sp,
-                                    color = Color(0xFF1B1D28)
-                                )
-
+                                Text("Description", fontSize = 14.sp, color = Color(0xFF8A8E9F), fontWeight = FontWeight.Medium)
+                                Text(annonce.description, fontSize = 16.sp, color = Color(0xFF1B1D28))
                                 Divider()
-
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Column {
-                                        Text(
-                                            text = "Prix",
-                                            fontSize = 14.sp,
-                                            color = Color(0xFF8A8E9F),
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                        Text(
-                                            text = "${annonce.price} DT",
-                                            fontSize = 20.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF4461F2)
-                                        )
+                                        Text("Prix", fontSize = 14.sp, color = Color(0xFF8A8E9F), fontWeight = FontWeight.Medium)
+                                        Text("${annonce.price} DT", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4461F2))
                                     }
-
-                                    if (annonce.user.username != null) {
+                                    annonce.user.username?.let {
                                         Column(horizontalAlignment = Alignment.End) {
-                                            Text(
-                                                text = "Publié par",
-                                                fontSize = 14.sp,
-                                                color = Color(0xFF8A8E9F),
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                            Text(
-                                                text = annonce.user.username,
-                                                fontSize = 16.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                color = Color(0xFF1B1D28)
-                                            )
+                                            Text("Publié par", fontSize = 14.sp, color = Color(0xFF8A8E9F), fontWeight = FontWeight.Medium)
+                                            Text(it, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1B1D28))
                                         }
                                     }
                                 }
-
-                                if (annonce.createdAt != null) {
+                                annonce.createdAt?.let {
                                     Divider()
-                                    Text(
-                                        text = "Créé le: ${annonce.createdAt.take(10)}",
-                                        fontSize = 12.sp,
-                                        color = Color(0xFF8A8E9F)
-                                    )
+                                    Text("Créé le: ${it.take(10)}", fontSize = 12.sp, color = Color(0xFF8A8E9F))
                                 }
                             }
                         }

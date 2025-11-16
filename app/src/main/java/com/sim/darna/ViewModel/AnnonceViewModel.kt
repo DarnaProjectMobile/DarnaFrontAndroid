@@ -57,68 +57,49 @@ class AnnonceViewModel : ViewModel() {
         }
     }
 
-    fun createAnnonce(title: String, description: String, price: Double) {
+    fun createAnnonce(
+        title: String,
+        description: String,
+        price: Double,
+        image: String,
+        type: String,
+        location: String,
+        startDate: String,
+        endDate: String
+    ) {
         viewModelScope.launch {
             try {
-                // Verify token exists before making request
-                val hasToken = com.sim.darna.api.RetrofitClient.hasToken()
-                android.util.Log.d("AnnonceViewModel", "Creating annonce: $title, Has token: $hasToken")
-                if (!hasToken) {
-                    _uiState.value = AnnonceUiState(error = "Token d'authentification manquant. Veuillez vous reconnecter.")
-                    return@launch
-                }
-                
                 _uiState.value = AnnonceUiState(isLoading = true)
-                val request = CreateAnnonceRequest(title, description, price)
-                val response = repo.createAnnonce(request)
-                android.util.Log.d("AnnonceViewModel", "Annonce created successfully")
-                loadAnnonces() // Reload list
+                val request = CreateAnnonceRequest(title, description, price, image, type, location, startDate, endDate)
+                repo.createAnnonce(request)
+                loadAnnonces()
                 _uiState.value = AnnonceUiState(success = true, message = "Annonce créée avec succès")
-            } catch (e: HttpException) {
-                val errorMessage = when (e.code()) {
-                    401 -> "Non autorisé. Veuillez vous reconnecter."
-                    404 -> "Endpoint non trouvé"
-                    500 -> "Erreur serveur"
-                    else -> "Erreur HTTP ${e.code()}: ${e.message()}"
-                }
-                android.util.Log.e("AnnonceViewModel", "HTTP Error creating annonce: ${e.code()} - ${e.message()}")
-                _uiState.value = AnnonceUiState(error = errorMessage)
             } catch (e: Exception) {
-                android.util.Log.e("AnnonceViewModel", "Error creating annonce: ${e.message}", e)
                 _uiState.value = AnnonceUiState(error = e.message ?: "Erreur lors de la création")
                 e.printStackTrace()
             }
         }
     }
 
-    fun updateAnnonce(id: String, title: String, description: String, price: Double) {
+    fun updateAnnonce(
+        id: String,
+        title: String,
+        description: String,
+        price: Double,
+        image: String,
+        type: String,
+        location: String,
+        startDate: String,
+        endDate: String
+    ) {
         viewModelScope.launch {
             try {
-                // Verify token exists before making request
-                val hasToken = com.sim.darna.api.RetrofitClient.hasToken()
-                android.util.Log.d("AnnonceViewModel", "Updating annonce with ID: $id, Has token: $hasToken")
-                if (!hasToken) {
-                    _uiState.value = AnnonceUiState(error = "Token d'authentification manquant. Veuillez vous reconnecter.")
-                    return@launch
-                }
-                
                 _uiState.value = AnnonceUiState(isLoading = true)
-                val request = UpdateAnnonceRequest(title, description, price)
-                val response = repo.updateAnnonce(id, request)
-                android.util.Log.d("AnnonceViewModel", "Annonce updated successfully")
-                loadAnnonces() // Reload list
+                val request = UpdateAnnonceRequest(title, description, price, image, type, location, startDate, endDate)
+                repo.updateAnnonce(id, request)
+                loadAnnonces()
                 _uiState.value = AnnonceUiState(success = true, message = "Annonce modifiée avec succès")
-            } catch (e: HttpException) {
-                val errorMessage = when (e.code()) {
-                    401 -> "Non autorisé. Veuillez vous reconnecter."
-                    404 -> "Annonce non trouvée (ID: $id)"
-                    500 -> "Erreur serveur"
-                    else -> "Erreur HTTP ${e.code()}: ${e.message()}"
-                }
-                android.util.Log.e("AnnonceViewModel", "HTTP Error updating annonce: ${e.code()} - ${e.message()}, ID: $id")
-                _uiState.value = AnnonceUiState(error = errorMessage)
             } catch (e: Exception) {
-                android.util.Log.e("AnnonceViewModel", "Error updating annonce: ${e.message}", e)
                 _uiState.value = AnnonceUiState(error = e.message ?: "Erreur lors de la modification")
                 e.printStackTrace()
             }
@@ -128,30 +109,11 @@ class AnnonceViewModel : ViewModel() {
     fun deleteAnnonce(id: String) {
         viewModelScope.launch {
             try {
-                // Verify token exists before making request
-                val hasToken = com.sim.darna.api.RetrofitClient.hasToken()
-                android.util.Log.d("AnnonceViewModel", "Deleting annonce with ID: $id, Has token: $hasToken")
-                if (!hasToken) {
-                    _uiState.value = AnnonceUiState(error = "Token d'authentification manquant. Veuillez vous reconnecter.")
-                    return@launch
-                }
-                
                 _uiState.value = AnnonceUiState(isLoading = true)
-                val response = repo.deleteAnnonce(id)
-                android.util.Log.d("AnnonceViewModel", "Annonce deleted successfully")
-                loadAnnonces() // Reload list
+                repo.deleteAnnonce(id)
+                loadAnnonces()
                 _uiState.value = AnnonceUiState(success = true, message = "Annonce supprimée avec succès")
-            } catch (e: HttpException) {
-                val errorMessage = when (e.code()) {
-                    401 -> "Non autorisé. Veuillez vous reconnecter."
-                    404 -> "Annonce non trouvée (ID: $id)"
-                    500 -> "Erreur serveur"
-                    else -> "Erreur HTTP ${e.code()}: ${e.message()}"
-                }
-                android.util.Log.e("AnnonceViewModel", "HTTP Error deleting annonce: ${e.code()} - ${e.message()}, ID: $id")
-                _uiState.value = AnnonceUiState(error = errorMessage)
             } catch (e: Exception) {
-                android.util.Log.e("AnnonceViewModel", "Error deleting annonce: ${e.message}", e)
                 _uiState.value = AnnonceUiState(error = e.message ?: "Erreur lors de la suppression")
                 e.printStackTrace()
             }

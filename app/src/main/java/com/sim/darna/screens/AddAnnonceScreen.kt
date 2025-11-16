@@ -16,7 +16,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.sim.darna.ViewModel.AnnonceViewModel
 
@@ -24,28 +23,43 @@ import com.sim.darna.ViewModel.AnnonceViewModel
 @Composable
 fun AddAnnonceScreen(
     navController: NavController,
-    viewModel: AnnonceViewModel = viewModel()
+    viewModel: AnnonceViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
 
+    // Fields
     var title by remember { mutableStateOf("") }
-    var titleError by remember { mutableStateOf<String?>(null) }
     var description by remember { mutableStateOf("") }
-    var descriptionError by remember { mutableStateOf<String?>(null) }
     var price by remember { mutableStateOf("") }
-    var priceError by remember { mutableStateOf<String?>(null) }
+    var image by remember { mutableStateOf("") }
+    var type by remember { mutableStateOf("") }
+    var location by remember { mutableStateOf("") }
+    var startDate by remember { mutableStateOf("") }
+    var endDate by remember { mutableStateOf("") }
 
-    // Handle success messages
+    // Error messages
+    var titleError by remember { mutableStateOf<String?>(null) }
+    var descriptionError by remember { mutableStateOf<String?>(null) }
+    var priceError by remember { mutableStateOf<String?>(null) }
+    var imageError by remember { mutableStateOf<String?>(null) }
+    var typeError by remember { mutableStateOf<String?>(null) }
+    var locationError by remember { mutableStateOf<String?>(null) }
+    var startDateError by remember { mutableStateOf<String?>(null) }
+    var endDateError by remember { mutableStateOf<String?>(null) }
+
+    // Toast for success
     LaunchedEffect(uiState.message) {
         uiState.message?.let {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
-            if (it.contains("créée")) navController.popBackStack()
+            if (it.contains("créée")) {
+                navController.popBackStack()
+            }
             viewModel.clearError()
         }
     }
 
-    // Handle errors
+    // Toast for error
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
@@ -53,6 +67,7 @@ fun AddAnnonceScreen(
         }
     }
 
+    // Validation
     fun validate(): Boolean {
         titleError = if (title.isBlank()) "Le titre est requis" else null
         descriptionError = if (description.isBlank()) "La description est requise" else null
@@ -62,7 +77,16 @@ fun AddAnnonceScreen(
             price.toDouble() <= 0 -> "Le prix doit être supérieur à 0"
             else -> null
         }
-        return titleError == null && descriptionError == null && priceError == null
+        imageError = if (image.isBlank()) "L'image est requise" else null
+        typeError = if (type.isBlank()) "Le type est requis" else null
+        locationError = if (location.isBlank()) "La localisation est requise" else null
+        startDateError = if (startDate.isBlank()) "La date de début est requise" else null
+        endDateError = if (endDate.isBlank()) "La date de fin est requise" else null
+
+        return listOf(
+            titleError, descriptionError, priceError,
+            imageError, typeError, locationError, startDateError, endDateError
+        ).all { it == null }
     }
 
     Scaffold(
@@ -86,6 +110,7 @@ fun AddAnnonceScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+
             Text(
                 text = "Créer une nouvelle annonce",
                 fontSize = 24.sp,
@@ -93,59 +118,59 @@ fun AddAnnonceScreen(
                 color = Color(0xFF1B1D28)
             )
 
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it; titleError = null },
-                label = { Text("Titre") },
-                isError = titleError != null,
-                supportingText = { titleError?.let { Text(it) } },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF4461F2),
-                    focusedLabelColor = Color(0xFF4461F2)
-                )
-            )
+            Spacer(modifier = Modifier.height(8.dp))
 
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it; descriptionError = null },
-                label = { Text("Description") },
-                isError = descriptionError != null,
-                supportingText = { descriptionError?.let { Text(it) } },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp),
-                maxLines = 6,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF4461F2),
-                    focusedLabelColor = Color(0xFF4461F2)
+            // Reusable OutlinedTextField
+            @Composable
+            fun outlinedTextField(
+                value: String,
+                onValueChange: (String) -> Unit,
+                label: String,
+                error: String? = null,
+                singleLine: Boolean = true,
+                height: Int? = null
+            ) {
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    label = { Text(label) },
+                    isError = error != null,
+                    supportingText = error?.let { { Text(it) } },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(if (height != null) Modifier.height(height.dp) else Modifier),
+                    singleLine = singleLine,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF4461F2),
+                        focusedLabelColor = Color(0xFF4461F2)
+                    )
                 )
-            )
+            }
 
-            OutlinedTextField(
-                value = price,
-                onValueChange = {
-                    if (it.all { char -> char.isDigit() || char == '.' }) {
-                        price = it
-                        priceError = null
-                    }
-                },
-                label = { Text("Prix (DT)") },
-                isError = priceError != null,
-                supportingText = { priceError?.let { Text(it) } },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF4461F2),
-                    focusedLabelColor = Color(0xFF4461F2)
-                )
-            )
+            outlinedTextField(title, { title = it; titleError = null }, "Titre", titleError)
+            outlinedTextField(description, { description = it; descriptionError = null }, "Description", descriptionError, singleLine = false, height = 150)
+            outlinedTextField(price, { if (it.all { c -> c.isDigit() || c == '.' }) price = it; priceError = null }, "Prix (DT)", priceError)
+            outlinedTextField(image, { image = it; imageError = null }, "Image URL", imageError)
+            outlinedTextField(type, { type = it; typeError = null }, "Type", typeError)
+            outlinedTextField(location, { location = it; locationError = null }, "Localisation", locationError)
+            outlinedTextField(startDate, { startDate = it; startDateError = null }, "Date de début (ISO 8601)", startDateError)
+            outlinedTextField(endDate, { endDate = it; endDateError = null }, "Date de fin (ISO 8601)", endDateError)
 
-            if (uiState.isLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (uiState.isLoading) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
 
             Button(
-                onClick = { if (validate()) viewModel.createAnnonce(title, description, price.toDouble()) },
+                onClick = {
+                    if (validate()) {
+                        viewModel.createAnnonce(
+                            title, description, price.toDouble(),
+                            image, type, location, startDate, endDate
+                        )
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
