@@ -1,6 +1,7 @@
 package com.sim.darna.screens
 
 import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -8,19 +9,27 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.sim.darna.R
 import com.sim.darna.ViewModel.AnnonceViewModel
 import com.sim.darna.navigation.Routes
 import java.net.URLEncoder
@@ -166,6 +175,9 @@ fun AnnonceCard(
     // user.id can be the user ID string or the full user object's _id
     val isOwner = annonce.user.id == userId
     val showActions = role == "collocator" && isOwner && userId.isNotEmpty()
+    val ownerName = annonce.user.username ?: "Propriétaire"
+    val place = annonce.description.ifBlank { "Lieu non renseigné" }
+    val formattedDate = annonce.createdAt?.take(10) ?: "Date non renseignée"
 
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -176,90 +188,138 @@ fun AnnonceCard(
             .padding(vertical = 4.dp)
             .clickable { onCardClick() }
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            // TITLE
-            Text(
-                text = annonce.title,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1B1D28),
-                modifier = Modifier.padding(bottom = 8.dp)
+        Column {
+            Image(
+                painter = painterResource(id = R.drawable.house),
+                contentDescription = annonce.title,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
+                contentScale = ContentScale.Crop
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // DESCRIPTION
-            Text(
-                text = annonce.description,
-                fontSize = 14.sp,
-                color = Color(0xFF8A8E9F),
-                modifier = Modifier.padding(bottom = 12.dp),
-                maxLines = 3,
-                lineHeight = 20.sp
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // PRICE
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                 Text(
-                    text = "${annonce.price} DT",
-                    fontSize = 18.sp,
+                    text = annonce.title,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF4461F2)
+                    color = Color(0xFF1B1D28),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
-                // USER USERNAME or ACTIONS
-                if (showActions) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = { onEditClick() },
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Modifier",
-                                tint = Color(0xFF4461F2),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        IconButton(
-                            onClick = { onDeleteClick() },
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Supprimer",
-                                tint = Color(0xFFE53935),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                } else {
-                    // USER USERNAME
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Par: ",
-                            fontSize = 12.sp,
-                            color = Color(0xFF8A8E9F)
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${annonce.price} DT/mois",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF6C63FF)
+                    )
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Place,
+                            contentDescription = "Lieu",
+                            tint = Color(0xFF8A8E9F),
+                            modifier = Modifier.size(16.dp)
                         )
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = annonce.user.username ?: "Utilisateur",
+                            text = place,
                             fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF1B1D28)
+                            color = Color(0xFF8A8E9F),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Propriétaire",
+                        tint = Color(0xFF6C63FF),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Propriétaire : $ownerName",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF1B1D28)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.CalendarMonth,
+                        contentDescription = "Date",
+                        tint = Color(0xFF8A8E9F),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Disponible depuis $formattedDate",
+                        fontSize = 13.sp,
+                        color = Color(0xFF8A8E9F)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AssistChip(
+                        onClick = {},
+                        label = { Text("Visite 360°") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Place,
+                                contentDescription = null
+                            )
+                        }
+                    )
+
+                    if (showActions) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = onEditClick) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Modifier",
+                                    tint = Color(0xFF4461F2),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Modifier")
+                            }
+                            OutlinedButton(
+                                onClick = onDeleteClick,
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFE53935))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Supprimer",
+                                    tint = Color(0xFFE53935),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Supprimer")
+                            }
+                        }
                     }
                 }
             }
