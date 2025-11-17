@@ -1,8 +1,11 @@
 package com.sim.darna.screens
 
+import android.app.DatePickerDialog
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -18,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -29,6 +33,7 @@ import com.sim.darna.model.RegisterRequest
 import com.sim.darna.ViewModel.RegisterViewModel
 import com.sim.darna.factory.RegisterVmFactory
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,7 +66,8 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
     var confirmPasswordError by remember { mutableStateOf<String?>(null) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
 
-    val baseUrl = "http://10.0.2.2:3000/"
+    val context = LocalContext.current
+    val baseUrl = "http://10.61.177.155:3000/"
     val viewModel: RegisterViewModel = viewModel(factory = RegisterVmFactory(baseUrl))
     val uiState = viewModel.state.collectAsState().value
     val coroutineScope = rememberCoroutineScope()
@@ -141,6 +147,29 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
         return listOf(passwordError, confirmPasswordError).all { it == null }
     }
 
+    fun openBirthDatePicker(currentValue: String?, onDateSelected: (String) -> Unit) {
+        val calendar = Calendar.getInstance()
+        currentValue?.takeIf { it.matches(Regex("^\\d{4}-\\d{2}-\\d{2}$")) }?.split("-")?.let { parts ->
+            val year = parts.getOrNull(0)?.toIntOrNull()
+            val month = parts.getOrNull(1)?.toIntOrNull()?.minus(1)
+            val day = parts.getOrNull(2)?.toIntOrNull()
+            if (year != null && month != null && day != null) {
+                calendar.set(year, month, day)
+            }
+        }
+
+        DatePickerDialog(
+            context,
+            { _, year, month, day ->
+                val selectedDate = "%04d-%02d-%02d".format(year, month + 1, day)
+                onDateSelected(selectedDate)
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).show()
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
@@ -205,7 +234,13 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
                     2 -> Step2Content(
                         birthDate = birthDate,
                         onBirthDateChange = {
-                            birthDate = it; birthDateError = validateBirthDate(it)
+                            // Text change handled via date picker
+                        },
+                        onBirthDateClick = {
+                            openBirthDatePicker(birthDate) { date ->
+                                birthDate = date
+                                birthDateError = validateBirthDate(date)
+                            }
                         },
                         birthDateError = birthDateError,
                         phoneNumber = phoneNumber,
@@ -314,11 +349,7 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
                                         role = "client",
                                         dateDeNaissance = "${birthDate}T00:00:00.000Z",
                                         numTel = phoneNumber,
-                                        gender = when (gender) {
-                                            "Homme" -> "Male"
-                                            "Femme" -> "Female"
-                                            else -> "Other"
-                                        },
+                                        gender = if (gender == "Homme") "Male" else "Female",
                                         image = null
                                     )
                                     coroutineScope.launch {
@@ -592,6 +623,7 @@ fun Step1Content(
 fun Step2Content(
     birthDate: String,
     onBirthDateChange: (String) -> Unit,
+    onBirthDateClick: () -> Unit,
     birthDateError: String?,
     phoneNumber: String,
     onPhoneNumberChange: (String) -> Unit,
@@ -604,20 +636,11 @@ fun Step2Content(
     genderError: String?
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
+        DatePickerTextField(
             value = birthDate,
-            onValueChange = onBirthDateChange,
-            label = { Text("Date de naissance") },
-            leadingIcon = { Icon(Icons.Default.DateRange, null, tint = Color(0xFF00B8D4)) },
-            placeholder = { Text("1999-05-01") },
-            isError = birthDateError != null,
-            supportingText = birthDateError?.let { { Text(it) } },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFF00B8D4),
-                unfocusedBorderColor = Color(0xFFE0E0E0)
-            )
+            label = "Date de naissance",
+            error = birthDateError,
+            onClick = onBirthDateClick
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -674,6 +697,46 @@ fun Step2Content(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DatePickerTextField(
+    value: String,
+    label: String,
+    error: String?,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            leadingIcon = { Icon(Icons.Default.DateRange, null, tint = Color(0xFF00B8D4)) },
+            placeholder = { Text("1999-05-01") },
+            isError = error != null,
+            supportingText = error?.let { { Text(it) } },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFF00B8D4),
+                unfocusedBorderColor = Color(0xFFE0E0E0)
+            ),
+            trailingIcon = {
+                Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = Color(0xFF00B8D4))
+            }
+        )
+        Spacer(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick
+                )
+        )
     }
 }
 
