@@ -2,19 +2,11 @@ package com.sim.darna.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import com.sim.darna.screens.*
-import java.net.URLDecoder
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
-/**
- * ✅ Centralized route definitions for clarity and reuse.
- */
 object Routes {
     const val Splash = "splash"
     const val Login = "login"
@@ -26,8 +18,8 @@ object Routes {
     const val Main = "main"
     const val PropertyDetail = "property_detail"
     const val ResetPassword = "reset_password"
+    const val Reviews = "reviews"
 }
-
 
 @Composable
 fun AppNavGraph(navController: NavHostController = rememberNavController()) {
@@ -37,7 +29,6 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         startDestination = Routes.Splash
     ) {
 
-        // ✅ SPLASH → LOGIN
         composable(Routes.Splash) {
             SplashScreen {
                 navController.navigate(Routes.Login) {
@@ -46,7 +37,6 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             }
         }
 
-        // ✅ LOGIN → MAIN or SIGNUP
         composable(Routes.Login) {
             LoginScreen(
                 onLoginSuccess = {
@@ -54,14 +44,10 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                         popUpTo(Routes.Login) { inclusive = true }
                     }
                 },
-                onSignUp = {
-                    navController.navigate(Routes.SignUp)
-                }
+                onSignUp = { navController.navigate(Routes.SignUp) }
             )
         }
 
-
-        // ✅ SIGNUP → ID SCAN
         composable(Routes.SignUp) {
             SignUpScreen(
                 onScanIdClick = {
@@ -72,7 +58,6 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             )
         }
 
-        // ✅ ID SCAN → SELFIE
         composable(Routes.IdScan) {
             IdScanScreen {
                 navController.navigate(Routes.Selfie) {
@@ -81,7 +66,6 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             }
         }
 
-        // ✅ SELFIE → FINGERPRINT
         composable(Routes.Selfie) {
             SelfieScreen {
                 navController.navigate(Routes.Fingerprint) {
@@ -90,7 +74,6 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             }
         }
 
-        // ✅ FINGERPRINT → MAIN
         composable(Routes.Fingerprint) {
             FingerprintScreen {
                 navController.navigate(Routes.Main) {
@@ -99,20 +82,13 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             }
         }
 
-        // ✅ MAIN APP (Bottom Navigation / Dashboard)
-        composable(Routes.Main) {
-            MainScreen()
-        }
+        // ⭐ MAIN APP (BOTTOM NAVIGATION)
+        composable(Routes.Main) { MainScreen(navController) }
 
-        composable("property_detail") { PropertyDetailScreen(navController) }
-        composable(Routes.ForgotPassword) {
-            ForgotPasswordScreen(navController)
-        }
-        composable(Routes.ResetPassword) {
-            ResetPasswordScreen(navController = navController)
-        }
-
-
+        // ⭐ FULL SCREEN PAGES
+        composable(Routes.PropertyDetail) { PropertyDetailScreen(navController) }
+        composable(Routes.Reviews) { ReviewsScreen() }
+        composable(Routes.ForgotPassword) { ForgotPasswordScreen(navController) }
+        composable(Routes.ResetPassword) { ResetPasswordScreen(navController) }
     }
 }
-

@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sim.darna.R
+import com.sim.darna.auth.TokenStorage
 import com.sim.darna.viewmodel.LoginViewModel
 import com.sim.darna.factory.LoginVmFactory
 import kotlinx.coroutines.launch
@@ -41,8 +42,8 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
     var passwordError by remember { mutableStateOf<String?>(null) }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    val baseUrl = "http://10.0.2.2:3000/"
-    val sharedPreferences = LocalContext.current.getSharedPreferences("DarnaPrefs", Context.MODE_PRIVATE)
+    val baseUrl = "http://192.168.1.195:3000/"
+    val sharedPreferences = LocalContext.current.getSharedPreferences("APP_PREFS", Context.MODE_PRIVATE)
     val viewModel: LoginViewModel = viewModel(
         factory = LoginVmFactory(
             baseUrl = baseUrl,
@@ -101,10 +102,12 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
         val response = uiState.loginResponse ?: return@LaunchedEffect
 
         val prefs = context.getSharedPreferences("APP_PREFS", Context.MODE_PRIVATE)
+
         val editor = prefs.edit()
 
         // ---- SAVE TOKEN ----
-        editor.putString("token", response.token)
+        TokenStorage.saveAuthData(context, response.token, response.user.id)
+
 
         // ---- SAVE FULL USER INFO ----
         val user = response.user

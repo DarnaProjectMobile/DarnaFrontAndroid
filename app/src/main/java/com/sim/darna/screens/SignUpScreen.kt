@@ -64,7 +64,7 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
     var confirmPasswordVisible by remember { mutableStateOf(false) }
 
     val baseUrl = "http://10.0.2.2:3000/"
-    val sharedPreferences = LocalContext.current.getSharedPreferences("DarnaPrefs", Context.MODE_PRIVATE)
+    val sharedPreferences = LocalContext.current.getSharedPreferences("APP_PREFS", Context.MODE_PRIVATE)
     val viewModel: RegisterViewModel = viewModel(
         factory = RegisterVmFactory(
             baseUrl = baseUrl,

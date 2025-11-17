@@ -1,11 +1,12 @@
 package com.sim.darna
 
-import android.annotation.SuppressLint
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.sim.darna.navigation.AppNavGraph
 import com.sim.darna.ui.theme.DarnaTheme
@@ -13,20 +14,20 @@ import com.sim.darna.ui.theme.DarnaTheme
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Android 12+ Splash Screen
+
+        // Android 12+ splash screen
         installSplashScreen()
         super.onCreate(savedInstanceState)
 
-        // Allow content to draw edge-to-edge (behind system bars)
+        // Enable edge-to-edge content
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        // Hide system bars for immersive fullscreen experience
+        // Enable fullscreen (status + navigation bars hidden)
         hideSystemBars()
 
-        // Launch the full app navigation
         setContent {
             DarnaTheme {
-                AppNavGraph() // ⬅️ Handles Splash → Login/Signup → MainScreen
+                AppNavGraph()
             }
         }
     }
@@ -36,10 +37,13 @@ class MainActivity : ComponentActivity() {
         hideSystemBars()
     }
 
-    @SuppressLint("WrongConstant", "NewApi")
+    /** Hide system bars safely on all Android versions */
     private fun hideSystemBars() {
         val controller = WindowInsetsControllerCompat(window, window.decorView)
-        controller.hide(android.view.WindowInsets.Type.statusBars() or android.view.WindowInsets.Type.navigationBars())
+        controller.hide(
+            WindowInsetsCompat.Type.statusBars() or
+                    WindowInsetsCompat.Type.navigationBars()
+        )
         controller.systemBarsBehavior =
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     }
