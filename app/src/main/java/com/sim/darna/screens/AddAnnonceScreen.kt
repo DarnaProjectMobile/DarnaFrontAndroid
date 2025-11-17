@@ -1,13 +1,28 @@
 package com.sim.darna.screens
 
+import android.app.DatePickerDialog
 import android.widget.Toast
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.sim.darna.ViewModel.AnnonceViewModel
+import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,6 +63,30 @@ fun AddAnnonceScreen(
     var locationError by remember { mutableStateOf<String?>(null) }
     var startDateError by remember { mutableStateOf<String?>(null) }
     var endDateError by remember { mutableStateOf<String?>(null) }
+
+    fun openDatePicker(currentValue: String?, onDateSelected: (String) -> Unit) {
+        val calendar = Calendar.getInstance()
+        currentValue?.takeIf { it.isNotBlank() }?.split("-")?.let { parts ->
+            if (parts.size == 3) {
+                parts[0].toIntOrNull()?.let { year ->
+                    val month = parts[1].toIntOrNull()?.minus(1) ?: calendar.get(Calendar.MONTH)
+                    val day = parts[2].toIntOrNull() ?: calendar.get(Calendar.DAY_OF_MONTH)
+                    calendar.set(year, month, day)
+                }
+            }
+        }
+
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                val date = "%04d-%02d-%02d".format(year, month + 1, dayOfMonth)
+                onDateSelected(date)
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).show()
+    }
 
     // Toast for success
     LaunchedEffect(uiState.message) {
@@ -153,8 +193,30 @@ fun AddAnnonceScreen(
             outlinedTextField(image, { image = it; imageError = null }, "Image URL", imageError)
             outlinedTextField(type, { type = it; typeError = null }, "Type", typeError)
             outlinedTextField(location, { location = it; locationError = null }, "Localisation", locationError)
-            outlinedTextField(startDate, { startDate = it; startDateError = null }, "Date de début (ISO 8601)", startDateError)
-            outlinedTextField(endDate, { endDate = it; endDateError = null }, "Date de fin (ISO 8601)", endDateError)
+
+            DatePickerField(
+                label = "Date de début",
+                value = startDate,
+                error = startDateError,
+                onClick = {
+                    openDatePicker(startDate) {
+                        startDate = it
+                        startDateError = null
+                    }
+                }
+            )
+
+            DatePickerField(
+                label = "Date de fin",
+                value = endDate,
+                error = endDateError,
+                onClick = {
+                    openDatePicker(endDate) {
+                        endDate = it
+                        endDateError = null
+                    }
+                }
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -186,5 +248,45 @@ fun AddAnnonceScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun DatePickerField(
+    label: String,
+    value: String,
+    error: String?,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            isError = error != null,
+            supportingText = error?.let { { Text(it) } },
+            trailingIcon = {
+                Icon(
+                    imageVector = Icons.Default.CalendarMonth,
+                    contentDescription = "Choisir une date"
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFF4461F2),
+                focusedLabelColor = Color(0xFF4461F2)
+            )
+        )
+        Spacer(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick
+                )
+        )
     }
 }

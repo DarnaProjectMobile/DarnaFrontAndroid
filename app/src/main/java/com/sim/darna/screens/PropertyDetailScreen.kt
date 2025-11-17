@@ -41,14 +41,17 @@ fun PropertyDetailScreen(
     var startDate by remember { mutableStateOf("") }
     var endDate by remember { mutableStateOf("") }
 
-    LaunchedEffect(annonceId) {
-        val decodedId = try {
+    val resolvedAnnonceId = remember(annonceId) {
+        try {
             java.net.URLDecoder.decode(annonceId, "UTF-8")
         } catch (e: Exception) {
             annonceId
         }
-        if (decodedId.isNotEmpty()) {
-            viewModel.getAnnonceById(decodedId)
+    }
+
+    LaunchedEffect(resolvedAnnonceId) {
+        if (resolvedAnnonceId.isNotEmpty()) {
+            viewModel.getAnnonceById(resolvedAnnonceId)
         }
     }
 
@@ -205,7 +208,11 @@ fun PropertyDetailScreen(
                         Button(
                             onClick = {
                                 val priceValue = price.toDoubleOrNull() ?: 0.0
-                                val idToUse = selectedAnnonce?.id ?: annonceId
+                                val idToUse = selectedAnnonce?.id ?: resolvedAnnonceId
+                                if (idToUse.isBlank()) {
+                                    Toast.makeText(context, "ID d'annonce invalide", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
                                 viewModel.updateAnnonce(
                                     idToUse, title, description, priceValue,
                                     image, type, location, startDate, endDate
