@@ -4,6 +4,7 @@ import com.sim.darna.auth.ReviewApi
 import com.sim.darna.model.Review
 import android.content.Context
 import com.sim.darna.model.ReviewRequest
+import com.sim.darna.model.UpdateReviewRequest
 
 class ReviewRepository(
     private val api: ReviewApi,
@@ -39,14 +40,17 @@ class ReviewRepository(
     // UPDATE REVIEW
     // -------------------------
     suspend fun updateReview(id: String, rating: Int, comment: String): Review? {
-        val body = mapOf(
-            "rating" to rating,
-            "comment" to comment
-        )
+        return try {
+            val body = UpdateReviewRequest(rating, comment)
 
-        val res = api.updateReview(id, body)
-        return if (res.isSuccessful) res.body() else null
+            val res = api.updateReview(id, body)
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
+
 
     // -------------------------
     // DELETE REVIEW

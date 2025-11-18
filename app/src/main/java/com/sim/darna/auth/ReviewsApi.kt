@@ -2,6 +2,7 @@ package com.sim.darna.auth
 
 import com.sim.darna.model.Review
 import com.sim.darna.model.ReviewRequest
+import com.sim.darna.model.UpdateReviewRequest
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -17,8 +18,9 @@ interface ReviewApi {
     @PUT("reviews/{id}")
     suspend fun updateReview(
         @Path("id") id: String,
-        @Body body: Map<String, Any>
+        @Body body: UpdateReviewRequest
     ): Response<Review>
+
 
     @DELETE("reviews/{id}")
     suspend fun deleteReview(@Path("id") id: String): Response<Unit>
