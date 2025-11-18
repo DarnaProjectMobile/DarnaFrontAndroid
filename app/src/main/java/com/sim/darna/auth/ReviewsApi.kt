@@ -1,6 +1,7 @@
 package com.sim.darna.auth
 
 import com.sim.darna.model.Review
+import com.sim.darna.model.ReviewRequest
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -10,7 +11,8 @@ interface ReviewApi {
     suspend fun getReviews(): Response<List<Review>>
 
     @POST("reviews")
-    suspend fun createReview(@Body body: Map<String, Any>): Response<Review>
+    suspend fun createReview(@Body body: ReviewRequest): Response<Review>
+
 
     @PUT("reviews/{id}")
     suspend fun updateReview(

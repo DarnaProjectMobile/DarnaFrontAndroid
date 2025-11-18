@@ -4,12 +4,11 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sim.darna.auth.RetrofitClient
-import com.sim.darna.repository.ReviewRepository
 import com.sim.darna.model.Review
+import com.sim.darna.repository.ReviewRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-
 
 class ReviewViewModel : ViewModel() {
 
@@ -18,41 +17,80 @@ class ReviewViewModel : ViewModel() {
     private val _reviews = MutableStateFlow<List<Review>>(emptyList())
     val reviews: StateFlow<List<Review>> = _reviews
 
+    // ------------------------------------------------------
+    // INIT: MUST be called before any repo usage
+    // ------------------------------------------------------
     fun init(context: Context) {
         if (repo == null) {
-            val api = RetrofitClient.reviewApi(context) // ✅ correct function
-            repo = ReviewRepository(api, context)
+            val api = RetrofitClient.reviewApi(context)
+            repo = ReviewRepository(api)
         }
     }
 
-    private fun checkRepo(): ReviewRepository {
-        return repo ?: throw IllegalStateException("ReviewViewModel: init(context) was not called!")
+    // Helper to avoid null repository
+    private fun getRepo(): ReviewRepository {
+        return repo ?: throw IllegalStateException(
+            "ReviewViewModel.init(context) was NOT called!"
+        )
     }
 
+    // ------------------------------------------------------
+    // LOAD ALL REVIEWS
+    // ------------------------------------------------------
     fun loadReviews() {
         viewModelScope.launch {
-            _reviews.value = checkRepo().getReviews()
+            try {
+                _reviews.value = getRepo().getReviews()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
+    // ------------------------------------------------------
+    // ADD REVIEW
+    // ------------------------------------------------------
     fun addReview(rating: Int, comment: String) {
         viewModelScope.launch {
-            val newReview = checkRepo().createReview(rating, comment)
-            if (newReview != null) loadReviews()
+            try {
+                val created = getRepo().createReview(rating, comment)
+                if (created != null) {
+                    _reviews.value = _reviews.value + created
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
+    // ------------------------------------------------------
+    // UPDATE REVIEW
+    // ------------------------------------------------------
     fun updateReview(id: String, rating: Int, comment: String) {
         viewModelScope.launch {
-            val updated = checkRepo().updateReview(id, rating, comment)
-            if (updated != null) loadReviews()
+            try {
+                val updated = getRepo().updateReview(id, rating, comment)
+                if (updated != null) {
+                    loadReviews()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
+    // ------------------------------------------------------
+    // DELETE REVIEW
+    // ------------------------------------------------------
     fun deleteReview(id: String) {
         viewModelScope.launch {
-            if (checkRepo().deleteReview(id)) loadReviews()
+            try {
+                if (getRepo().deleteReview(id)) {
+                    loadReviews()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 }
-
