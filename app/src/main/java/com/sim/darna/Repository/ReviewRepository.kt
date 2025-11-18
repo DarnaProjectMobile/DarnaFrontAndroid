@@ -3,10 +3,10 @@ package com.sim.darna.repository
 import com.sim.darna.auth.ReviewApi
 import com.sim.darna.model.Review
 import android.content.Context
+import com.sim.darna.model.ReviewRequest
 
 class ReviewRepository(
     private val api: ReviewApi,
-    private val context: Context
 ) {
 
     // -------------------------
@@ -25,14 +25,15 @@ class ReviewRepository(
     // CREATE REVIEW (NO USER ID SENT)
     // -------------------------
     suspend fun createReview(rating: Int, comment: String): Review? {
-        val body = mapOf(
-            "rating" to rating,
-            "comment" to comment
-        )
-
-        val res = api.createReview(body)
-        return if (res.isSuccessful) res.body() else null
+        return try {
+            val res = api.createReview(ReviewRequest(rating, comment))
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
+
 
     // -------------------------
     // UPDATE REVIEW
