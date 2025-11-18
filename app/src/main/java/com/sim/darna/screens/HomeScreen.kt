@@ -17,6 +17,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.sim.darna.navigation.Routes
 
@@ -32,7 +33,7 @@ sealed class BottomNavItem(
 }
 
 @Composable
-fun MainScreen(parentNavController: NavController) {
+fun MainScreen(parentNavController: NavHostController){
 
     val bottomNavController = rememberNavController()
 
@@ -47,14 +48,17 @@ fun MainScreen(parentNavController: NavController) {
             modifier = Modifier.padding(padding)
         ) {
             composable(BottomNavItem.Home.route) {
-                HomeScreen(parentNavController)   // ⭐ uses parent nav!
+                HomeScreen(parentNavController)   // ⭐ forward parent nav
             }
             composable(BottomNavItem.Calendar.route) { CalendarScreen() }
             composable(BottomNavItem.Reserve.route) { ReserveScreen() }
-            composable(BottomNavItem.Profile.route) { ProfileScreen() }
+            composable(BottomNavItem.Profile.route) {
+                ProfileScreen(parentNavController) // ⭐ FIXED
+            }
         }
     }
 }
+
 
 
 @Composable

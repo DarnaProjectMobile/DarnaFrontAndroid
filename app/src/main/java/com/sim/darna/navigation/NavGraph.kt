@@ -81,6 +81,11 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                 }
             }
         }
+        composable("feedback") {
+            FeedbackScreen(onNavigateBack = { navController.popBackStack() })
+        }
+
+
 
         // ⭐ MAIN APP (BOTTOM NAVIGATION)
         composable(Routes.Main) { MainScreen(navController) }
