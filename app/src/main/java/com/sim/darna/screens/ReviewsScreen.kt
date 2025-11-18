@@ -22,13 +22,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.activity.compose.BackHandler
 import com.sim.darna.model.Review
 import com.sim.darna.viewmodel.ReviewViewModel
 
 @Composable
-fun ReviewsScreen() {
+fun ReviewsScreen(
+    onNavigateBack: () -> Unit = {}
+) {
 
     val context = LocalContext.current
+
+    // Handle back button press
+    BackHandler { onNavigateBack() }
     val vm: ReviewViewModel = viewModel()
     val reviews by vm.reviews.collectAsState()
 
@@ -54,7 +60,7 @@ fun ReviewsScreen() {
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
 
-            // Header with gradient
+            // Header with gradient and back button
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shadowElevation = 4.dp,
@@ -71,21 +77,41 @@ fun ReviewsScreen() {
                                 )
                             )
                         )
-                        .padding(horizontal = 20.dp, vertical = 24.dp)
+                        .padding(horizontal = 20.dp, vertical = 16.dp)
                 ) {
-                    Column {
-                        Text(
-                            text = "Reviews & Ratings",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = "${reviews.size} reviews",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.9f)
-                        )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Back Button
+                        IconButton(
+                            onClick = onNavigateBack,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Text(
+                                text = "←",
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(Modifier.width(8.dp))
+
+                        Column {
+                            Text(
+                                text = "Reviews & Ratings",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = "${reviews.size} reviews",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.White.copy(alpha = 0.9f)
+                            )
+                        }
                     }
                 }
             }
@@ -311,7 +337,6 @@ fun ReviewItem(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top
             ) {
-                // Avatar
                 // Extract username safely
                 val username = review.user?.username ?: "Unknown"
 

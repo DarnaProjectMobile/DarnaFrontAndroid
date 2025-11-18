@@ -2,12 +2,13 @@ package com.sim.darna.model
 
 
 data class Review(
-    val _id: String,
+    val _id: String,        // <- required, not null
     val rating: Int,
     val comment: String,
-    val user: User?,
-    val createdAt: String
+    val user: User?
 )
+
+
 
 data class User(
     val _id: String,
