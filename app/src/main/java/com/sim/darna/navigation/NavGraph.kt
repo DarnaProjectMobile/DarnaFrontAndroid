@@ -8,7 +8,6 @@ import androidx.navigation.compose.rememberNavController
 import com.sim.darna.screens.*
 
 object Routes {
-    const val Splash = "splash"
     const val Login = "login"
     const val SignUp = "signup"
     const val ForgotPassword = "forgot_password"
@@ -26,16 +25,9 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
 
     NavHost(
         navController = navController,
-        startDestination = Routes.Splash
+        startDestination = Routes.Login
     ) {
 
-        composable(Routes.Splash) {
-            SplashScreen {
-                navController.navigate(Routes.Login) {
-                    popUpTo(Routes.Splash) { inclusive = true }
-                }
-            }
-        }
 
         composable(Routes.Login) {
             LoginScreen(

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -30,11 +31,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sim.darna.model.RegisterRequest
 import com.sim.darna.viewmodel.RegisterViewModel
 import com.sim.darna.factory.RegisterVmFactory
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
+    val isDark = isSystemInDarkTheme()
+
     var currentStep by remember { mutableStateOf(1) }
 
     // Step 1 Fields
@@ -63,7 +67,7 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
     var confirmPasswordError by remember { mutableStateOf<String?>(null) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
 
-    val baseUrl = "http://10.0.2.2:3000/"
+    val baseUrl = "http://192.168.1.195:3000/"
     val sharedPreferences = LocalContext.current.getSharedPreferences("APP_PREFS", Context.MODE_PRIVATE)
     val viewModel: RegisterViewModel = viewModel(
         factory = RegisterVmFactory(
@@ -74,6 +78,15 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
     val uiState = viewModel.state.collectAsState().value
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Animation states
+    var visible by remember { mutableStateOf(false) }
+    var buttonScale by remember { mutableStateOf(1f) }
+
+    LaunchedEffect(Unit) {
+        delay(100)
+        visible = true
+    }
 
     LaunchedEffect(uiState.success) {
         if (uiState.success) {
@@ -149,274 +162,360 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
         return listOf(passwordError, confirmPasswordError).all { it == null }
     }
 
+    // Gradient colors matching login
+    val gradientColors = if (isDark) {
+        listOf(
+            Color(0xFF1A237E),
+            Color(0xFF0D47A1),
+            Color(0xFF01579B)
+        )
+    } else {
+        listOf(
+            Color(0xFF667EEA),
+            Color(0xFF764BA2),
+            Color(0xFF5E72E4)
+        )
+    }
+
+    val textColor = Color.White
+    val inputBgColor = if (isDark) Color.White.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.25f)
+    val inputTextColor = Color.White
+
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = Color.Transparent
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color(0xFFF5F9FF), Color.White)
-                    )
-                )
+                .background(brush = Brush.verticalGradient(colors = gradientColors))
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(24.dp)
+                    .padding(horizontal = 32.dp)
                     .padding(padding),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(40.dp))
 
-                // Step Progress Indicator
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
+                // Animated Header with Icon
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = fadeIn(animationSpec = tween(800)) + scaleIn(
+                        initialScale = 0.8f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    )
                 ) {
-                    StepProgressIndicator(currentStep = currentStep)
-                }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // Animated Header
-                AnimatedHeader(currentStep = currentStep)
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // Step Content with Animation
-                AnimatedContent(
-                    targetState = currentStep,
-                    transitionSpec = {
-                        if (targetState > initialState) {
-                            slideInHorizontally { width -> width } + fadeIn() togetherWith
-                                    slideOutHorizontally { width -> -width } + fadeOut()
-                        } else {
-                            slideInHorizontally { width -> -width } + fadeIn() togetherWith
-                                    slideOutHorizontally { width -> width } + fadeOut()
-                        }.using(SizeTransform(clip = false))
-                    },
-                    label = "step_content"
-                ) { step ->
-                    when (step) {
-                        1 -> Step1Content(
-                            username = username,
-                            onUsernameChange = { username = it; usernameError = validateUsername(it) },
-                            usernameError = usernameError,
-                            fullName = fullName,
-                            onFullNameChange = { fullName = it; fullNameError = validateFullName(it) },
-                            fullNameError = fullNameError
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.PersonAdd,
+                            contentDescription = "Sign Up",
+                            modifier = Modifier.size(64.dp),
+                            tint = textColor
                         )
 
-                        2 -> Step2Content(
-                            email = email,
-                            onEmailChange = { email = it; emailError = validateEmail(it) },
-                            emailError = emailError,
-                            birthDate = birthDate,
-                            onBirthDateChange = {
-                                birthDate = it; birthDateError = validateBirthDate(it)
-                            },
-                            birthDateError = birthDateError,
-                            phoneNumber = phoneNumber,
-                            onPhoneNumberChange = {
-                                if (it.isEmpty() || it.matches(Regex("^[+]?[0-9]*$"))) {
-                                    phoneNumber = it
-                                    phoneNumberError = validatePhoneNumber(it)
-                                }
-                            },
-                            phoneNumberError = phoneNumberError,
-                            gender = gender,
-                            genderExpanded = genderExpanded,
-                            onGenderExpandedChange = { genderExpanded = it },
-                            genderOptions = genderOptions,
-                            onGenderSelect = {
-                                gender = it
-                                genderError = validateGender(it)
-                                genderExpanded = false
-                            },
-                            genderError = genderError
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            text = "CRÉER UN COMPTE",
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor,
+                            letterSpacing = 2.sp
                         )
 
-                        3 -> Step3Content(
-                            password = password,
-                            onPasswordChange = {
-                                password = it
-                                passwordError = validatePassword(it)
-                                confirmPasswordError = validateConfirmPassword(it, confirmPassword)
-                            },
-                            passwordError = passwordError,
-                            passwordVisible = passwordVisible,
-                            onPasswordVisibilityChange = { passwordVisible = !passwordVisible },
-                            confirmPassword = confirmPassword,
-                            onConfirmPasswordChange = {
-                                confirmPassword = it
-                                confirmPasswordError = validateConfirmPassword(password, it)
-                            },
-                            confirmPasswordError = confirmPasswordError,
-                            confirmPasswordVisible = confirmPasswordVisible,
-                            onConfirmPasswordVisibilityChange = {
-                                confirmPasswordVisible = !confirmPasswordVisible
-                            }
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "Étape $currentStep sur 3",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Light,
+                            color = textColor.copy(alpha = 0.85f),
+                            letterSpacing = 1.sp
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                if (uiState.isLoading) {
-                    LinearProgressIndicator(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = Color(0xFF00B8D4)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
+                // Step Progress Indicator
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = fadeIn(animationSpec = tween(600, delayMillis = 200))
+                ) {
+                    ModernStepProgressIndicator(currentStep = currentStep, textColor = textColor)
                 }
 
-                uiState.error?.let {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFFFFEBEE),
-                        modifier = Modifier.fillMaxWidth()
+                Spacer(modifier = Modifier.height(40.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),                   // <-- THIS makes the step area fill full screen
+                    contentAlignment = Alignment.TopCenter
+                ) {
+                    AnimatedContent(
+                        targetState = currentStep,
+                        transitionSpec = {
+                            if (targetState > initialState) {
+                                slideInHorizontally { width -> width } + fadeIn() togetherWith
+                                        slideOutHorizontally { width -> -width } + fadeOut()
+                            } else {
+                                slideInHorizontally { width -> -width } + fadeIn() togetherWith
+                                        slideOutHorizontally { width -> width } + fadeOut()
+                            }.using(SizeTransform(clip = false))
+                        },
+                        modifier = Modifier.fillMaxSize(),   // <-- Forces animation content to expand inside the box
+                        label = "step_content"
+                    ) { step ->
+
+                        when (step) {
+                            1 -> ModernStep1Content(
+                                username = username,
+                                onUsernameChange = { username = it; usernameError = validateUsername(it) },
+                                usernameError = usernameError,
+                                fullName = fullName,
+                                onFullNameChange = { fullName = it; fullNameError = validateFullName(it) },
+                                fullNameError = fullNameError,
+                                inputBgColor = inputBgColor,
+                                inputTextColor = inputTextColor,
+                                isDark = isDark,
+                                modifier = Modifier.fillMaxSize()        // <-- VERY IMPORTANT
+                            )
+
+                            2 -> ModernStep2Content(
+                                email = email,
+                                onEmailChange = { email = it; emailError = validateEmail(it) },
+                                emailError = emailError,
+                                birthDate = birthDate,
+                                onBirthDateChange = {
+                                    birthDate = it; birthDateError = validateBirthDate(it)
+                                },
+                                birthDateError = birthDateError,
+                                phoneNumber = phoneNumber,
+                                onPhoneNumberChange = {
+                                    if (it.isEmpty() || it.matches(Regex("^[+]?[0-9]*$"))) {
+                                        phoneNumber = it
+                                        phoneNumberError = validatePhoneNumber(it)
+                                    }
+                                },
+                                phoneNumberError = phoneNumberError,
+                                gender = gender,
+                                genderExpanded = genderExpanded,
+                                onGenderExpandedChange = { genderExpanded = it },
+                                genderOptions = genderOptions,
+                                onGenderSelect = {
+                                    gender = it
+                                    genderError = validateGender(it)
+                                    genderExpanded = false
+                                },
+                                genderError = genderError,
+                                inputBgColor = inputBgColor,
+                                inputTextColor = inputTextColor,
+                                isDark = isDark,
+                                modifier = Modifier.fillMaxSize()
+                            )
+
+                            3 -> ModernStep3Content(
+                                password = password,
+                                onPasswordChange = {
+                                    password = it
+                                    passwordError = validatePassword(it)
+                                    confirmPasswordError = validateConfirmPassword(it, confirmPassword)
+                                },
+                                passwordError = passwordError,
+                                passwordVisible = passwordVisible,
+                                onPasswordVisibilityChange = { passwordVisible = !passwordVisible },
+                                confirmPassword = confirmPassword,
+                                onConfirmPasswordChange = {
+                                    confirmPassword = it
+                                    confirmPasswordError = validateConfirmPassword(password, it)
+                                },
+                                confirmPasswordError = confirmPasswordError,
+                                confirmPasswordVisible = confirmPasswordVisible,
+                                onConfirmPasswordVisibilityChange = {
+                                    confirmPasswordVisible = !confirmPasswordVisible
+                                },
+                                inputBgColor = inputBgColor,
+                                inputTextColor = inputTextColor,
+                                isDark = isDark,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Error Display
+                if (uiState.error != null) {
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn() + expandVertically()
                     ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFFFCDD2).copy(alpha = 0.3f),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(
-                                Icons.Default.Error,
-                                contentDescription = null,
-                                tint = Color(0xFFD32F2F),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = it,
-                                color = Color(0xFFD32F2F),
-                                fontSize = 14.sp
-                            )
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Error,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFFCDD2),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = uiState.error!!,
+                                    color = textColor,
+                                    fontSize = 14.sp
+                                )
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
                 // Navigation Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = fadeIn(animationSpec = tween(600, delayMillis = 400))
                 ) {
-                    if (currentStep > 1) {
-                        OutlinedButton(
-                            onClick = { currentStep-- },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(56.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = Color(0xFF00B8D4)
-                            )
-                        ) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Retour", fontWeight = FontWeight.SemiBold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        if (currentStep > 1) {
+                            OutlinedButton(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        buttonScale = 0.95f
+                                        delay(100)
+                                        buttonScale = 1f
+                                        currentStep--
+                                    }
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(56.dp)
+                                    .scale(buttonScale),
+                                shape = RoundedCornerShape(28.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = Color.White
+                                ),
+                                border = ButtonDefaults.outlinedButtonBorder.copy(
+                                    width = 2.dp,
+                                    brush = androidx.compose.ui.graphics.SolidColor(Color.White.copy(alpha = 0.5f))
+                                )
+                            ) {
+                                Icon(Icons.Default.ArrowBack, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("RETOUR", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                            }
                         }
-                    }
 
-                    Button(
-                        onClick = {
-                            when (currentStep) {
-                                1 -> if (validateStep1()) currentStep++
-                                2 -> if (validateStep2()) currentStep++
-                                3 -> {
-                                    if (validateStep3()) {
-                                        val request = RegisterRequest(
-                                            username = username,
-                                            email = email,
-                                            password = password,
-                                            role = "client",
-                                            dateDeNaissance = "${birthDate}T00:00:00.000Z",
-                                            numTel = phoneNumber,
-                                            gender = when (gender) {
-                                                "Homme" -> "Male"
-                                                "Femme" -> "Female"
-                                                else -> "Other"
-                                            },
-                                            image = null
-                                        )
-                                        coroutineScope.launch {
-                                            viewModel.register(request)
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    buttonScale = 0.95f
+                                    delay(100)
+                                    buttonScale = 1f
+
+                                    when (currentStep) {
+                                        1 -> if (validateStep1()) currentStep++
+                                        2 -> if (validateStep2()) currentStep++
+                                        3 -> {
+                                            if (validateStep3()) {
+                                                val request = RegisterRequest(
+                                                    username = username,
+                                                    email = email,
+                                                    password = password,
+                                                    role = "client",
+                                                    dateDeNaissance = "${birthDate}T00:00:00.000Z",
+                                                    numTel = phoneNumber,
+                                                    gender = when (gender) {
+                                                        "Homme" -> "Male"
+                                                        "Femme" -> "Female"
+                                                        else -> "Other"
+                                                    },
+                                                    image = null
+                                                )
+                                                viewModel.register(request)
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        },
-                        enabled = !uiState.success,
-                        modifier = Modifier
-                            .weight(if (currentStep > 1) 1f else 1f)
-                            .height(56.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Transparent,
-                            disabledContainerColor = Color.Gray.copy(alpha = 0.4f)
-                        ),
-                        contentPadding = PaddingValues()
-                    ) {
-                        Box(
+                            },
+                            enabled = !uiState.success && !uiState.isLoading,
                             modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    brush = Brush.horizontalGradient(
-                                        colors = if (uiState.success)
-                                            listOf(Color.Gray, Color.LightGray)
-                                        else
-                                            listOf(Color(0xFF00B8D4), Color(0xFF00E5FF))
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
+                                .weight(if (currentStep > 1) 1f else 1f)
+                                .height(56.dp)
+                                .scale(buttonScale),
+                            shape = RoundedCornerShape(28.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White,
+                                disabledContainerColor = Color.White.copy(alpha = 0.6f)
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 8.dp,
+                                pressedElevation = 12.dp
+                            )
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Text(
-                                    text = when (currentStep) {
-                                        3 -> if (uiState.success) "Terminé ✨" else "Créer mon compte"
-                                        else -> "Continuer"
-                                    },
-                                    color = Color.White,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
+                            if (uiState.isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = if (isDark) Color(0xFF1A237E) else Color(0xFF667EEA),
+                                    strokeWidth = 3.dp
                                 )
-                                if (currentStep < 3 && !uiState.success) {
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(
-                                        Icons.Default.ArrowForward,
-                                        contentDescription = null,
-                                        tint = Color.White
+                            } else {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = when (currentStep) {
+                                            3 -> if (uiState.success) "TERMINÉ ✨" else "CRÉER"
+                                            else -> "CONTINUER"
+                                        },
+                                        color = if (isDark) Color(0xFF1A237E) else Color(0xFF667EEA),
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 1.5.sp
                                     )
+                                    if (currentStep < 3 && !uiState.success) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Icon(
+                                            Icons.Default.ArrowForward,
+                                            contentDescription = null,
+                                            tint = if (isDark) Color(0xFF1A237E) else Color(0xFF667EEA)
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Étape $currentStep sur 3",
-                    fontSize = 12.sp,
-                    color = Color(0xFF9E9E9E),
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }
 }
 
 @Composable
-fun StepProgressIndicator(currentStep: Int) {
+fun ModernStepProgressIndicator(currentStep: Int, textColor: Color) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -425,7 +524,7 @@ fun StepProgressIndicator(currentStep: Int) {
         for (step in 1..3) {
             val isActive = step <= currentStep
             val scale by animateFloatAsState(
-                targetValue = if (isActive) 1f else 0.8f,
+                targetValue = if (isActive) 1f else 0.85f,
                 animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
                 label = "scale"
             )
@@ -436,18 +535,14 @@ fun StepProgressIndicator(currentStep: Int) {
             ) {
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(40.dp)
                         .scale(scale)
                         .clip(CircleShape)
                         .background(
                             if (isActive)
-                                Brush.linearGradient(
-                                    colors = listOf(Color(0xFF00B8D4), Color(0xFF00E5FF))
-                                )
+                                Color.White
                             else
-                                Brush.linearGradient(
-                                    colors = listOf(Color(0xFFE0E0E0), Color(0xFFE0E0E0))
-                                )
+                                Color.White.copy(alpha = 0.3f)
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -455,15 +550,15 @@ fun StepProgressIndicator(currentStep: Int) {
                         Icon(
                             Icons.Default.Check,
                             contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
+                            tint = Color(0xFF667EEA),
+                            modifier = Modifier.size(20.dp)
                         )
                     } else {
                         Text(
                             text = "$step",
-                            color = if (isActive) Color.White else Color(0xFF9E9E9E),
+                            color = if (isActive) Color(0xFF667EEA) else textColor.copy(alpha = 0.5f),
                             fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
+                            fontSize = 16.sp
                         )
                     }
                 }
@@ -472,9 +567,9 @@ fun StepProgressIndicator(currentStep: Int) {
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(3.dp)
+                            .height(2.dp)
                             .background(
-                                if (step < currentStep) Color(0xFF00B8D4) else Color(0xFFE0E0E0)
+                                if (step < currentStep) Color.White else Color.White.copy(alpha = 0.3f)
                             )
                     )
                 }
@@ -484,127 +579,116 @@ fun StepProgressIndicator(currentStep: Int) {
 }
 
 @Composable
-fun AnimatedHeader(currentStep: Int) {
-    val (icon, title, subtitle) = when (currentStep) {
-        1 -> Triple(
-            Icons.Default.Person,
-            "Identité",
-            "Nom d'utilisateur et nom complet"
-        )
-        2 -> Triple(
-            Icons.Default.ContactPage,
-            "Coordonnées",
-            "Email, téléphone et informations personnelles"
-        )
-        3 -> Triple(
-            Icons.Default.Lock,
-            "Sécurité",
-            "Protégez votre compte avec un mot de passe"
-        )
-        else -> Triple(Icons.Default.Person, "", "")
-    }
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Box(
-            modifier = Modifier
-                .size(80.dp)
-                .clip(CircleShape)
-                .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(Color(0xFFE3F2FD), Color(0xFFB3E5FC))
-                    )
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = Color(0xFF00B8D4),
-                modifier = Modifier.size(40.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = title,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF1A1A1A)
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = subtitle,
-            fontSize = 15.sp,
-            color = Color(0xFF757575),
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-    }
-}
-
-@Composable
-fun Step1Content(
+fun ModernStep1Content(
+    modifier: Modifier = Modifier,
     username: String,
     onUsernameChange: (String) -> Unit,
     usernameError: String?,
     fullName: String,
     onFullNameChange: (String) -> Unit,
-    fullNameError: String?
+    fullNameError: String?,
+    inputBgColor: Color,
+    inputTextColor: Color,
+    isDark: Boolean
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
-        ) {
-            OutlinedTextField(
-                value = username,
-                onValueChange = onUsernameChange,
-                label = { Text("Nom d'utilisateur") },
-                leadingIcon = { Icon(Icons.Default.PersonOutline, null, tint = Color(0xFF00B8D4)) },
-                isError = usernameError != null,
-                supportingText = usernameError?.let { { Text(it, color = Color(0xFFEF5350)) } },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF00B8D4),
-                    unfocusedBorderColor = Color(0xFFE0E0E0),
-                    focusedLabelColor = Color(0xFF00B8D4),
-                    cursorColor = Color(0xFF00B8D4)
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        Text(
+            text = "NOM D'UTILISATEUR",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White.copy(alpha = 0.7f),
+            letterSpacing = 1.5.sp,
+            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+        )
+
+        TextField(
+            value = username,
+            onValueChange = onUsernameChange,
+            placeholder = { Text("Choisissez un nom d'utilisateur", color = inputTextColor.copy(alpha = 0.5f)) },
+            leadingIcon = {
+                Icon(
+                    Icons.Default.PersonOutline,
+                    contentDescription = null,
+                    tint = inputTextColor.copy(alpha = 0.7f)
                 )
+            },
+            isError = usernameError != null,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = inputBgColor,
+                unfocusedContainerColor = inputBgColor,
+                focusedTextColor = inputTextColor,
+                unfocusedTextColor = inputTextColor,
+                cursorColor = inputTextColor,
+                focusedIndicatorColor = Color.White,
+                unfocusedIndicatorColor = Color.White.copy(alpha = 0.5f),
+                errorContainerColor = inputBgColor,
+                errorIndicatorColor = Color(0xFFFFCDD2),
+                errorTextColor = inputTextColor
+            ),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        if (usernameError != null) {
+            Text(
+                text = usernameError,
+                color = Color(0xFFFFCDD2),
+                fontSize = 12.sp,
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
-        ) {
-            OutlinedTextField(
-                value = fullName,
-                onValueChange = onFullNameChange,
-                label = { Text("Nom complet") },
-                leadingIcon = { Icon(Icons.Default.Badge, null, tint = Color(0xFF00B8D4)) },
-                isError = fullNameError != null,
-                supportingText = fullNameError?.let { { Text(it, color = Color(0xFFEF5350)) } },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF00B8D4),
-                    unfocusedBorderColor = Color(0xFFE0E0E0),
-                    focusedLabelColor = Color(0xFF00B8D4),
-                    cursorColor = Color(0xFF00B8D4)
+        Text(
+            text = "NOM COMPLET",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White.copy(alpha = 0.7f),
+            letterSpacing = 1.5.sp,
+            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+        )
+
+        TextField(
+            value = fullName,
+            onValueChange = onFullNameChange,
+            placeholder = { Text("Votre nom complet", color = inputTextColor.copy(alpha = 0.5f)) },
+            leadingIcon = {
+                Icon(
+                    Icons.Default.Badge,
+                    contentDescription = null,
+                    tint = inputTextColor.copy(alpha = 0.7f)
                 )
+            },
+            isError = fullNameError != null,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = inputBgColor,
+                unfocusedContainerColor = inputBgColor,
+                focusedTextColor = inputTextColor,
+                unfocusedTextColor = inputTextColor,
+                cursorColor = inputTextColor,
+                focusedIndicatorColor = Color.White,
+                unfocusedIndicatorColor = Color.White.copy(alpha = 0.5f),
+                errorContainerColor = inputBgColor,
+                errorIndicatorColor = Color(0xFFFFCDD2),
+                errorTextColor = inputTextColor
+            ),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        if (fullNameError != null) {
+            Text(
+                text = fullNameError,
+                color = Color(0xFFFFCDD2),
+                fontSize = 12.sp,
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
             )
         }
     }
@@ -612,7 +696,8 @@ fun Step1Content(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Step2Content(
+fun ModernStep2Content(
+    modifier: Modifier = Modifier,
     email: String,
     onEmailChange: (String) -> Unit,
     emailError: String?,
@@ -627,137 +712,205 @@ fun Step2Content(
     onGenderExpandedChange: (Boolean) -> Unit,
     genderOptions: List<String>,
     onGenderSelect: (String) -> Unit,
-    genderError: String?
+    genderError: String?,
+    inputBgColor: Color,
+    inputTextColor: Color,
+    isDark: Boolean
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Card(
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        // Email
+        Text(
+            text = "EMAIL",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White.copy(alpha = 0.7f),
+            letterSpacing = 1.5.sp,
+            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+        )
+
+        TextField(
+            value = email,
+            onValueChange = onEmailChange,
+            placeholder = { Text("votre@email.com", color = inputTextColor.copy(alpha = 0.5f)) },
+            leadingIcon = {
+                Icon(Icons.Default.Email, null, tint = inputTextColor.copy(alpha = 0.7f))
+            },
+            isError = emailError != null,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
-        ) {
-            OutlinedTextField(
-                value = email,
-                onValueChange = onEmailChange,
-                label = { Text("Email") },
-                leadingIcon = { Icon(Icons.Default.Email, null, tint = Color(0xFF00B8D4)) },
-                isError = emailError != null,
-                supportingText = emailError?.let { { Text(it, color = Color(0xFFEF5350)) } },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF00B8D4),
-                    unfocusedBorderColor = Color(0xFFE0E0E0),
-                    focusedLabelColor = Color(0xFF00B8D4),
-                    cursorColor = Color(0xFF00B8D4)
-                )
-            )
+            singleLine = true,
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = inputBgColor,
+                unfocusedContainerColor = inputBgColor,
+                focusedTextColor = inputTextColor,
+                unfocusedTextColor = inputTextColor,
+                cursorColor = inputTextColor,
+                focusedIndicatorColor = Color.White,
+                unfocusedIndicatorColor = Color.White.copy(alpha = 0.5f),
+                errorContainerColor = inputBgColor,
+                errorIndicatorColor = Color(0xFFFFCDD2),
+                errorTextColor = inputTextColor
+            ),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        if (emailError != null) {
+            Text(emailError, color = Color(0xFFFFCDD2), fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-        Card(
+        // Birth Date
+        Text(
+            text = "DATE DE NAISSANCE",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White.copy(alpha = 0.7f),
+            letterSpacing = 1.5.sp,
+            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+        )
+
+        TextField(
+            value = birthDate,
+            onValueChange = onBirthDateChange,
+            placeholder = { Text("AAAA-MM-JJ", color = inputTextColor.copy(alpha = 0.5f)) },
+            leadingIcon = {
+                Icon(Icons.Default.DateRange, null, tint = inputTextColor.copy(alpha = 0.7f))
+            },
+            isError = birthDateError != null,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
-        ) {
-            OutlinedTextField(
-                value = birthDate,
-                onValueChange = onBirthDateChange,
-                label = { Text("Date de naissance") },
-                leadingIcon = { Icon(Icons.Default.DateRange, null, tint = Color(0xFF00B8D4)) },
-                placeholder = { Text("1999-05-01") },
-                isError = birthDateError != null,
-                supportingText = birthDateError?.let { { Text(it, color = Color(0xFFEF5350)) } },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF00B8D4),
-                    unfocusedBorderColor = Color(0xFFE0E0E0),
-                    focusedLabelColor = Color(0xFF00B8D4),
-                    cursorColor = Color(0xFF00B8D4)
-                )
-            )
+            singleLine = true,
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = inputBgColor,
+                unfocusedContainerColor = inputBgColor,
+                focusedTextColor = inputTextColor,
+                unfocusedTextColor = inputTextColor,
+                cursorColor = inputTextColor,
+                focusedIndicatorColor = Color.White,
+                unfocusedIndicatorColor = Color.White.copy(alpha = 0.5f),
+                errorContainerColor = inputBgColor,
+                errorIndicatorColor = Color(0xFFFFCDD2),
+                errorTextColor = inputTextColor
+            ),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        if (birthDateError != null) {
+            Text(birthDateError, color = Color(0xFFFFCDD2), fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-        Card(
+        // Phone
+        Text(
+            text = "TÉLÉPHONE",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White.copy(alpha = 0.7f),
+            letterSpacing = 1.5.sp,
+            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+        )
+
+        TextField(
+            value = phoneNumber,
+            onValueChange = onPhoneNumberChange,
+            placeholder = { Text("+216 12 345 678", color = inputTextColor.copy(alpha = 0.5f)) },
+            leadingIcon = {
+                Icon(Icons.Default.Phone, null, tint = inputTextColor.copy(alpha = 0.7f))
+            },
+            isError = phoneNumberError != null,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
-        ) {
-            OutlinedTextField(
-                value = phoneNumber,
-                onValueChange = onPhoneNumberChange,
-                label = { Text("Numéro de téléphone") },
-                leadingIcon = { Icon(Icons.Default.Phone, null, tint = Color(0xFF00B8D4)) },
-                placeholder = { Text("+216 12 345 678") },
-                isError = phoneNumberError != null,
-                supportingText = phoneNumberError?.let { { Text(it, color = Color(0xFFEF5350)) } },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF00B8D4),
-                    unfocusedBorderColor = Color(0xFFE0E0E0),
-                    focusedLabelColor = Color(0xFF00B8D4),
-                    cursorColor = Color(0xFF00B8D4)
-                )
-            )
+            singleLine = true,
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = inputBgColor,
+                unfocusedContainerColor = inputBgColor,
+                focusedTextColor = inputTextColor,
+                unfocusedTextColor = inputTextColor,
+                cursorColor = inputTextColor,
+                focusedIndicatorColor = Color.White,
+                unfocusedIndicatorColor = Color.White.copy(alpha = 0.5f),
+                errorContainerColor = inputBgColor,
+                errorIndicatorColor = Color(0xFFFFCDD2),
+                errorTextColor = inputTextColor
+            ),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        if (phoneNumberError != null) {
+            Text(phoneNumberError, color = Color(0xFFFFCDD2), fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+        // Gender
+        Text(
+            text = "GENRE",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White.copy(alpha = 0.7f),
+            letterSpacing = 1.5.sp,
+            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+        )
+
+        ExposedDropdownMenuBox(
+            expanded = genderExpanded,
+            onExpandedChange = onGenderExpandedChange
         ) {
-            ExposedDropdownMenuBox(
+            TextField(
+                value = gender,
+                onValueChange = {},
+                readOnly = true,
+                placeholder = { Text("Sélectionnez votre genre", color = inputTextColor.copy(alpha = 0.5f)) },
+                leadingIcon = {
+                    Icon(Icons.Default.Face, null, tint = inputTextColor.copy(alpha = 0.7f))
+                },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = genderExpanded)
+                },
+                isError = genderError != null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(),
+                singleLine = true,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = inputBgColor,
+                    unfocusedContainerColor = inputBgColor,
+                    focusedTextColor = inputTextColor,
+                    unfocusedTextColor = inputTextColor,
+                    cursorColor = inputTextColor,
+                    focusedIndicatorColor = Color.White,
+                    unfocusedIndicatorColor = Color.White.copy(alpha = 0.5f),
+                    errorContainerColor = inputBgColor,
+                    errorIndicatorColor = Color(0xFFFFCDD2),
+                    errorTextColor = inputTextColor
+                ),
+                shape = RoundedCornerShape(12.dp)
+            )
+            ExposedDropdownMenu(
                 expanded = genderExpanded,
-                onExpandedChange = onGenderExpandedChange
+                onDismissRequest = { onGenderExpandedChange(false) }
             ) {
-                OutlinedTextField(
-                    value = gender,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Genre") },
-                    leadingIcon = { Icon(Icons.Default.Face, null, tint = Color(0xFF00B8D4)) },
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = genderExpanded)
-                    },
-                    isError = genderError != null,
-                    supportingText = genderError?.let { { Text(it, color = Color(0xFFEF5350)) } },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF00B8D4),
-                        unfocusedBorderColor = Color(0xFFE0E0E0),
-                        focusedLabelColor = Color(0xFF00B8D4)
+                genderOptions.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = { onGenderSelect(option) }
                     )
-                )
-                ExposedDropdownMenu(
-                    expanded = genderExpanded,
-                    onDismissRequest = { onGenderExpandedChange(false) }
-                ) {
-                    genderOptions.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option) },
-                            onClick = { onGenderSelect(option) }
-                        )
-                    }
                 }
             }
+        }
+
+        if (genderError != null) {
+            Text(genderError, color = Color(0xFFFFCDD2), fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
         }
     }
 }
 
 @Composable
-fun Step3Content(
+fun ModernStep3Content(
+    modifier: Modifier = Modifier,
     password: String,
     onPasswordChange: (String) -> Unit,
     passwordError: String?,
@@ -767,101 +920,136 @@ fun Step3Content(
     onConfirmPasswordChange: (String) -> Unit,
     confirmPasswordError: String?,
     confirmPasswordVisible: Boolean,
-    onConfirmPasswordVisibilityChange: () -> Unit
+    onConfirmPasswordVisibilityChange: () -> Unit,
+    inputBgColor: Color,
+    inputTextColor: Color,
+    isDark: Boolean
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Card(
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ){
+        Text(
+            text = "MOT DE PASSE",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White.copy(alpha = 0.7f),
+            letterSpacing = 1.5.sp,
+            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+        )
+
+        TextField(
+            value = password,
+            onValueChange = onPasswordChange,
+            placeholder = { Text("Minimum 6 caractères", color = inputTextColor.copy(alpha = 0.5f)) },
+            leadingIcon = {
+                Icon(Icons.Default.Lock, null, tint = inputTextColor.copy(alpha = 0.7f))
+            },
+            trailingIcon = {
+                IconButton(onClick = onPasswordVisibilityChange) {
+                    Icon(
+                        if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        null,
+                        tint = inputTextColor.copy(alpha = 0.7f)
+                    )
+                }
+            },
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            isError = passwordError != null,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
-        ) {
-            OutlinedTextField(
-                value = password,
-                onValueChange = onPasswordChange,
-                label = { Text("Mot de passe") },
-                leadingIcon = { Icon(Icons.Default.Lock, null, tint = Color(0xFF00B8D4)) },
-                trailingIcon = {
-                    IconButton(onClick = onPasswordVisibilityChange) {
-                        Icon(
-                            if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            null,
-                            tint = Color(0xFF757575)
-                        )
-                    }
-                },
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                isError = passwordError != null,
-                supportingText = passwordError?.let { { Text(it, color = Color(0xFFEF5350)) } },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF00B8D4),
-                    unfocusedBorderColor = Color(0xFFE0E0E0),
-                    focusedLabelColor = Color(0xFF00B8D4),
-                    cursorColor = Color(0xFF00B8D4)
-                )
-            )
+            singleLine = true,
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = inputBgColor,
+                unfocusedContainerColor = inputBgColor,
+                focusedTextColor = inputTextColor,
+                unfocusedTextColor = inputTextColor,
+                cursorColor = inputTextColor,
+                focusedIndicatorColor = Color.White,
+                unfocusedIndicatorColor = Color.White.copy(alpha = 0.5f),
+                errorContainerColor = inputBgColor,
+                errorIndicatorColor = Color(0xFFFFCDD2),
+                errorTextColor = inputTextColor
+            ),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        if (passwordError != null) {
+            Text(passwordError, color = Color(0xFFFFCDD2), fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        Card(
+        Text(
+            text = "CONFIRMER LE MOT DE PASSE",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White.copy(alpha = 0.7f),
+            letterSpacing = 1.5.sp,
+            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+        )
+
+        TextField(
+            value = confirmPassword,
+            onValueChange = onConfirmPasswordChange,
+            placeholder = { Text("Ressaisissez votre mot de passe", color = inputTextColor.copy(alpha = 0.5f)) },
+            leadingIcon = {
+                Icon(Icons.Default.Lock, null, tint = inputTextColor.copy(alpha = 0.7f))
+            },
+            trailingIcon = {
+                IconButton(onClick = onConfirmPasswordVisibilityChange) {
+                    Icon(
+                        if (confirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        null,
+                        tint = inputTextColor.copy(alpha = 0.7f)
+                    )
+                }
+            },
+            visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            isError = confirmPasswordError != null,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
-        ) {
-            OutlinedTextField(
-                value = confirmPassword,
-                onValueChange = onConfirmPasswordChange,
-                label = { Text("Confirmer le mot de passe") },
-                leadingIcon = { Icon(Icons.Default.Lock, null, tint = Color(0xFF00B8D4)) },
-                trailingIcon = {
-                    IconButton(onClick = onConfirmPasswordVisibilityChange) {
-                        Icon(
-                            if (confirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            null,
-                            tint = Color(0xFF757575)
-                        )
-                    }
-                },
-                visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                isError = confirmPasswordError != null,
-                supportingText = confirmPasswordError?.let { { Text(it, color = Color(0xFFEF5350)) } },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF00B8D4),
-                    unfocusedBorderColor = Color(0xFFE0E0E0),
-                    focusedLabelColor = Color(0xFF00B8D4),
-                    cursorColor = Color(0xFF00B8D4)
-                )
-            )
+            singleLine = true,
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = inputBgColor,
+                unfocusedContainerColor = inputBgColor,
+                focusedTextColor = inputTextColor,
+                unfocusedTextColor = inputTextColor,
+                cursorColor = inputTextColor,
+                focusedIndicatorColor = Color.White,
+                unfocusedIndicatorColor = Color.White.copy(alpha = 0.5f),
+                errorContainerColor = inputBgColor,
+                errorIndicatorColor = Color(0xFFFFCDD2),
+                errorTextColor = inputTextColor
+            ),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        if (confirmPasswordError != null) {
+            Text(confirmPasswordError, color = Color(0xFFFFCDD2), fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Surface(
             shape = RoundedCornerShape(12.dp),
-            color = Color(0xFFF0F9FF),
+            color = Color.White.copy(alpha = 0.15f),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                modifier = Modifier.padding(12.dp),
+                modifier = Modifier.padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     Icons.Default.Info,
                     contentDescription = null,
-                    tint = Color(0xFF00B8D4),
+                    tint = Color.White.copy(alpha = 0.8f),
                     modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Votre mot de passe doit contenir au moins 6 caractères",
+                    text = "Utilisez un mot de passe fort avec lettres, chiffres et symboles",
                     fontSize = 12.sp,
-                    color = Color(0xFF546E7A)
+                    color = Color.White.copy(alpha = 0.8f)
                 )
             }
         }
