@@ -1,168 +1,496 @@
 package com.sim.darna.screens
 
-import androidx.compose.foundation.Image
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.sim.darna.R
+import com.sim.darna.navigation.Routes
+import com.sim.darna.viewmodel.ReviewViewModel
+import com.sim.darna.model.Review as DatabaseReview
 
-@OptIn(ExperimentalMaterial3Api::class)
+//------------------------------------------------------
+// HELPER FUNCTIONS
+//------------------------------------------------------
+
+// Format date helper
+fun formatDate(createdAt: String?): String {
+    // Simple date formatting - you can enhance this
+    return createdAt ?: "Date inconnue"
+}
+
+//------------------------------------------------------
+// MAIN SCREEN
+//------------------------------------------------------
 @Composable
-fun PropertyDetailScreen(
-    navController: NavController,
-    title: String = "Détails du bien" // ✅ default fallback title
-) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(text = title, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color.Black
-                )
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFFF5F5F5))
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-        ) {
-            // ✅ Header Image
+fun PropertyDetailScreen(navController: NavController) {
+
+    val context = LocalContext.current
+    
+    // ViewModel for reviews
+    val reviewViewModel: ReviewViewModel = viewModel()
+    val allReviews by reviewViewModel.reviews.collectAsState()
+    
+    // Initialize ViewModel and load reviews
+    LaunchedEffect(Unit) {
+        reviewViewModel.init(context)
+        reviewViewModel.loadReviews()
+    }
+    
+    // Take only first 3 reviews
+    val recentReviews = allReviews.take(3)
+    
+    // Calculate average rating and total reviews
+    val averageRating = if (allReviews.isNotEmpty()) {
+        allReviews.map { it.rating }.average().toFloat()
+    } else {
+        0f
+    }
+    val totalReviews = allReviews.size
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF5F5F5))
+    ) {
+
+        //------------------------------------------------------
+        // HEADER
+        //------------------------------------------------------
+        item {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(250.dp)
+                    .height(300.dp)
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(Color(0xFF4A90E2), Color(0xFF2C5AA0))
+                        )
+                    )
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.logo), // Replace with actual image
-                    contentDescription = "Image du bien",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                IconButton(
+                    onClick = { navController.popBackStack() },
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .align(Alignment.TopStart)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.9f)
+                    ) {
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            modifier = Modifier.padding(8.dp),
+                            tint = Color(0xFF1A1A1A)
+                        )
+                    }
+                }
+
+                Icon(
+                    imageVector = Icons.Default.Home,
+                    contentDescription = "Property",
+                    modifier = Modifier
+                        .size(120.dp)
+                        .align(Alignment.Center),
+                    tint = Color.White.copy(alpha = 0.3f)
                 )
             }
+        }
 
-            // ✅ Property Info
-            Column(modifier = Modifier.padding(20.dp)) {
+        //------------------------------------------------------
+        // TITLE + LOCATION
+        //------------------------------------------------------
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .padding(20.dp)
+            ) {
                 Text(
-                    text = title,
+                    text = "Colocation moderne à Paris",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1A1A1A)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Paris, France",
-                    fontSize = 16.sp,
-                    color = Color(0xFF757575)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.LocationOn,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = Color(0xFF757575)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "75011 - Bastille, Paris",
+                        fontSize = 16.sp,
+                        color = Color(0xFF757575)
+                    )
+                }
+            }
+        }
+
+        //------------------------------------------------------
+        // INFO CARDS
+        //------------------------------------------------------
+        item {
+            Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("4.8 (35 avis)", color = Color(0xFF1A1A1A), fontSize = 14.sp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    PropertyInfoCard(
+                        icon = Icons.Default.Person,
+                        label = "Colocataires",
+                        value = "3 pers.",
+                        modifier = Modifier.weight(1f)
+                    )
+                    PropertyInfoCard(
+                        icon = Icons.Default.Home,
+                        label = "Surface",
+                        value = "85m²",
+                        modifier = Modifier.weight(1f)
+                    )
+                    PropertyInfoCard(
+                        icon = Icons.Default.AttachMoney,
+                        label = "Loyer",
+                        value = "650€",
+                        modifier = Modifier.weight(1f)
+                    )
                 }
+            }
+        }
 
-                Spacer(modifier = Modifier.height(20.dp))
-
+        //------------------------------------------------------
+        // DESCRIPTION
+        //------------------------------------------------------
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
                 Text(
                     text = "Description",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1A1A1A)
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Appartement moderne et lumineux situé au cœur de Paris. " +
-                            "Idéal pour étudiants ou jeunes actifs, avec toutes les commodités à proximité : métro, commerces et cafés.",
+                    text = "Magnifique colocation dans le quartier animé de Bastille. L'appartement dispose de 4 chambres, 2 salles de bain, une cuisine équipée et un salon spacieux. Proche de tous commerces et transports.",
                     fontSize = 15.sp,
-                    color = Color(0xFF616161),
+                    color = Color(0xFF757575),
                     lineHeight = 22.sp
                 )
+            }
+        }
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // ✅ Amenities section
+        //------------------------------------------------------
+        // AMENITIES
+        //------------------------------------------------------
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+            ) {
                 Text(
                     text = "Équipements",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1A1A1A)
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("• Wi-Fi haut débit", color = Color(0xFF616161))
-                    Text("• Cuisine équipée", color = Color(0xFF616161))
-                    Text("• Lave-linge", color = Color(0xFF616161))
-                    Text("• Chauffage central", color = Color(0xFF616161))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AmenityChip("WiFi", Icons.Default.Wifi)
+                    AmenityChip("Cuisine", Icons.Default.Restaurant)
+                    AmenityChip("Parking", Icons.Default.LocalParking)
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // ✅ Price and button
-                Surface(
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AmenityChip("Balcon", Icons.Default.Balcony)
+                    AmenityChip("Machine à laver", Icons.Default.LocalLaundryService)
+                }
+            }
+        }
+
+        //------------------------------------------------------
+        // REVIEWS HEADER
+        //------------------------------------------------------
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .padding(20.dp)
+            ) {
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color.White,
-                    shadowElevation = 3.dp
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text("Prix par mois", color = Color(0xFF757575), fontSize = 14.sp)
+                    Column {
+                        Text(
+                            text = "Avis",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1A1A1A)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = Color(0xFFFFC107)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                "850€",
-                                color = Color(0xFF0066FF),
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold
+                                text = "$averageRating",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1A1A1A)
+                            )
+                            Text(
+                                text = " ($totalReviews avis)",
+                                fontSize = 14.sp,
+                                color = Color(0xFF757575)
                             )
                         }
-                        Button(
-                            onClick = {
-                                // ✅ You can later navigate to a reservation or reviews screen
-                                // navController.navigate(Routes.Reviews)
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF0066FF)
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Réserver", fontSize = 16.sp, color = Color.White)
+                    }
+
+                    Button(
+                        onClick = { navController.navigate(Routes.Reviews) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0066FF)),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "Voir tous les avis",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                RatingBreakdown(allReviews)
+            }
+        }
+
+        //------------------------------------------------------
+        // RECENT REVIEWS
+        //------------------------------------------------------
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .padding(horizontal = 20.dp)
+            ) {
+                Text(
+                    text = "Avis récents",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF1A1A1A)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+
+        items(recentReviews) { review ->
+            ReviewCard(review)
+        }
+
+        item { Spacer(modifier = Modifier.height(20.dp)) }
+    }
+}
+
+//------------------------------------------------------
+// SMALL COMPOSABLES
+//------------------------------------------------------
+@Composable
+fun PropertyInfoCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(icon, null, tint = Color(0xFF0066FF), modifier = Modifier.size(24.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(label, fontSize = 12.sp, color = Color(0xFF757575))
+        }
+    }
+}
+
+@Composable
+fun AmenityChip(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = Color(0xFFF5F5F5)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, null, tint = Color(0xFF0066FF), modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(text, fontSize = 13.sp)
+        }
+    }
+}
+
+@Composable
+fun RatingBreakdown(reviews: List<DatabaseReview>) {
+    // Calculate rating distribution (how many reviews for each star level)
+    val ratingCounts = (1..5).map { star ->
+        reviews.count { it.rating == star }
+    }.reversed() // Reverse to show 5 stars first
+    
+    val totalReviews = reviews.size
+    
+    Column {
+        for ((index, star) in (5 downTo 1).withIndex()) {
+            val count = ratingCounts[index]
+            val percentage = if (totalReviews > 0) count.toFloat() / totalReviews else 0f
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("$star", modifier = Modifier.width(20.dp), color = Color(0xFF757575))
+                Icon(Icons.Default.Star, null, tint = Color(0xFFFFC107), modifier = Modifier.size(14.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+
+                LinearProgressIndicator(
+                    progress = percentage,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp)),
+                    color = Color(0xFFFFC107),
+                    trackColor = Color(0xFFE0E0E0)
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "${(percentage * 100).toInt()}%",
+                    fontSize = 12.sp,
+                    color = Color(0xFF757575),
+                    modifier = Modifier.width(35.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+fun ReviewCard(review: DatabaseReview) {
+    val username = review.user?.username ?: "Anonymous"
+    val userInitial = username.firstOrNull()?.uppercase() ?: "?"
+    
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(1.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        modifier = Modifier.size(40.dp),
+                        shape = CircleShape,
+                        color = Color(0xFF0066FF).copy(alpha = 0.1f)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                userInitial,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0066FF)
+                            )
                         }
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(username, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Récemment", fontSize = 12.sp, color = Color(0xFF9E9E9E))
                     }
                 }
 
-                Spacer(modifier = Modifier.height(40.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    repeat(5) { index ->
+                        Icon(
+                            if (index < review.rating) Icons.Default.Star
+                            else Icons.Default.StarBorder,
+                            contentDescription = null,
+                            tint = Color(0xFFFFC107),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = review.comment,
+                fontSize = 14.sp,
+                color = Color(0xFF757575),
+                lineHeight = 20.sp,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
