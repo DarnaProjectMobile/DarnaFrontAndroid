@@ -46,6 +46,14 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
     var usernameError by remember { mutableStateOf<String?>(null) }
     var fullName by remember { mutableStateOf("") }
     var fullNameError by remember { mutableStateOf<String?>(null) }
+    var role by remember { mutableStateOf("") }
+    var roleError by remember { mutableStateOf<String?>(null) }
+    var roleExpanded by remember { mutableStateOf(false) }
+    val roleOptions = listOf(
+        "Client" to "client",
+        "Collocataire" to "collocator",
+        "Sponsor" to "sponsor"
+    )
 
     // Step 2 Fields
     var email by remember { mutableStateOf("") }
@@ -67,7 +75,7 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
     var confirmPasswordError by remember { mutableStateOf<String?>(null) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
 
-    val baseUrl = "http://192.168.1.195:3000/"
+    val baseUrl = "http://192.168.0.238:3000/"
     val sharedPreferences = LocalContext.current.getSharedPreferences("APP_PREFS", Context.MODE_PRIVATE)
     val viewModel: RegisterViewModel = viewModel(
         factory = RegisterVmFactory(
@@ -142,10 +150,14 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
     fun validateGender(genderStr: String) =
         if (genderStr.isBlank()) "Le genre est requis" else null
 
+    fun validateRole(roleStr: String) =
+        if (roleStr.isBlank()) "Le rôle est requis" else null
+
     fun validateStep1(): Boolean {
         usernameError = validateUsername(username)
         fullNameError = validateFullName(fullName)
-        return listOf(usernameError, fullNameError).all { it == null }
+        roleError = validateRole(role)
+        return listOf(usernameError, fullNameError, roleError).all { it == null }
     }
 
     fun validateStep2(): Boolean {
@@ -285,6 +297,16 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
                                 fullName = fullName,
                                 onFullNameChange = { fullName = it; fullNameError = validateFullName(it) },
                                 fullNameError = fullNameError,
+                                role = role,
+                                roleExpanded = roleExpanded,
+                                onRoleExpandedChange = { roleExpanded = it },
+                                roleOptions = roleOptions,
+                                onRoleSelect = { selectedRole ->
+                                    role = selectedRole
+                                    roleError = validateRole(selectedRole)
+                                    roleExpanded = false
+                                },
+                                roleError = roleError,
                                 inputBgColor = inputBgColor,
                                 inputTextColor = inputTextColor,
                                 isDark = isDark,
@@ -442,7 +464,7 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
                                                     username = username,
                                                     email = email,
                                                     password = password,
-                                                    role = "client",
+                                                    role = role,  // Use selected role
                                                     dateDeNaissance = "${birthDate}T00:00:00.000Z",
                                                     numTel = phoneNumber,
                                                     gender = when (gender) {
@@ -578,6 +600,7 @@ fun ModernStepProgressIndicator(currentStep: Int, textColor: Color) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModernStep1Content(
     modifier: Modifier = Modifier,
@@ -587,6 +610,12 @@ fun ModernStep1Content(
     fullName: String,
     onFullNameChange: (String) -> Unit,
     fullNameError: String?,
+    role: String,
+    roleExpanded: Boolean,
+    onRoleExpandedChange: (Boolean) -> Unit,
+    roleOptions: List<Pair<String, String>>,
+    onRoleSelect: (String) -> Unit,
+    roleError: String?,
     inputBgColor: Color,
     inputTextColor: Color,
     isDark: Boolean
@@ -686,6 +715,92 @@ fun ModernStep1Content(
         if (fullNameError != null) {
             Text(
                 text = fullNameError,
+                color = Color(0xFFFFCDD2),
+                fontSize = 12.sp,
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Role Selection
+        Text(
+            text = "RÔLE",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White.copy(alpha = 0.7f),
+            letterSpacing = 1.5.sp,
+            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+        )
+
+        ExposedDropdownMenuBox(
+            expanded = roleExpanded,
+            onExpandedChange = onRoleExpandedChange
+        ) {
+            TextField(
+                value = roleOptions.find { it.second == role }?.first ?: "",
+                onValueChange = {},
+                readOnly = true,
+                placeholder = { Text("Sélectionnez votre rôle", color = inputTextColor.copy(alpha = 0.5f)) },
+                leadingIcon = {
+                    Icon(Icons.Default.WorkOutline, null, tint = inputTextColor.copy(alpha = 0.7f))
+                },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = roleExpanded)
+                },
+                isError = roleError != null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(),
+                singleLine = true,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = inputBgColor,
+                    unfocusedContainerColor = inputBgColor,
+                    focusedTextColor = inputTextColor,
+                    unfocusedTextColor = inputTextColor,
+                    cursorColor = inputTextColor,
+                    focusedIndicatorColor = Color.White,
+                    unfocusedIndicatorColor = Color.White.copy(alpha = 0.5f),
+                    errorContainerColor = inputBgColor,
+                    errorIndicatorColor = Color(0xFFFFCDD2),
+                    errorTextColor = inputTextColor,
+                    disabledContainerColor = inputBgColor,
+                    disabledTextColor = inputTextColor
+                ),
+                shape = RoundedCornerShape(12.dp)
+            )
+            ExposedDropdownMenu(
+                expanded = roleExpanded,
+                onDismissRequest = { onRoleExpandedChange(false) }
+            ) {
+                roleOptions.forEach { (displayName, value) ->
+                    DropdownMenuItem(
+                        text = { 
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    when (value) {
+                                        "client" -> Icons.Default.Person
+                                        "collocator" -> Icons.Default.Group
+                                        "sponsor" -> Icons.Default.Star
+                                        else -> Icons.Default.WorkOutline
+                                    },
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = if (isDark) Color(0xFF1A237E) else Color(0xFF667EEA)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(displayName)
+                            }
+                        },
+                        onClick = { onRoleSelect(value) }
+                    )
+                }
+            }
+        }
+
+        if (roleError != null) {
+            Text(
+                text = roleError,
                 color = Color(0xFFFFCDD2),
                 fontSize = 12.sp,
                 modifier = Modifier.padding(start = 4.dp, top = 4.dp)

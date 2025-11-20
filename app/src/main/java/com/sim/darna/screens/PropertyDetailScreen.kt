@@ -1,5 +1,6 @@
 package com.sim.darna.screens
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,25 +15,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.sim.darna.navigation.Routes
+import com.sim.darna.viewmodel.ReviewViewModel
+import com.sim.darna.model.Review as DatabaseReview
 
 //------------------------------------------------------
-// DATA CLASS (CLEAN VERSION)
+// HELPER FUNCTIONS
 //------------------------------------------------------
 
-data class Review(
-    val id: String,
-    val userName: String,
-    val rating: Int,
-    val comment: String,
-    val date: String,
-    val userInitial: String = userName.first().toString()
-)
+// Format date helper
+fun formatDate(createdAt: String?): String {
+    // Simple date formatting - you can enhance this
+    return createdAt ?: "Date inconnue"
+}
 
 //------------------------------------------------------
 // MAIN SCREEN
@@ -40,16 +42,28 @@ data class Review(
 @Composable
 fun PropertyDetailScreen(navController: NavController) {
 
-    val reviews = remember {
-        listOf(
-            Review("1", "Marie Dubois", 5, "Excellent appartement, très bien situé! Le quartier est calme et les transports sont à proximité.", "Il y a 2 jours"),
-            Review("2", "Marie Dubois", 5, "Excellent appartement, très bien situé! Le quartier est calme et les transports sont à proximité.", "Il y a 2 jours"),
-            Review("3", "Marie Dubois", 5, "Excellent appartement, très bien situé! Le quartier est calme et les transports sont à proximité.", "Il y a 2 jours"),
-        )
+    val context = LocalContext.current
+    
+    // ViewModel for reviews
+    val reviewViewModel: ReviewViewModel = viewModel()
+    val allReviews by reviewViewModel.reviews.collectAsState()
+    
+    // Initialize ViewModel and load reviews
+    LaunchedEffect(Unit) {
+        reviewViewModel.init(context)
+        reviewViewModel.loadReviews()
     }
-
-    val averageRating = 4.8f
-    val totalReviews = 127
+    
+    // Take only first 3 reviews
+    val recentReviews = allReviews.take(3)
+    
+    // Calculate average rating and total reviews
+    val averageRating = if (allReviews.isNotEmpty()) {
+        allReviews.map { it.rating }.average().toFloat()
+    } else {
+        0f
+    }
+    val totalReviews = allReviews.size
 
     LazyColumn(
         modifier = Modifier
@@ -289,7 +303,7 @@ fun PropertyDetailScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                RatingBreakdown(averageRating)
+                RatingBreakdown(allReviews)
             }
         }
 
@@ -313,7 +327,7 @@ fun PropertyDetailScreen(navController: NavController) {
             }
         }
 
-        items(reviews.take(3)) { review ->
+        items(recentReviews) { review ->
             ReviewCard(review)
         }
 
@@ -367,13 +381,19 @@ fun AmenityChip(text: String, icon: androidx.compose.ui.graphics.vector.ImageVec
 }
 
 @Composable
-fun RatingBreakdown(averageRating: Float) {
-
-    // FIXED & CORRECTED VALUE
-    val progress = (averageRating / 5f)
-
+fun RatingBreakdown(reviews: List<DatabaseReview>) {
+    // Calculate rating distribution (how many reviews for each star level)
+    val ratingCounts = (1..5).map { star ->
+        reviews.count { it.rating == star }
+    }.reversed() // Reverse to show 5 stars first
+    
+    val totalReviews = reviews.size
+    
     Column {
-        for (star in 5 downTo 1) {
+        for ((index, star) in (5 downTo 1).withIndex()) {
+            val count = ratingCounts[index]
+            val percentage = if (totalReviews > 0) count.toFloat() / totalReviews else 0f
+            
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -383,7 +403,7 @@ fun RatingBreakdown(averageRating: Float) {
                 Spacer(modifier = Modifier.width(8.dp))
 
                 LinearProgressIndicator(
-                    progress = progress,
+                    progress = percentage,
                     modifier = Modifier
                         .weight(1f)
                         .height(6.dp)
@@ -393,7 +413,12 @@ fun RatingBreakdown(averageRating: Float) {
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("${(progress * 100).toInt()}%", fontSize = 12.sp, color = Color(0xFF757575))
+                Text(
+                    text = "${(percentage * 100).toInt()}%",
+                    fontSize = 12.sp,
+                    color = Color(0xFF757575),
+                    modifier = Modifier.width(35.dp)
+                )
             }
             Spacer(modifier = Modifier.height(8.dp))
         }
@@ -401,7 +426,10 @@ fun RatingBreakdown(averageRating: Float) {
 }
 
 @Composable
-fun ReviewCard(review: Review) {
+fun ReviewCard(review: DatabaseReview) {
+    val username = review.user?.username ?: "Anonymous"
+    val userInitial = username.firstOrNull()?.uppercase() ?: "?"
+    
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -426,7 +454,7 @@ fun ReviewCard(review: Review) {
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
-                                review.userName.first().toString(),
+                                userInitial,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF0066FF)
@@ -435,8 +463,8 @@ fun ReviewCard(review: Review) {
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
-                        Text(review.userName, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                        Text(review.date, fontSize = 12.sp, color = Color(0xFF9E9E9E))
+                        Text(username, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Récemment", fontSize = 12.sp, color = Color(0xFF9E9E9E))
                     }
                 }
 

@@ -34,15 +34,37 @@ fun ProfileScreen(navController: NavHostController) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("APP_PREFS", Context.MODE_PRIVATE)
 
-    // Database fields (compatible with your backend)
-    val username = prefs.getString("username", "") ?: ""
-    val email = prefs.getString("email", "") ?: ""
-    val role = prefs.getString("role", "") ?: ""
-    val birthday = prefs.getString("dateDeNaissance", "") ?: ""
-    val phone = prefs.getString("numTel", "") ?: ""
-    val gender = prefs.getString("gender", "") ?: ""
-    val createdAt = prefs.getString("createdAt", "") ?: ""
-    val userId = prefs.getString("user_id", "") ?: ""
+    // State to trigger reload when coming back from UpdateProfile
+    var refreshTrigger by remember { mutableStateOf(0) }
+    
+    // Reload data whenever screen appears or refreshTrigger changes
+    var username by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var role by remember { mutableStateOf("") }
+    var birthday by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var gender by remember { mutableStateOf("") }
+    var createdAt by remember { mutableStateOf("") }
+    var userId by remember { mutableStateOf("") }
+    
+    // Load data from SharedPreferences
+    LaunchedEffect(refreshTrigger) {
+        username = prefs.getString("username", "") ?: ""
+        email = prefs.getString("email", "") ?: ""
+        role = prefs.getString("role", "") ?: ""
+        birthday = prefs.getString("dateDeNaissance", "") ?: ""
+        phone = prefs.getString("numTel", "") ?: ""
+        gender = prefs.getString("gender", "") ?: ""
+        createdAt = prefs.getString("createdAt", "") ?: ""
+        userId = prefs.getString("user_id", "") ?: ""
+    }
+    
+    // Refresh data when navigating back
+    DisposableEffect(Unit) {
+        onDispose {
+            refreshTrigger++
+        }
+    }
 
     // Animation states
     var visible by remember { mutableStateOf(false) }
@@ -221,8 +243,21 @@ fun ProfileScreen(navController: NavHostController) {
 
             Spacer(Modifier.height(16.dp))
 
-            // FEEDBACK BUTTON (COMPATIBLE)
+            // UPDATE PROFILE BUTTON
             AnimatedCard(visible, 800) {
+                GradientButton(
+                    text = "Update Profile",
+                    icon = Icons.Default.Edit,
+                    colors = listOf(Color(0xFF4CAF50), Color(0xFF388E3C))
+                ) {
+                    navController.navigate(Routes.UpdateProfile)
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // FEEDBACK BUTTON (COMPATIBLE)
+            AnimatedCard(visible, 900) {
                 GradientButton(
                     text = "Send Feedback",
                     icon = Icons.Default.Feedback,

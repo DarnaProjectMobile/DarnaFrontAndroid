@@ -18,6 +18,7 @@ object Routes {
     const val PropertyDetail = "property_detail"
     const val ResetPassword = "reset_password"
     const val Reviews = "reviews"
+    const val UpdateProfile = "update_profile"
 }
 
 @Composable
@@ -75,6 +76,10 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         }
         composable("feedback") {
             FeedbackScreen(onNavigateBack = { navController.popBackStack() })
+        }
+
+        composable(Routes.UpdateProfile) {
+            UpdateProfileScreen(onNavigateBack = { navController.popBackStack() })
         }
 
 

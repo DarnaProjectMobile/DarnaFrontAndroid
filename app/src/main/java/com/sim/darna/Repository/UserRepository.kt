@@ -1,6 +1,7 @@
 package com.sim.darna.repository
 
 import android.content.SharedPreferences
+import com.sim.darna.auth.UpdateUserRequest
 import com.sim.darna.auth.UserApi
 import com.sim.darna.model.UserDto
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -17,31 +18,28 @@ class UserRepository(
 ) {
 
     /**
-     * PATCH /users/me
+     * PATCH /users/me - Sends JSON body to match NestJS UpdateUserDto
      */
     fun updateUser(
         username: String,
         email: String,
         password: String? = null,
+        numTel: String? = null,
+        dateDeNaissance: String? = null,
+        gender: String? = null,
         imageFile: File? = null
     ): Call<UserDto> {
-
-        val usernameBody = username.toRequestBody("text/plain".toMediaTypeOrNull())
-        val emailBody = email.toRequestBody("text/plain".toMediaTypeOrNull())
-        val passwordBody: RequestBody? =
-            password?.toRequestBody("text/plain".toMediaTypeOrNull())
-
-        val imagePart = imageFile?.let { file ->
-            val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
-            MultipartBody.Part.createFormData("image", file.name, requestFile)
-        }
-
-        return api.updateMe(
-            username = usernameBody,
-            email = emailBody,
-            password = passwordBody,
-            image = imagePart
+        val request = UpdateUserRequest(
+            username = username,
+            email = email,
+            bio = "User bio",  // Required by your UpdateUserDto
+            password = password ?: "KeepCurrentPassword123!",  // Use provided password or dummy
+            numTel = numTel,
+            dateDeNaissance = dateDeNaissance,
+            gender = gender
         )
+        
+        return api.updateMe(request)
     }
 
     /**
@@ -53,7 +51,11 @@ class UserRepository(
             .putString("username", user.username)
             .putString("email", user.email)
             .putString("role", user.role)
-            .putString("image", user.image)   // ✅ FIX: save image!
+            .putString("image", user.image)
+            .putString("numTel", user.numTel)
+            .putString("dateDeNaissance", user.dateDeNaissance)
+            .putString("gender", user.gender)
+            .putString("createdAt", user.createdAt)
             .apply()
     }
 

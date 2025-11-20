@@ -2,6 +2,7 @@
 package com.sim.darna.auth
 
 import com.sim.darna.model.UserDto
+import com.google.gson.annotations.SerializedName
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
@@ -13,14 +14,23 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
 import java.util.concurrent.TimeUnit
 
+// DTO matching your NestJS UpdateUserDto
+// Only username, email, and bio are truly required based on your DTO
+data class UpdateUserRequest(
+    val username: String,
+    val email: String,
+    val bio: String = "User bio",  // Required by DTO
+    val password: String = "KeepCurrentPassword123!",  // Required by DTO - send dummy to avoid re-hashing
+    val numTel: String? = null,
+    val dateDeNaissance: String? = null,
+    val gender: String? = null
+)
+
 interface UserApi {
-    @Multipart
+    // PATCH /users/me - JSON body (matches NestJS @Body)
     @PATCH("users/me")
     fun updateMe(
-        @Part("username") username: RequestBody,
-        @Part("email") email: RequestBody,
-        @Part("password") password: RequestBody? = null,
-        @Part image: MultipartBody.Part? = null
+        @Body request: UpdateUserRequest
     ): Call<UserDto>
 
     companion object {
