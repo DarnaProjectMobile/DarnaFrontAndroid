@@ -26,6 +26,12 @@ object Routes {
     // Change this line
     const val PropertyDetail = "property_detail/{propertyName}" // Add the argument placeholder
     const val Reviews = "reviews/{propertyId}"
+
+    // Publicités routes
+    const val PubliciteList = "publicite_list"
+    const val PubliciteDetail = "publicite_detail/{publiciteId}"
+    const val AddPublicite = "add_publicite"
+    const val EditPublicite = "edit_publicite/{publiciteId}"
 }
 
 @Composable
@@ -109,9 +115,64 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             // Extract the argument
             val propertyName = backStackEntry.arguments?.getString("propertyName")?.let {
                 URLDecoder.decode(it, StandardCharsets.UTF_8.name())
-            }
+            } ?: "Détails du bien"
 
+            PropertyDetailScreen(
+                navController = navController,
+                title = propertyName
+            )
+        }
 
+        // ✅ PUBLICITÉS ROUTES
+        composable(Routes.PubliciteList) {
+            com.sim.darna.ui.screens.PubliciteListScreen(
+                navController = navController,
+                onPubliciteClick = { publiciteId ->
+                    navController.navigate("publicite_detail/$publiciteId")
+                },
+                onAddPubliciteClick = {
+                    navController.navigate(Routes.AddPublicite)
+                },
+                onEditPublicite = { id ->
+                    navController.navigate("edit_publicite/$id")
+                },
+                onDeletePublicite = { id ->
+                    // La suppression sera gérée dans le ViewModel
+                }
+            )
+        }
+
+        composable(
+            route = Routes.PubliciteDetail,
+            arguments = listOf(navArgument("publiciteId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val publiciteId = backStackEntry.arguments?.getString("publiciteId") ?: ""
+            com.sim.darna.ui.screens.PubliciteDetailScreen(
+                publiciteId = publiciteId,
+                onNavigateBack = { navController.popBackStack() },
+                onDelete = { navController.popBackStack() },
+                onEdit = { id ->
+                    navController.navigate("edit_publicite/$id")
+                }
+            )
+        }
+
+        composable(Routes.AddPublicite) {
+            com.sim.darna.ui.screens.AddPubliciteScreen(
+                publiciteId = null,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Routes.EditPublicite,
+            arguments = listOf(navArgument("publiciteId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val publiciteId = backStackEntry.arguments?.getString("publiciteId") ?: ""
+            com.sim.darna.ui.screens.AddPubliciteScreen(
+                publiciteId = publiciteId,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
     }

@@ -17,15 +17,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.sim.darna.navigation.Routes
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -37,7 +40,7 @@ sealed class BottomNavItem(
     val label: String
 ) {
     object Home : BottomNavItem("home", Icons.Default.Home, "Accueil")
-    object Calendar : BottomNavItem("calendar", Icons.Default.DateRange, "Calendrier")
+    object Publicite : BottomNavItem("publicite", Icons.Default.Campaign, "Publicité")
     object Reserve : BottomNavItem("reserve", Icons.Default.Star, "Réserver")
     object Profile : BottomNavItem("profile", Icons.Default.Person, "Profil")
 }
@@ -56,7 +59,60 @@ fun MainScreen() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(BottomNavItem.Home.route) { HomeScreen(navController) }
-            composable(BottomNavItem.Calendar.route) { CalendarScreen() }
+            composable(BottomNavItem.Publicite.route) { 
+                com.sim.darna.ui.screens.PubliciteListScreen(
+                    navController = navController,
+                    onPubliciteClick = { publiciteId ->
+                        navController.navigate("publicite_detail/$publiciteId")
+                    },
+                    onAddPubliciteClick = {
+                        navController.navigate(Routes.AddPublicite)
+                    },
+                    onEditPublicite = { id ->
+                        navController.navigate("edit_publicite/$id")
+                    },
+                    onDeletePublicite = { id ->
+                        // TODO: Implémenter la suppression
+                        navController.currentBackStackEntry?.savedStateHandle?.set("refreshOffers", true)
+                    }
+                )
+            }
+            composable(
+                route = Routes.PubliciteDetail,
+                arguments = listOf(navArgument("publiciteId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val publiciteId = backStackEntry.arguments?.getString("publiciteId") ?: ""
+                com.sim.darna.ui.screens.PubliciteDetailScreen(
+                    publiciteId = publiciteId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onDelete = { navController.popBackStack() },
+                    onEdit = { id ->
+                        navController.navigate("edit_publicite/$id")
+                    }
+                )
+            }
+            composable(Routes.AddPublicite) {
+                com.sim.darna.ui.screens.AddPubliciteScreen(
+                    publiciteId = null,
+                    onNavigateBack = { navController.popBackStack() },
+                    onPubliciteSaved = {
+                        navController.previousBackStackEntry?.savedStateHandle?.set("refreshOffers", true)
+                    }
+                )
+            }
+            composable(
+                route = Routes.EditPublicite,
+                arguments = listOf(navArgument("publiciteId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val publiciteId = backStackEntry.arguments?.getString("publiciteId") ?: ""
+                com.sim.darna.ui.screens.AddPubliciteScreen(
+                    publiciteId = publiciteId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onPubliciteSaved = {
+                        navController.previousBackStackEntry?.savedStateHandle?.set("refreshOffers", true)
+                    }
+                )
+            }
             composable(BottomNavItem.Reserve.route) { ReserveScreen() }
             composable(BottomNavItem.Profile.route) { ProfileScreen() }
 
@@ -74,16 +130,12 @@ fun ReserveScreen() {
     TODO("Not yet implemented")
 }
 
-@Composable
-fun CalendarScreen() {
-    TODO("Not yet implemented")
-}
 
 @Composable
 fun BottomNavBar(navController: NavController) {
     val items = listOf(
         BottomNavItem.Home,
-        BottomNavItem.Calendar,
+        BottomNavItem.Publicite,
         BottomNavItem.Reserve,
         BottomNavItem.Profile
     )
@@ -572,5 +624,35 @@ fun InfoChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String
     }
 }
 
+// Preview pour HomeScreen
+@Preview(showBackground = true, device = "spec:width=411dp,height=891dp")
+@Composable
+fun HomeScreenPreview() {
+    val navController = rememberNavController()
+    HomeScreen(navController = navController)
+}
 
+// Preview pour BottomNavBar
+@Preview(showBackground = true)
+@Composable
+fun BottomNavBarPreview() {
+    val navController = rememberNavController()
+    BottomNavBar(navController = navController)
+}
+
+// Preview pour PropertyCard
+@Preview(showBackground = true, widthDp = 360)
+@Composable
+fun PropertyCardPreview() {
+    val navController = rememberNavController()
+    PropertyCard(
+        title = "Studio moderne",
+        location = "Paris 15ème",
+        price = 650,
+        roommates = 2,
+        area = 35,
+        imageColor = Color(0xFF0066FF),
+        navController = navController
+    )
+}
 

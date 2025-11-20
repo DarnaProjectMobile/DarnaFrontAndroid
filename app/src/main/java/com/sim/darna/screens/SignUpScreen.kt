@@ -53,7 +53,8 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
     var confirmPasswordVisible by remember { mutableStateOf(false) }
 
     // --- ViewModel ---
-    val baseUrl = "http://192.168.0.233:3000/"
+    val baseUrl = "http://10.0.2.2:3000/api/" // Pour l'émulateur Android (utilise le préfixe /api)
+    // val baseUrl = "http://192.168.1.11:3000/api/" // Pour un appareil physique
     val viewModel: RegisterViewModel = viewModel(factory = RegisterVmFactory(baseUrl))
     val uiState = viewModel.state.collectAsState().value
     val coroutineScope = rememberCoroutineScope()

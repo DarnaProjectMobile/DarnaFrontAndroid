@@ -29,12 +29,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sim.darna.R
 import com.sim.darna.auth.LoginViewModel
 import com.sim.darna.factory.LoginVmFactory
+import com.sim.darna.utils.SessionManager
 import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
 
     val context = LocalContext.current // ✅ Needed for Toast messages
+    val sessionManager = remember { SessionManager(context) }
 
     var email by remember { mutableStateOf("") }
     var emailError by remember { mutableStateOf<String?>(null) }
@@ -43,8 +45,9 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
     var passwordVisible by remember { mutableStateOf(false) }
 
     // ✅ ViewModel setup (your base URL here)
-    val baseUrl = "http://192.168.0.233:3000/"
-    val viewModel: LoginViewModel = viewModel(factory = LoginVmFactory(baseUrl))
+    val baseUrl = "http://10.0.2.2:3000/api/" // Pour l'émulateur Android (utilise le préfixe /api)
+    // val baseUrl = "http://192.168.1.11:3000/api/" // Pour un appareil physique
+    val viewModel: LoginViewModel = viewModel(factory = LoginVmFactory(baseUrl, sessionManager))
     val uiState = viewModel.state.collectAsState().value
 
     val coroutineScope = rememberCoroutineScope()

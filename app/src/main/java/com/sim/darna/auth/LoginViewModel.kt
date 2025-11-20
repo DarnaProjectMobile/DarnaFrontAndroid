@@ -2,6 +2,7 @@ package com.sim.darna.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sim.darna.utils.SessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -16,7 +17,10 @@ data class LoginUiState(
     val message: String? = null
 )
 
-class LoginViewModel(private val repository: AuthRepository) : ViewModel() {
+class LoginViewModel(
+    private val repository: AuthRepository,
+    private val sessionManager: SessionManager
+) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginUiState())
     val state: StateFlow<LoginUiState> = _state
@@ -29,7 +33,9 @@ class LoginViewModel(private val repository: AuthRepository) : ViewModel() {
         viewModelScope.launch {
             repository.login(request).enqueue(object : Callback<LoginResponse> {
                 override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
-                    if (response.isSuccessful) {
+                    if (response.isSuccessful && response.body() != null) {
+                        val body = response.body()!!
+                        sessionManager.saveAuth(body.access_token, body.user)
                         _state.value = LoginUiState(
                             success = true,
                             message = "Connexion réussie ✅"
