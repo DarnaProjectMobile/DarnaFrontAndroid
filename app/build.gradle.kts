@@ -76,6 +76,9 @@ dependencies {
 
     // Navigation Compose
     implementation("androidx.navigation:navigation-compose:2.8.2")
+    
+    // Pager for swipeable images
+    implementation("androidx.compose.foundation:foundation:1.6.0")
 
     implementation("androidx.core:core-splashscreen:1.0.1")
     implementation(libs.androidx.camera.core)
@@ -113,6 +116,8 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.4.0")
     implementation("io.coil-kt:coil:2.4.0")
 
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
+    implementation("androidx.preference:preference-ktx:1.2.1")
 
 
     // ✅ Retrofit + OkHttp + Kotlin Serialization

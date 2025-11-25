@@ -1,9 +1,12 @@
 package com.sim.darna.screens
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -12,14 +15,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
+import com.sim.darna.components.PropertyCardView
+import com.sim.darna.model.Property
 import com.sim.darna.navigation.Routes
+import com.sim.darna.ui.theme.AppTheme
+import com.sim.darna.viewmodel.OwnershipFilter
+import com.sim.darna.viewmodel.PropertyViewModel
 
 sealed class BottomNavItem(
     val route: String,
@@ -85,7 +95,8 @@ fun BottomNavBar(navController: NavController) {
     val currentRoute = navBackStack?.destination?.route
 
     NavigationBar(
-        containerColor = Color.White
+        containerColor = AppTheme.primary,
+        contentColor = Color.White
     ) {
         items.forEach { item ->
 
@@ -104,7 +115,14 @@ fun BottomNavBar(navController: NavController) {
                         contentDescription = item.label
                     )
                 },
-                label = { Text(item.label) }
+                label = { Text(item.label) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = Color.White,
+                    unselectedIconColor = Color.White.copy(alpha = 0.7f),
+                    selectedTextColor = Color.White,
+                    unselectedTextColor = Color.White.copy(alpha = 0.7f),
+                    indicatorColor = Color.White.copy(alpha = 0.2f)
+                )
             )
         }
     }
@@ -114,33 +132,446 @@ fun BottomNavBar(navController: NavController) {
 // Home Screen
 @Composable
 fun HomeScreen(navController: NavController) {
-    Column(Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
-
-        // HEADER / SEARCH = unchanged for you
-
-        LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+    val context = LocalContext.current
+    val prefs = context.getSharedPreferences("APP_PREFS", Context.MODE_PRIVATE)
+    val currentUserId = prefs.getString("user_id", null)
+    val currentUserRole = prefs.getString("role", "guest") ?: "guest"
+    
+    val viewModel: PropertyViewModel = remember {
+        PropertyViewModel(context).apply {
+            init(currentUserId)
+        }
+    }
+    
+    val uiState by viewModel.uiState.collectAsState()
+    var showFilterSheet by remember { mutableStateOf(false) }
+    var showAddPropertyForm by remember { mutableStateOf(false) }
+    var editingProperty by remember { mutableStateOf<Property?>(null) }
+    var propertyPendingDeletion by remember { mutableStateOf<Property?>(null) }
+    
+    LaunchedEffect(Unit) {
+        viewModel.loadProperties()
+    }
+    
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(AppTheme.background)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 16.dp)
         ) {
-
-            item {
-                Text("À la une", style = MaterialTheme.typography.titleLarge)
+            // Search and Filter Bar
+            SearchAndFilterBar(
+                searchText = uiState.searchText,
+                onSearchTextChange = { viewModel.setSearchText(it) },
+                onFilterClick = { showFilterSheet = true }
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Quick Filter Buttons
+            QuickFilterButtons(
+                ownershipFilter = uiState.ownershipFilter,
+                onFilterClick = { filter ->
+                    viewModel.toggleOwnershipFilter(filter)
+                }
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Property List
+            when {
+                uiState.isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator()
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("Chargement des annonces...")
+                        }
+                    }
+                }
+                uiState.error != null -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = uiState.error ?: "Erreur inconnue",
+                            color = Color.Red,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
+                uiState.filteredProperties.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp),
+                                tint = AppTheme.textSecondary
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Aucune annonce trouvée",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Essayez de modifier votre recherche ou vos filtres.",
+                                fontSize = 14.sp,
+                                color = AppTheme.textSecondary,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    LazyColumn(
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
+                        items(uiState.filteredProperties.size) { index ->
+                            val property = uiState.filteredProperties[index]
+                            val canManage = currentUserRole == "collocator" && property.user == currentUserId
+                            
+                            PropertyCardView(
+                                property = property,
+                                canManage = canManage,
+                                onEdit = { editingProperty = property },
+                                onDelete = { propertyPendingDeletion = property },
+                                onClick = {
+                                    navController.navigate("${Routes.PropertyDetail}/${property.id}")
+                                }
+                            )
+                        }
+                    }
+                }
             }
-
-            items(3) {
-                PropertyCard(
-                    title = "Colocation moderne",
-                    location = "75011 Bastille",
-                    price = 650,
-                    roommates = 3,
-                    area = 85,
-                    imageColor = Color(0xFF4A90E2),
-                    navController = navController // ⭐ correct
+        }
+        
+        // Floating Add Button (only for collocators)
+        if (currentUserRole == "collocator") {
+            FloatingActionButton(
+                onClick = { showAddPropertyForm = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(24.dp),
+                containerColor = AppTheme.primary
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add Property",
+                    tint = Color.White
                 )
             }
         }
     }
+    
+    // Filter Sheet
+    if (showFilterSheet) {
+        FilterSheet(
+            minPrice = uiState.minPrice,
+            maxPrice = uiState.maxPrice,
+            onDismiss = { showFilterSheet = false },
+            onApply = { min, max ->
+                viewModel.setPriceFilter(min, max)
+                showFilterSheet = false
+            }
+        )
+    }
+    
+    // Add/Edit Property Form
+    if (showAddPropertyForm || editingProperty != null) {
+        AddPropertyFormView(
+            propertyToEdit = editingProperty,
+            onDismiss = {
+                showAddPropertyForm = false
+                editingProperty = null
+            },
+            onPropertySaved = {
+                viewModel.refreshProperties()
+                showAddPropertyForm = false
+                editingProperty = null
+            }
+        )
+    }
+    
+    // Delete Confirmation Dialog
+    propertyPendingDeletion?.let { property ->
+        AlertDialog(
+            onDismissRequest = { propertyPendingDeletion = null },
+            title = { Text("Supprimer l'annonce ?") },
+            text = { Text("Cette action supprimera définitivement « ${property.title} ».") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteProperty(
+                            property,
+                            onSuccess = { propertyPendingDeletion = null },
+                            onError = { propertyPendingDeletion = null }
+                        )
+                    }
+                ) {
+                    Text("Supprimer", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { propertyPendingDeletion = null }) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
 }
+
+@Composable
+fun SearchAndFilterBar(
+    searchText: String,
+    onSearchTextChange: (String) -> Unit,
+    onFilterClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Search field
+        OutlinedTextField(
+            value = searchText,
+            onValueChange = onSearchTextChange,
+            modifier = Modifier.weight(1f),
+            placeholder = { Text("Rechercher une annonce") },
+            leadingIcon = {
+                Icon(Icons.Default.Search, contentDescription = null)
+            },
+            trailingIcon = {
+                if (searchText.isNotEmpty()) {
+                    IconButton(onClick = { onSearchTextChange("") }) {
+                        Icon(Icons.Default.Close, contentDescription = "Clear")
+                    }
+                }
+            },
+            shape = RoundedCornerShape(14.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = AppTheme.card,
+                unfocusedContainerColor = AppTheme.card
+            )
+        )
+        
+        // Filter button
+        IconButton(
+            onClick = onFilterClick,
+            modifier = Modifier
+                .size(48.dp)
+                .background(AppTheme.primary, RoundedCornerShape(14.dp))
+        ) {
+            Icon(
+                imageVector = Icons.Default.Tune,
+                contentDescription = "Filter",
+                tint = Color.White
+            )
+        }
+    }
+}
+
+@Composable
+fun QuickFilterButtons(
+    ownershipFilter: OwnershipFilter,
+    onFilterClick: (OwnershipFilter) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        OwnershipFilterButton(
+            title = "Mes annonces",
+            isSelected = ownershipFilter == OwnershipFilter.MINE,
+            icon = Icons.Default.Person,
+            onClick = { onFilterClick(OwnershipFilter.MINE) }
+        )
+        
+        OwnershipFilterButton(
+            title = "Non possédé par moi",
+            isSelected = ownershipFilter == OwnershipFilter.NOT_MINE,
+            icon = Icons.Default.People,
+            onClick = { onFilterClick(OwnershipFilter.NOT_MINE) }
+        )
+    }
+}
+
+@Composable
+fun OwnershipFilterButton(
+    title: String,
+    isSelected: Boolean,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isSelected) AppTheme.primary else AppTheme.card
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.height(40.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = if (isSelected) Color.White else AppTheme.textPrimary
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (isSelected) Color.White else AppTheme.textPrimary
+            )
+        }
+    }
+}
+
+@Composable
+fun FilterSheet(
+    minPrice: Double?,
+    maxPrice: Double?,
+    onDismiss: () -> Unit,
+    onApply: (Double?, Double?) -> Unit
+) {
+    var minPriceText by remember { mutableStateOf(minPrice?.toString() ?: "") }
+    var maxPriceText by remember { mutableStateOf(maxPrice?.toString() ?: "") }
+    var minPriceError by remember { mutableStateOf<String?>(null) }
+    var maxPriceError by remember { mutableStateOf<String?>(null) }
+    
+    // Filter to only allow numbers and decimal point
+    fun filterNumericInput(text: String): String {
+        return text.filter { it.isDigit() || it == '.' }
+    }
+    
+    // Validate prices
+    fun validatePrices(): Boolean {
+        minPriceError = null
+        maxPriceError = null
+        
+        val min = minPriceText.toDoubleOrNull()
+        val max = maxPriceText.toDoubleOrNull()
+        
+        // If both are empty, it's valid (no filter)
+        if (minPriceText.isEmpty() && maxPriceText.isEmpty()) {
+            return true
+        }
+        
+        // If min is provided, it must be a valid number
+        if (minPriceText.isNotEmpty() && min == null) {
+            minPriceError = "Veuillez entrer un nombre valide"
+            return false
+        }
+        
+        // If max is provided, it must be a valid number
+        if (maxPriceText.isNotEmpty() && max == null) {
+            maxPriceError = "Veuillez entrer un nombre valide"
+            return false
+        }
+        
+        // If both are provided, min must be < max
+        if (min != null && max != null) {
+            if (min >= max) {
+                minPriceError = "Le prix minimum doit être inférieur au prix maximum"
+                maxPriceError = "Le prix maximum doit être supérieur au prix minimum"
+                return false
+            }
+        }
+        
+        return true
+    }
+    
+    val isValid = validatePrices()
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Filtrer par prix") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = minPriceText,
+                    onValueChange = { 
+                        val filtered = filterNumericInput(it)
+                        minPriceText = filtered
+                        validatePrices()
+                    },
+                    label = { Text("Prix minimum") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal
+                    ),
+                    isError = minPriceError != null,
+                    supportingText = minPriceError?.let { { Text(it, color = Color.Red) } }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = maxPriceText,
+                    onValueChange = { 
+                        val filtered = filterNumericInput(it)
+                        maxPriceText = filtered
+                        validatePrices()
+                    },
+                    label = { Text("Prix maximum") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal
+                    ),
+                    isError = maxPriceError != null,
+                    supportingText = maxPriceError?.let { { Text(it, color = Color.Red) } }
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (isValid) {
+                        val min = minPriceText.toDoubleOrNull()
+                        val max = maxPriceText.toDoubleOrNull()
+                        onApply(min, max)
+                    }
+                },
+                enabled = isValid
+            ) {
+                Text("Appliquer")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = {
+                minPriceText = ""
+                maxPriceText = ""
+                minPriceError = null
+                maxPriceError = null
+                onApply(null, null)
+            }) {
+                Text("Réinitialiser")
+            }
+        }
+    )
+}
+
+// Import statements needed
 
 
 @Composable

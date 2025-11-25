@@ -9,7 +9,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
 
-    private const val BASE_URL = "http://192.168.0.238:3000/"
+    private const val BASE_URL = "http://172.16.8.34:3000/"
 
     /**
      * Creates a Retrofit instance with JWT token automatically added.
@@ -32,7 +32,15 @@ object RetrofitClient {
             .build()
         
         // Gson that excludes null values from JSON (default behavior)
-        val gson = GsonBuilder().create()
+        val gson = GsonBuilder()
+            .setLenient() // Allow lenient parsing
+            .registerTypeAdapter(
+                com.sim.darna.model.Property::class.java,
+                com.sim.darna.model.PropertyTypeAdapter()
+            )
+            .registerTypeAdapter(String::class.java, com.sim.darna.model.UserDeserializer()) // For Property.user
+            .registerTypeAdapter(com.sim.darna.model.BookingUser::class.java, com.sim.darna.model.BookingUserDeserializer()) // For Booking.user
+            .create()
 
         return Retrofit.Builder()
             .baseUrl(BASE_URL)
@@ -54,6 +62,10 @@ object RetrofitClient {
     
     fun userApi(context: Context): UserApi {
         return getInstance(context).create(UserApi::class.java)
+    }
+    
+    fun propertyApi(context: Context): PropertyApi {
+        return getInstance(context).create(PropertyApi::class.java)
     }
 
 }

@@ -45,7 +45,6 @@ fun ProfileScreen(navController: NavHostController) {
     var phone by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
     var createdAt by remember { mutableStateOf("") }
-    var userId by remember { mutableStateOf("") }
     
     // Load data from SharedPreferences
     LaunchedEffect(refreshTrigger) {
@@ -56,7 +55,6 @@ fun ProfileScreen(navController: NavHostController) {
         phone = prefs.getString("numTel", "") ?: ""
         gender = prefs.getString("gender", "") ?: ""
         createdAt = prefs.getString("createdAt", "") ?: ""
-        userId = prefs.getString("user_id", "") ?: ""
     }
     
     // Refresh data when navigating back
@@ -218,33 +216,14 @@ fun ProfileScreen(navController: NavHostController) {
             // Account Card
             AnimatedCard(visible, 600) {
                 InfoCard("Détails du compte") {
-                    ProfileRow(Icons.Default.CalendarToday, "Created At", createdAt)
-                    DividerSpacer()
-                    ProfileRow(Icons.Default.Badge, "User ID", userId)
+                    ProfileRow(Icons.Default.CalendarToday, "Créé le", createdAt)
                 }
             }
 
             Spacer(Modifier.height(32.dp))
 
-            // LOGOUT BUTTON (FIXED)
-            AnimatedCard(visible, 700) {
-                GradientButton(
-                    text = "Logout",
-                    icon = Icons.Default.Logout,
-                    colors = listOf(Color(0xFFEF5350), Color(0xFFE53935))
-                ) {
-                    prefs.edit().clear().apply()
-
-                    navController.navigate(Routes.Login) {
-                        popUpTo(Routes.Main) { inclusive = true }
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
             // UPDATE PROFILE BUTTON
-            AnimatedCard(visible, 800) {
+            AnimatedCard(visible, 700) {
                 GradientButton(
                     text = "Update Profile",
                     icon = Icons.Default.Edit,
@@ -256,14 +235,57 @@ fun ProfileScreen(navController: NavHostController) {
 
             Spacer(Modifier.height(16.dp))
 
-            // FEEDBACK BUTTON (COMPATIBLE)
+            // FAVORITES BUTTON
+            AnimatedCard(visible, 800) {
+                GradientButton(
+                    text = "Mes Favoris",
+                    icon = Icons.Default.Favorite,
+                    colors = listOf(Color(0xFFE91E63), Color(0xFFC2185B))
+                ) {
+                    navController.navigate(Routes.Favorites)
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // RESERVATIONS BUTTON
             AnimatedCard(visible, 900) {
+                GradientButton(
+                    text = "Mes Réservations",
+                    icon = Icons.Default.CalendarToday,
+                    colors = listOf(Color(0xFF9C27B0), Color(0xFF7B1FA2))
+                ) {
+                    navController.navigate(Routes.Reservations)
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // FEEDBACK BUTTON (COMPATIBLE)
+            AnimatedCard(visible, 1000) {
                 GradientButton(
                     text = "Send Feedback",
                     icon = Icons.Default.Feedback,
                     colors = listOf(Color(0xFF1A73E8), Color(0xFF0D47A1))
                 ) {
                     navController.navigate("feedback")
+                }
+            }
+
+            Spacer(Modifier.height(32.dp))
+
+            // LOGOUT BUTTON - MOVED TO BOTTOM
+            AnimatedCard(visible, 1100) {
+                GradientButton(
+                    text = "Logout",
+                    icon = Icons.Default.Logout,
+                    colors = listOf(Color(0xFFEF5350), Color(0xFFE53935))
+                ) {
+                    prefs.edit().clear().apply()
+
+                    navController.navigate(Routes.Login) {
+                        popUpTo(Routes.Main) { inclusive = true }
+                    }
                 }
             }
 

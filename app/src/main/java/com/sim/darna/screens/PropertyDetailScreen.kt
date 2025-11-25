@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -40,13 +42,42 @@ fun formatDate(createdAt: String?): String {
 // MAIN SCREEN
 //------------------------------------------------------
 @Composable
-fun PropertyDetailScreen(navController: NavController) {
+fun PropertyDetailScreen(navController: NavController, propertyId: String? = null) {
 
     val context = LocalContext.current
+    val repository = com.sim.darna.repository.PropertyRepository(context)
+    
+    var property by remember { mutableStateOf<com.sim.darna.model.Property?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
     
     // ViewModel for reviews
     val reviewViewModel: ReviewViewModel = viewModel()
     val allReviews by reviewViewModel.reviews.collectAsState()
+    
+    // Load property from API
+    LaunchedEffect(propertyId) {
+        if (propertyId != null) {
+            repository.getPropertyById(propertyId).enqueue(object : retrofit2.Callback<com.sim.darna.model.Property> {
+                override fun onResponse(call: retrofit2.Call<com.sim.darna.model.Property>, response: retrofit2.Response<com.sim.darna.model.Property>) {
+                    if (response.isSuccessful && response.body() != null) {
+                        property = response.body()
+                        isLoading = false
+                    } else {
+                        error = "Impossible de charger l'annonce"
+                        isLoading = false
+                    }
+                }
+                
+                override fun onFailure(call: retrofit2.Call<com.sim.darna.model.Property>, t: Throwable) {
+                    error = "Erreur: ${t.message}"
+                    isLoading = false
+                }
+            })
+        } else {
+            isLoading = false
+        }
+    }
     
     // Initialize ViewModel and load reviews
     LaunchedEffect(Unit) {
@@ -64,6 +95,28 @@ fun PropertyDetailScreen(navController: NavController) {
         0f
     }
     val totalReviews = allReviews.size
+    
+    if (isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+    
+    if (error != null || property == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = error ?: "Annonce non trouvée", color = Color.Red)
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = { navController.popBackStack() }) {
+                    Text("Retour")
+                }
+            }
+        }
+        return
+    }
+    
+    val prop = property!!
 
     LazyColumn(
         modifier = Modifier
@@ -72,19 +125,56 @@ fun PropertyDetailScreen(navController: NavController) {
     ) {
 
         //------------------------------------------------------
-        // HEADER
+        // HEADER - Swipeable Images
         //------------------------------------------------------
         item {
+            val images = prop.images ?: listOfNotNull(prop.image)
+            val pagerState = rememberPagerState(initialPage = 0) { images.size }
+            
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(300.dp)
-                    .background(
-                        androidx.compose.ui.graphics.Brush.verticalGradient(
-                            colors = listOf(Color(0xFF4A90E2), Color(0xFF2C5AA0))
-                        )
-                    )
             ) {
+                if (images.isNotEmpty()) {
+                    // Use HorizontalPager for swipeable images
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize()
+                    ) { page ->
+                        com.sim.darna.components.PropertyImageView(
+                            imageString = images[page],
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    
+                    // Page indicator
+                    if (images.size > 1) {
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            repeat(images.size) { index ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (pagerState.currentPage == index) Color.White else Color.White.copy(alpha = 0.5f)
+                                        )
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    com.sim.darna.components.PropertyImageView(
+                        imageString = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                
                 IconButton(
                     onClick = { navController.popBackStack() },
                     modifier = Modifier
@@ -103,15 +193,6 @@ fun PropertyDetailScreen(navController: NavController) {
                         )
                     }
                 }
-
-                Icon(
-                    imageVector = Icons.Default.Home,
-                    contentDescription = "Property",
-                    modifier = Modifier
-                        .size(120.dp)
-                        .align(Alignment.Center),
-                    tint = Color.White.copy(alpha = 0.3f)
-                )
             }
         }
 
@@ -126,7 +207,7 @@ fun PropertyDetailScreen(navController: NavController) {
                     .padding(20.dp)
             ) {
                 Text(
-                    text = "Colocation moderne à Paris",
+                    text = prop.title,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1A1A1A)
@@ -141,8 +222,29 @@ fun PropertyDetailScreen(navController: NavController) {
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "75011 - Bastille, Paris",
+                        text = prop.location ?: "Localisation non spécifiée",
                         fontSize = 16.sp,
+                        color = Color(0xFF757575)
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = prop.type ?: "Type non spécifié",
+                    fontSize = 15.sp,
+                    color = Color(0xFF757575)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.People,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = Color(0xFF757575)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "${prop.nbrCollocateurActuel ?: 0}/${prop.nbrCollocateurMax ?: 0} colocataires",
+                        fontSize = 14.sp,
                         color = Color(0xFF757575)
                     )
                 }
@@ -163,19 +265,13 @@ fun PropertyDetailScreen(navController: NavController) {
                     PropertyInfoCard(
                         icon = Icons.Default.Person,
                         label = "Colocataires",
-                        value = "3 pers.",
-                        modifier = Modifier.weight(1f)
-                    )
-                    PropertyInfoCard(
-                        icon = Icons.Default.Home,
-                        label = "Surface",
-                        value = "85m²",
+                        value = "${prop.nbrCollocateurActuel ?: 0}/${prop.nbrCollocateurMax ?: 0}",
                         modifier = Modifier.weight(1f)
                     )
                     PropertyInfoCard(
                         icon = Icons.Default.AttachMoney,
                         label = "Loyer",
-                        value = "650€",
+                        value = "${prop.price.toInt()} DT",
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -199,7 +295,7 @@ fun PropertyDetailScreen(navController: NavController) {
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Magnifique colocation dans le quartier animé de Bastille. L'appartement dispose de 4 chambres, 2 salles de bain, une cuisine équipée et un salon spacieux. Proche de tous commerces et transports.",
+                    text = prop.description ?: "Aucune description disponible.",
                     fontSize = 15.sp,
                     color = Color(0xFF757575),
                     lineHeight = 22.sp
@@ -331,7 +427,32 @@ fun PropertyDetailScreen(navController: NavController) {
             ReviewCard(review)
         }
 
-        item { Spacer(modifier = Modifier.height(20.dp)) }
+        item { 
+            Spacer(modifier = Modifier.height(16.dp))
+            // Contact Button
+            Button(
+                onClick = {
+                    if (propertyId != null) {
+                        navController.navigate(Routes.BookProperty.replace("{propertyId}", propertyId))
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF9C27B0)
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text(
+                    text = "Contacter les Colocataires",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(vertical = 16.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(20.dp))
+        }
     }
 }
 
