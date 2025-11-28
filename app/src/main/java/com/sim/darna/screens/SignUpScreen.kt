@@ -21,6 +21,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sim.darna.auth.RegisterRequest
 import com.sim.darna.auth.RegisterViewModel
@@ -54,7 +55,9 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
     var confirmPasswordVisible by remember { mutableStateOf(false) }
 
     // --- ViewModel --- (backend Nest sur la machine hôte, accès depuis téléphone réel)
-    val viewModel: RegisterViewModel = viewModel(factory = RegisterVmFactory(NetworkConfig.BASE_URL))
+    val context = LocalContext.current
+    val baseUrl = remember { NetworkConfig.getBaseUrl(context.applicationContext) }
+    val viewModel: RegisterViewModel = viewModel(factory = RegisterVmFactory(baseUrl))
     val uiState = viewModel.state.collectAsState().value
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }

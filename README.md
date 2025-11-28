@@ -76,7 +76,74 @@ L’application offrira :
 - **Back-end** : NestJS  
 - **Base de données** : MongoDB  
 
+## 9. Configuration du backend (développement)
 
-## 9. Conclusion
+Pour éviter l'erreur *« Impossible de joindre le serveur »* visible sur l'écran de connexion :
+
+1. Démarrez l'API NestJS (`npm run start`).
+2. Relevez l'IP que votre appareil peut joindre :
+   - Émulateur Android Studio → `http://10.0.2.2:3007/`
+   - Téléphone réel sur le même WiFi → utilisez l'IPv4 locale de votre PC (`ipconfig`) telle que `http://192.168.1.42:3007/`
+3. Ouvrez `local.properties` (non versionné) et ajoutez ou modifiez la ligne :  
+   `backend.url=http://VOTRE_IP:3007/`
+4. Recompilez l'app (`Build > Rebuild Project`). Vous pouvez aussi définir la variable d'environnement `DARNA_BACKEND_URL` avant d'exécuter Gradle.
+
+Sans configuration, l'application utilise automatiquement `http://10.0.2.2:3007/`.
+
+### 9.1. Dépannage des erreurs de connexion
+
+Si vous rencontrez l'erreur *« Impossible de joindre le serveur »*, suivez ces étapes :
+
+#### Étape 1 : Vérifier que le serveur est démarré
+```bash
+# Dans le dossier du backend NestJS
+npm run start
+```
+Assurez-vous que le serveur écoute sur le port 3007 et affiche un message de démarrage.
+
+#### Étape 2 : Trouver votre IP locale
+- **Windows** : Ouvrez PowerShell et exécutez :
+  ```powershell
+  ipconfig | findstr IPv4
+  ```
+  Cherchez une adresse de type `192.168.x.x` ou `192.168.0.x` (évitez les adresses `169.254.x.x` qui sont des adresses APIPA non accessibles).
+
+- **Linux/Mac** : Ouvrez Terminal et exécutez :
+  ```bash
+  ifconfig | grep inet
+  ```
+  Cherchez une adresse de type `192.168.x.x`.
+
+#### Étape 3 : Vérifier la configuration réseau
+1. Ouvrez `local.properties` et vérifiez que `backend.url` pointe vers la bonne IP :
+   ```
+   backend.url=http://192.168.1.XXX:3007/
+   ```
+   ⚠️ **Important** : N'utilisez PAS d'adresse `169.254.x.x` (APIPA) car elle n'est pas accessible depuis d'autres appareils.
+
+2. Vérifiez que l'IP est autorisée dans `app/src/main/res/xml/network_security_config.xml` (elle devrait déjà y être si vous utilisez une IP standard).
+
+#### Étape 4 : Vérifier la connexion réseau
+- Assurez-vous que votre téléphone et votre ordinateur sont sur le **même réseau WiFi**.
+- Désactivez temporairement le VPN si vous en utilisez un.
+- Vérifiez que le firewall Windows/Mac ne bloque pas le port 3007.
+
+#### Étape 5 : Tester la connexion
+1. Sur votre téléphone, ouvrez un navigateur et essayez d'accéder à : `http://VOTRE_IP:3007/`
+2. Si cela fonctionne dans le navigateur mais pas dans l'app, recompilez l'application :
+   - Android Studio : `Build > Rebuild Project`
+   - Ou via terminal : `./gradlew clean build`
+
+#### Étape 6 : Vérifier les logs
+- Ouvrez Logcat dans Android Studio pour voir les erreurs détaillées.
+- Les messages d'erreur améliorés dans l'application vous donneront des indications précises sur le problème.
+
+#### Solutions courantes :
+- **IP a changé** : Les IP locales peuvent changer si vous vous reconnectez au WiFi. Vérifiez régulièrement avec `ipconfig`.
+- **Serveur non démarré** : Vérifiez que le serveur NestJS est bien en cours d'exécution.
+- **Firewall** : Ajoutez une exception pour le port 3007 dans votre firewall.
+- **Réseau différent** : Assurez-vous que le téléphone et l'ordinateur sont sur le même réseau WiFi (pas de réseau invité isolé).
+
+## 10. Conclusion
 
 Ce projet vise à répondre aux besoins réels des étudiants en matière de logement partagé, en leur offrant un outil fiable et convivial. L’application ambitionne de devenir une référence pour la colocation étudiante grâce à son ergonomie, sa rapidité et sa sécurité.

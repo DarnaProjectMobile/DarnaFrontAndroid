@@ -3,13 +3,9 @@ package com.sim.darna.factory
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.sim.darna.auth.SessionManager
-import com.sim.darna.logement.LogementApi
-import com.sim.darna.logement.LogementRepository
-import com.sim.darna.notification.NotificationApi
-import com.sim.darna.notification.NotificationRepository
-import com.sim.darna.visite.VisiteApi
-import com.sim.darna.visite.VisiteRepository
-import com.sim.darna.visite.VisiteViewModel
+import com.sim.darna.reviews.ReviewsApi
+import com.sim.darna.reviews.ReviewsRepository
+import com.sim.darna.reviews.ReviewsViewModel
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -17,10 +13,11 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 
-class VisiteVmFactory(
+class ReviewsVmFactory(
     private val baseUrl: String,
     private val sessionManager: SessionManager
 ) : ViewModelProvider.Factory {
+
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
@@ -31,23 +28,14 @@ class VisiteVmFactory(
                 try {
                     val token = runBlocking { sessionManager.getToken() }
                     val requestBuilder = chain.request().newBuilder()
-                    
+
                     if (!token.isNullOrBlank()) {
                         requestBuilder.addHeader("Authorization", "Bearer $token")
                     }
                     requestBuilder.addHeader("Accept", "application/json")
-                    
-                    val request = requestBuilder.build()
-                    val response = chain.proceed(request)
-                    
-                    // Si on reçoit une erreur 401, la session a expiré
-                    if (response.code == 401) {
-                        runBlocking { sessionManager.clearSession() }
-                    }
-                    
-                    response
+
+                    chain.proceed(requestBuilder.build())
                 } catch (e: Exception) {
-                    // En cas d'erreur lors de la récupération du token, continuer sans token
                     val request = chain.request().newBuilder()
                         .addHeader("Accept", "application/json")
                         .build()
@@ -67,17 +55,8 @@ class VisiteVmFactory(
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
-        val visiteApi = retrofit.create(VisiteApi::class.java)
-        val visiteRepo = VisiteRepository(visiteApi)
-        
-        // Créer aussi NotificationRepository pour les rappels
-        val notificationApi = retrofit.create(NotificationApi::class.java)
-        val notificationRepo = NotificationRepository(notificationApi)
-        
-        // Créer LogementRepository pour récupérer l'ownerId
-        val logementApi = retrofit.create(LogementApi::class.java)
-        val logementRepo = LogementRepository(logementApi)
-        
-        return VisiteViewModel(visiteRepo, notificationRepo, sessionManager, logementRepo) as T
+        val api = retrofit.create(ReviewsApi::class.java)
+        val repo = ReviewsRepository(api)
+        return ReviewsViewModel(repo) as T
     }
 }

@@ -23,12 +23,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import com.sim.darna.auth.SessionManager
 import com.sim.darna.navigation.Routes
 import kotlinx.coroutines.launch
 
 @Composable
-fun ProfileScreen(navController: NavController, sessionManager: SessionManager) {
+fun ProfileScreen(
+    navController: NavController, 
+    sessionManager: SessionManager,
+    parentNavController: NavHostController? = null
+) {
     val userSession = sessionManager.sessionFlow.collectAsState(initial = null).value
     val scope = rememberCoroutineScope()
 
@@ -102,7 +107,9 @@ fun ProfileScreen(navController: NavController, sessionManager: SessionManager) 
             onClick = {
                 scope.launch {
                     sessionManager.clearSession()
-                    navController.navigate(Routes.Login) {
+                    // Use parent NavController if available (for navigating to login route)
+                    val navToUse = parentNavController ?: navController
+                    navToUse.navigate(Routes.Login) {
                         popUpTo(Routes.Main) { inclusive = true }
                     }
                 }

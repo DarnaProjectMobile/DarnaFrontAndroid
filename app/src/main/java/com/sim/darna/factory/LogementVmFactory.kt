@@ -5,11 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.sim.darna.auth.SessionManager
 import com.sim.darna.logement.LogementApi
 import com.sim.darna.logement.LogementRepository
-import com.sim.darna.notification.NotificationApi
-import com.sim.darna.notification.NotificationRepository
-import com.sim.darna.visite.VisiteApi
-import com.sim.darna.visite.VisiteRepository
-import com.sim.darna.visite.VisiteViewModel
+import com.sim.darna.logement.LogementViewModel
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -17,7 +13,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 
-class VisiteVmFactory(
+class LogementVmFactory(
     private val baseUrl: String,
     private val sessionManager: SessionManager
 ) : ViewModelProvider.Factory {
@@ -55,10 +51,10 @@ class VisiteVmFactory(
                 }
             }
             .addInterceptor(logging)
-            .connectTimeout(60, TimeUnit.SECONDS) // Augmenté à 60 secondes pour connexions lentes
-            .readTimeout(60, TimeUnit.SECONDS) // Augmenté à 60 secondes pour réponses lentes
-            .writeTimeout(60, TimeUnit.SECONDS) // Augmenté à 60 secondes pour envoi de données
-            .retryOnConnectionFailure(true) // Réessayer en cas d'échec de connexion
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
             .build()
 
         val retrofit = Retrofit.Builder()
@@ -67,17 +63,14 @@ class VisiteVmFactory(
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
-        val visiteApi = retrofit.create(VisiteApi::class.java)
-        val visiteRepo = VisiteRepository(visiteApi)
-        
-        // Créer aussi NotificationRepository pour les rappels
-        val notificationApi = retrofit.create(NotificationApi::class.java)
-        val notificationRepo = NotificationRepository(notificationApi)
-        
-        // Créer LogementRepository pour récupérer l'ownerId
-        val logementApi = retrofit.create(LogementApi::class.java)
-        val logementRepo = LogementRepository(logementApi)
-        
-        return VisiteViewModel(visiteRepo, notificationRepo, sessionManager, logementRepo) as T
+        val api = retrofit.create(LogementApi::class.java)
+        val repo = LogementRepository(api)
+        return LogementViewModel(repo) as T
     }
 }
+
+
+
+
+
+

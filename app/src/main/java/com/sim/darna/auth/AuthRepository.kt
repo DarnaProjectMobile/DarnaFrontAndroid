@@ -3,7 +3,7 @@ package com.sim.darna.auth
 import retrofit2.Call
 
 class AuthRepository(private val api: AuthApi) {
-    fun login(request: LoginRequest): Call<LoginResponse> {
+    suspend fun login(request: LoginRequest): LoginResponse {
         return api.login(request)
     }
 

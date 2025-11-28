@@ -2,6 +2,7 @@ package com.sim.darna.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -46,10 +47,21 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
 
     // ✅ ViewModel setup (backend Nest sur la machine hôte, accès depuis téléphone réel)
     val sessionManager = remember { SessionManager(context.applicationContext) }
+    // Forcer le rafraîchissement de l'URL à chaque affichage de l'écran
+    val baseUrl = remember { NetworkConfig.getBaseUrl(context.applicationContext, forceRefresh = true) }
     val viewModel: LoginViewModel = viewModel(
-        factory = LoginVmFactory(NetworkConfig.BASE_URL, sessionManager)
+        factory = LoginVmFactory(baseUrl, sessionManager)
     )
     val uiState = viewModel.state.collectAsState().value
+    
+    // Rafraîchir l'URL si une erreur de connexion survient
+    LaunchedEffect(uiState.error) {
+        val error = uiState.error
+        if (error != null && (error.contains("Timeout") || error.contains("Impossible de joindre"))) {
+            // Forcer le rafraîchissement du cache pour la prochaine tentative
+            NetworkConfig.clearCache()
+        }
+    }
 
     val coroutineScope = rememberCoroutineScope()
 
@@ -211,14 +223,196 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // ✅ Error text in red (in addition to Toast)
-        uiState.error?.let {
-            Text(
-                text = it,
-                color = Color.Red,
-                fontSize = 14.sp,
-                textAlign = TextAlign.Center
-            )
+        // ✅ Error text in red (in addition to Toast) - Formaté avec Card pour meilleure lisibilité
+        uiState.error?.let { errorMessage ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 0.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFFFEBEE)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color(0xFFFFCDD2))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.Start
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Error,
+                            contentDescription = null,
+                            tint = Color(0xFFD32F2F),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Erreur de connexion",
+                            color = Color(0xFFD32F2F),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    // Parser et afficher le message d'erreur avec formatage
+                    val lines = errorMessage.split("\n")
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        lines.forEach { line ->
+                            when {
+                                line.contains("⚠️") -> {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Warning,
+                                            contentDescription = null,
+                                            tint = Color(0xFFFF9800),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = line.replace("⚠️", "").trim(),
+                                            color = Color(0xFFB71C1C),
+                                            fontSize = 12.sp,
+                                            lineHeight = 18.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+                                line.contains("✅") -> {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = Color(0xFF4CAF50),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = line.replace("✅", "").trim(),
+                                            color = Color(0xFF1B5E20),
+                                            fontSize = 12.sp,
+                                            lineHeight = 18.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+                                line.contains("💡") -> {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Info,
+                                            contentDescription = null,
+                                            tint = Color(0xFFFFC107),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = line.replace("💡", "").trim(),
+                                            color = Color(0xFF757575),
+                                            fontSize = 11.sp,
+                                            lineHeight = 16.sp,
+                                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                                        )
+                                    }
+                                }
+                                line.trim().isEmpty() -> {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                }
+                                line.trim().startsWith("1.") || line.trim().startsWith("2.") || 
+                                line.trim().startsWith("3.") || line.trim().startsWith("4.") -> {
+                                    Text(
+                                        text = line.trim(),
+                                        color = Color(0xFF424242),
+                                        fontSize = 11.sp,
+                                        lineHeight = 16.sp,
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                }
+                                else -> {
+                                    Text(
+                                        text = line.trim(),
+                                        color = Color(0xFFB71C1C),
+                                        fontSize = 12.sp,
+                                        lineHeight = 18.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    // Afficher l'URL actuelle avec possibilité de rafraîchir
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFF5F5F5)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "URL actuelle du serveur:",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF757575),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = baseUrl,
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF424242),
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                    )
+                                }
+                                TextButton(
+                                    onClick = {
+                                        NetworkConfig.clearCache()
+                                        // Recharger l'URL
+                                        val newUrl = NetworkConfig.getBaseUrl(context.applicationContext, forceRefresh = true)
+                                        // Note: Pour vraiment recharger, il faudrait recréer le ViewModel
+                                        // mais pour l'instant, on affiche juste un message
+                                        Toast.makeText(
+                                            context,
+                                            "Cache vidé. Recompilez l'app si l'IP a changé.",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                ) {
+                                    Text(
+                                        text = "Rafraîchir",
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "💡 Si vous avez changé de WiFi, modifiez backend_url.txt avec la nouvelle IP du serveur",
+                                fontSize = 10.sp,
+                                color = Color(0xFF757575),
+                                lineHeight = 14.sp
+                            )
+                        }
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(8.dp))
         }
 

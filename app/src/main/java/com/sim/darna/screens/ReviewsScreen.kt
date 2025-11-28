@@ -10,6 +10,10 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -17,27 +21,37 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-
-data class Review(
-    val username: String,
-    val rating: Int,
-    val comment: String
-)
+import com.sim.darna.auth.SessionManager
+import com.sim.darna.factory.ReviewsVmFactory
+import com.sim.darna.network.NetworkConfig
+import com.sim.darna.reviews.CollectorReviewResponse
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReviewsScreen(propertyId: String, navController: NavController) {
-    val reviews = listOf(
-        Review("Alice Dupont", 5, "Super expérience ! Appartement propre et bien situé."),
-        Review("Mehdi K.", 4, "Très bon rapport qualité-prix. Je recommande."),
-        Review("Léa M.", 3, "Pas mal, mais un peu de bruit le soir."),
-        Review("Karim A.", 5, "Propriétaire très sympa et logement impeccable."),
-        Review("Sofia R.", 2, "Manque de chauffage, sinon ok.")
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context.applicationContext) }
+    val baseUrl = remember { NetworkConfig.getBaseUrl(context.applicationContext) }
+    val viewModel: com.sim.darna.reviews.ReviewsViewModel = viewModel(
+        factory = ReviewsVmFactory(
+            baseUrl = baseUrl,
+            sessionManager = sessionManager
+        )
     )
+    val state by viewModel.state.collectAsState()
 
-    val averageRating = reviews.map { it.rating }.average()
-    val totalReviews = reviews.size
+    LaunchedEffect(Unit) {
+        viewModel.loadMyReviewsAndReputation()
+    }
+
+    val reviews = state.feedbacks
+    val reputation = state.reputation
+
+    val averageRating = reputation?.averageRating?.toDouble() ?: 0.0
+    val totalReviews = reputation?.reviewsCount ?: 0
 
     Scaffold(
         topBar = {
@@ -62,7 +76,7 @@ fun ReviewsScreen(propertyId: String, navController: NavController) {
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            // ⭐ Average Rating Section
+            // Score global
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -98,24 +112,25 @@ fun ReviewsScreen(propertyId: String, navController: NavController) {
 
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "$totalReviews avis au total",
+                        text = if (totalReviews > 0) "$totalReviews avis au total" else "Aucun avis pour le moment",
                         fontSize = 14.sp,
                         color = Color.Gray
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Rating Bar Breakdown
-                    (5 downTo 1).forEach { stars ->
-                        val count = reviews.count { it.rating == stars }
-                        val percentage = (count.toFloat() / totalReviews) * 100
-                        RatingBarRow(stars, percentage, count)
-                        Spacer(modifier = Modifier.height(6.dp))
+                    if (reputation != null && totalReviews > 0) {
+                        ReputationDetailRow("Collector", reputation.averageCollectorRating)
+                        Spacer(Modifier.height(4.dp))
+                        ReputationDetailRow("Propreté", reputation.averageCleanlinessRating)
+                        Spacer(Modifier.height(4.dp))
+                        ReputationDetailRow("Localisation", reputation.averageLocationRating)
+                        Spacer(Modifier.height(4.dp))
+                        ReputationDetailRow("Conformité", reputation.averageConformityRating)
                     }
                 }
             }
 
-            // 💬 Reviews List
             Text(
                 text = "Commentaires",
                 fontSize = 20.sp,
@@ -124,45 +139,71 @@ fun ReviewsScreen(propertyId: String, navController: NavController) {
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(reviews) { review ->
-                    ReviewCard(review)
+            when {
+                state.isLoading && reviews.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
+                reviews.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Aucun avis pour le moment",
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        )
+                    }
+                }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(reviews) { review ->
+                            ReviewCardFromApi(review)
+                        }
+                    }
+                }
+            }
+
+            state.error?.let { error ->
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = error,
+                    color = Color.Red,
+                    fontSize = 13.sp
+                )
             }
         }
     }
 }
 
 @Composable
-fun RatingBarRow(stars: Int, percentage: Float, count: Int) {
+private fun ReputationDetailRow(label: String, value: Float) {
     Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text("$stars★", fontWeight = FontWeight.Medium, fontSize = 14.sp, modifier = Modifier.width(40.dp))
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(8.dp)
-                .background(Color(0xFFE0E0E0), RoundedCornerShape(4.dp))
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(percentage / 100)
-                    .background(Color(0xFFFFC107), RoundedCornerShape(4.dp))
-            )
-        }
-        Spacer(modifier = Modifier.width(8.dp))
-        Text("$count", fontSize = 12.sp, color = Color.Gray)
+        Text(label, fontSize = 13.sp, color = Color.Gray)
+        Text(
+            String.format("%.1f / 5", value),
+            fontSize = 13.sp,
+            color = Color(0xFF0066FF),
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 
 @Composable
-fun ReviewCard(review: Review) {
+private fun ReviewCardFromApi(review: CollectorReviewResponse) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -175,13 +216,18 @@ fun ReviewCard(review: Review) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(review.username, fontWeight = FontWeight.Bold, color = Color(0xFF1A1A1A))
+                Text(
+                    review.userId ?: "Client",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1A1A1A)
+                )
                 Row {
+                    val rating = (review.rating ?: 0f).toInt()
                     repeat(5) { index ->
                         Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = null,
-                            tint = if (index < review.rating) Color(0xFFFFC107) else Color(0xFFBDBDBD),
+                            tint = if (index < rating) Color(0xFFFFC107) else Color(0xFFBDBDBD),
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -190,7 +236,7 @@ fun ReviewCard(review: Review) {
 
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = review.comment,
+                text = review.comment ?: "",
                 fontSize = 14.sp,
                 color = Color(0xFF616161),
                 lineHeight = 20.sp,

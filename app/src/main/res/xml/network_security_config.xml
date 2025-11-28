@@ -2,7 +2,12 @@
 <network-security-config>
     <!-- Autorise le HTTP clair vers le backend local depuis le téléphone réel -->
     <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">169.254.191.66</domain>
+        <domain includeSubdomains="true">169.254.23.47</domain>
+        <domain includeSubdomains="true">169.254.133.122</domain>
         <domain includeSubdomains="true">192.168.1.109</domain>
+        <domain includeSubdomains="true">192.168.1.105</domain>
+        <domain includeSubdomains="true">192.168.56.1</domain>
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>
     </domain-config>
