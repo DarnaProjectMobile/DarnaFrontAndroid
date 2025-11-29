@@ -3,15 +3,15 @@ package com.sim.darna.auth
 
 import com.sim.darna.model.UserDto
 import com.google.gson.annotations.SerializedName
-import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
-import okhttp3.RequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Call
-import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.*
+import retrofit2.http.Body
+import retrofit2.http.HTTP
+import retrofit2.http.PATCH
+import retrofit2.http.POST
 import java.util.concurrent.TimeUnit
 
 // DTO matching your NestJS UpdateUserDto
@@ -26,12 +26,30 @@ data class UpdateUserRequest(
     val gender: String? = null
 )
 
+data class DeviceTokenRequest(
+    @SerializedName("deviceToken") val deviceToken: String,
+)
+
+data class MessageResponse(
+    val message: String,
+)
+
 interface UserApi {
     // PATCH /users/me - JSON body (matches NestJS @Body)
     @PATCH("users/me")
     fun updateMe(
         @Body request: UpdateUserRequest
     ): Call<UserDto>
+
+    @POST("users/me/device-token")
+    fun registerDeviceToken(
+        @Body request: DeviceTokenRequest,
+    ): Call<MessageResponse>
+
+    @HTTP(method = "DELETE", path = "users/me/device-token", hasBody = true)
+    fun removeDeviceToken(
+        @Body request: DeviceTokenRequest,
+    ): Call<MessageResponse>
 
     companion object {
         fun create(baseUrl: String): UserApi {

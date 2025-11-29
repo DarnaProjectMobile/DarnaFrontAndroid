@@ -34,7 +34,8 @@ fun PropertyCardView(
     canManage: Boolean = false,
     onEdit: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    isGridMode: Boolean = false
 ) {
     val context = LocalContext.current
     var isFavorite by remember { mutableStateOf(false) }
@@ -57,7 +58,7 @@ fun PropertyCardView(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(160.dp)
+                    .height(if (isGridMode) 120.dp else 160.dp)
                     .background(AppTheme.primaryLight)
             ) {
                 PropertyImageView(
@@ -73,7 +74,7 @@ fun PropertyCardView(
                     },
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(8.dp)
+                        .padding(if (isGridMode) 4.dp else 8.dp)
                 ) {
                     Surface(
                         shape = CircleShape,
@@ -82,7 +83,7 @@ fun PropertyCardView(
                         Icon(
                             imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Favorite",
-                            modifier = Modifier.padding(8.dp),
+                            modifier = Modifier.padding(if (isGridMode) 6.dp else 8.dp),
                             tint = if (isFavorite) Color(0xFFFF6B6B) else AppTheme.textSecondary
                         )
                     }
@@ -90,31 +91,27 @@ fun PropertyCardView(
             }
             
             // Content section
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.padding(if (isGridMode) 12.dp else 16.dp)) {
                 // Title and price
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
-                ) {
+                Column {
                     Text(
                         text = property.title,
-                        fontSize = 18.sp,
+                        fontSize = if (isGridMode) 14.sp else 18.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = AppTheme.textPrimary,
-                        modifier = Modifier.weight(1f)
+                        maxLines = if (isGridMode) 1 else Int.MAX_VALUE
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "${property.price.toInt()} DT/mois",
-                        fontSize = 16.sp,
+                        fontSize = if (isGridMode) 14.sp else 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = AppTheme.primary
                     )
                 }
                 
-                // Description
-                if (!property.description.isNullOrEmpty()) {
+                // Description - only show in list mode
+                if (!isGridMode && !property.description.isNullOrEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = property.description,
@@ -126,37 +123,38 @@ fun PropertyCardView(
                 
                 // Start date
                 property.startDate?.let { dateStr ->
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(if (isGridMode) 4.dp else 8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.CalendarToday,
                             contentDescription = null,
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(if (isGridMode) 12.dp else 14.dp),
                             tint = AppTheme.textSecondary
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Disponible début ${formatDate(dateStr)}",
-                            fontSize = 12.sp,
+                            text = formatDate(dateStr),
+                            fontSize = if (isGridMode) 10.sp else 12.sp,
                             color = AppTheme.textSecondary
                         )
                     }
                 }
                 
-                // Footer row
-                Spacer(modifier = Modifier.height(12.dp))
+                // Owner name
+                Spacer(modifier = Modifier.height(if (isGridMode) 4.dp else 12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Propriétaire: ${property.ownerName ?: property.ownerUsername ?: property.user ?: "Non spécifié"}",
-                        fontSize = 12.sp,
-                        color = AppTheme.textSecondary
+                        text = property.ownerName ?: property.ownerUsername ?: property.user ?: "Non spécifié",
+                        fontSize = if (isGridMode) 10.sp else 12.sp,
+                        color = AppTheme.textSecondary,
+                        maxLines = 1
                     )
                     
-                    if (canManage) {
+                    if (!isGridMode && canManage) {
                         Row {
                             IconButton(onClick = { onEdit?.invoke() }) {
                                 Icon(

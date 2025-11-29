@@ -15,6 +15,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sim.darna.components.CustomDatePickerDialog
 import com.sim.darna.model.Property
 import com.sim.darna.model.PropertyWithBookings
 import com.sim.darna.model.UserDto
@@ -77,22 +78,86 @@ fun BookPropertyScreen(navController: androidx.navigation.NavController, propert
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Contacter les Colocataires") },
+                title = { 
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.People,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(
+                            "Contacter les Colocataires",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        )
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, null)
+                        Icon(
+                            Icons.Default.ArrowBack, 
+                            null,
+                            tint = Color.White
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = AppTheme.primary,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                )
             )
         }
     ) { padding ->
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator(
+                        color = AppTheme.primary,
+                        modifier = Modifier.size(48.dp),
+                        strokeWidth = 4.dp
+                    )
+                    Text(
+                        "Chargement...",
+                        color = AppTheme.textSecondary,
+                        fontSize = 14.sp
+                    )
+                }
             }
         } else if (errorMessage != null || property == null) {
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text(text = errorMessage ?: "Annonce non trouvée", color = Color.Red)
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = AppTheme.card),
+                    modifier = Modifier.padding(24.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Error,
+                            contentDescription = null,
+                            tint = Color(0xFFD32F2F),
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Text(
+                            text = errorMessage ?: "Annonce non trouvée",
+                            color = Color(0xFFD32F2F),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
             }
         } else {
             val prop = property!!
@@ -117,16 +182,28 @@ fun BookPropertyScreen(navController: androidx.navigation.NavController, propert
                 // Property Info Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = AppTheme.card)
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = AppTheme.card),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Informations sur l'annonce",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = AppTheme.primary
-                        )
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = AppTheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Informations sur l'annonce",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AppTheme.primary
+                            )
+                        }
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = prop.title,
@@ -181,25 +258,52 @@ fun BookPropertyScreen(navController: androidx.navigation.NavController, propert
                 if (prop.user != null) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = AppTheme.card)
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = AppTheme.card),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "Propriétaire",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = AppTheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Person, null, modifier = Modifier.size(20.dp), tint = AppTheme.primary)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = prop.ownerName ?: prop.ownerUsername ?: "ID: ${prop.user}",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = AppTheme.primary,
+                                    modifier = Modifier.size(24.dp)
                                 )
+                                Text(
+                                    text = "Propriétaire",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppTheme.primary
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = AppTheme.primaryLight.copy(alpha = 0.3f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(12.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Person, 
+                                        null, 
+                                        modifier = Modifier.size(20.dp), 
+                                        tint = AppTheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = prop.ownerName ?: prop.ownerUsername ?: "ID: ${prop.user}",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = AppTheme.textPrimary
+                                    )
+                                }
                             }
                         }
                     }
@@ -209,55 +313,89 @@ fun BookPropertyScreen(navController: androidx.navigation.NavController, propert
                 if (bookings.isNotEmpty()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = AppTheme.card)
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = AppTheme.card),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "Colocataires ayant réservé (${bookings.size})",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = AppTheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.People,
+                                    contentDescription = null,
+                                    tint = AppTheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text(
+                                    text = "Colocataires ayant réservé (${bookings.size})",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppTheme.primary
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
                             bookings.forEachIndexed { index, booking ->
                                 if (index > 0) {
-                                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+                                    Spacer(modifier = Modifier.height(12.dp))
                                 }
-                                Column {
-                                    if (booking.user != null) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Default.Person, null, modifier = Modifier.size(16.dp), tint = AppTheme.textSecondary)
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = booking.user.username ?: "Utilisateur",
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        }
-                                        if (booking.user.email != null) {
-                                            Spacer(modifier = Modifier.height(4.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = AppTheme.primaryLight.copy(alpha = 0.2f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        if (booking.user != null) {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(Icons.Default.Email, null, modifier = Modifier.size(14.dp), tint = AppTheme.textSecondary)
-                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Icon(
+                                                    Icons.Default.Person, 
+                                                    null, 
+                                                    modifier = Modifier.size(18.dp), 
+                                                    tint = AppTheme.primary
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
                                                 Text(
-                                                    text = booking.user.email,
-                                                    fontSize = 12.sp,
+                                                    text = booking.user.username ?: "Utilisateur",
+                                                    fontSize = 16.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = AppTheme.textPrimary
+                                                )
+                                            }
+                                            if (booking.user.email != null) {
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(
+                                                        Icons.Default.Email, 
+                                                        null, 
+                                                        modifier = Modifier.size(16.dp), 
+                                                        tint = AppTheme.textSecondary
+                                                    )
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text(
+                                                        text = booking.user.email,
+                                                        fontSize = 14.sp,
+                                                        color = AppTheme.textSecondary
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        if (booking.bookingStartDate != null) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    Icons.Default.CalendarToday, 
+                                                    null, 
+                                                    modifier = Modifier.size(16.dp), 
+                                                    tint = AppTheme.textSecondary
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = "Réservé le: ${formatBookingDate(booking.bookingStartDate)}",
+                                                    fontSize = 14.sp,
                                                     color = AppTheme.textSecondary
                                                 )
                                             }
-                                        }
-                                    }
-                                    if (booking.bookingStartDate != null) {
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Default.CalendarToday, null, modifier = Modifier.size(14.dp), tint = AppTheme.textSecondary)
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = "Réservé le: ${formatBookingDate(booking.bookingStartDate)}",
-                                                fontSize = 12.sp,
-                                                color = AppTheme.textSecondary
-                                            )
                                         }
                                     }
                                 }
@@ -269,38 +407,104 @@ fun BookPropertyScreen(navController: androidx.navigation.NavController, propert
                 // Date Picker for Booking
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = AppTheme.card)
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = AppTheme.card),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Réserver cette annonce",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = AppTheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Bookmark,
+                                contentDescription = null,
+                                tint = AppTheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Réserver cette annonce",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AppTheme.primary
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
                         OutlinedTextField(
                             value = selectedDate?.let { 
                                 SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(it) 
                             } ?: "",
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Date de réservation") },
+                            label = { 
+                                Text(
+                                    "Date de réservation",
+                                    color = AppTheme.textSecondary
+                                ) 
+                            },
+                            placeholder = { 
+                                Text(
+                                    "Sélectionnez une date",
+                                    color = AppTheme.textSecondary.copy(alpha = 0.6f)
+                                ) 
+                            },
                             modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = AppTheme.card,
+                                unfocusedContainerColor = AppTheme.card,
+                                focusedBorderColor = AppTheme.primary,
+                                unfocusedBorderColor = Color(0xFFE0E0E0),
+                                focusedTextColor = AppTheme.textPrimary,
+                                unfocusedTextColor = AppTheme.textPrimary
+                            ),
+                            shape = RoundedCornerShape(14.dp),
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.CalendarToday,
+                                    null,
+                                    tint = AppTheme.textSecondary
+                                )
+                            },
                             trailingIcon = {
                                 IconButton(onClick = { showDatePicker = true }) {
-                                    Icon(Icons.Default.CalendarToday, null)
+                                    Icon(
+                                        Icons.Default.CalendarToday, 
+                                        null,
+                                        tint = AppTheme.primary
+                                    )
                                 }
                             }
                         )
                         
                         errorMessage?.let {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(text = it, color = Color.Red, fontSize = 12.sp)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFFFFEBEE),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Error,
+                                        contentDescription = null,
+                                        tint = Color(0xFFD32F2F),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text(
+                                        text = it, 
+                                        color = Color(0xFFD32F2F), 
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
                         }
                         
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
                         
                         // Book Button
                         Button(
@@ -339,10 +543,24 @@ fun BookPropertyScreen(navController: androidx.navigation.NavController, propert
                                 })
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = AppTheme.primary)
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = AppTheme.primary,
+                                contentColor = Color.White
+                            )
                         ) {
-                            Text("Réserver", modifier = Modifier.padding(vertical = 12.dp), fontWeight = FontWeight.Bold)
+                            Icon(
+                                imageVector = Icons.Default.Bookmark,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Réserver", 
+                                modifier = Modifier.padding(vertical = 4.dp), 
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 16.sp
+                            )
                         }
                     }
                 }
@@ -366,7 +584,7 @@ fun BookPropertyScreen(navController: androidx.navigation.NavController, propert
         val minDateMillis = startDate?.time
         val maxDateMillis = endDate?.time
         
-        DatePickerDialog(
+        CustomDatePickerDialog(
             initialYear = calendar.get(Calendar.YEAR),
             initialMonth = calendar.get(Calendar.MONTH),
             initialDay = calendar.get(Calendar.DAY_OF_MONTH),
@@ -397,14 +615,51 @@ fun BookPropertyScreen(navController: androidx.navigation.NavController, propert
                 showSuccessDialog = false
                 navController.popBackStack()
             },
-            title = { Text("Réservation réussie") },
-            text = { Text("Votre réservation a été enregistrée avec succès.") },
+            containerColor = AppTheme.card,
+            shape = RoundedCornerShape(24.dp),
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = Color(0xFF4CAF50),
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Text(
+                        "Réservation réussie",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppTheme.textPrimary
+                    )
+                }
+            },
+            text = { 
+                Text(
+                    "Votre réservation a été enregistrée avec succès.",
+                    fontSize = 16.sp,
+                    color = AppTheme.textSecondary
+                ) 
+            },
             confirmButton = {
-                TextButton(onClick = {
-                    showSuccessDialog = false
-                    navController.popBackStack()
-                }) {
-                    Text("OK")
+                Button(
+                    onClick = {
+                        showSuccessDialog = false
+                        navController.popBackStack()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppTheme.primary,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        "OK",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp
+                    )
                 }
             }
         )

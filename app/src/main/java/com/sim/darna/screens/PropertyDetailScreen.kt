@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,6 +47,8 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
 
     val context = LocalContext.current
     val repository = com.sim.darna.repository.PropertyRepository(context)
+    val prefs = context.getSharedPreferences("APP_PREFS", android.content.Context.MODE_PRIVATE)
+    val currentUserId = prefs.getString("user_id", null)
     
     var property by remember { mutableStateOf<com.sim.darna.model.Property?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -429,27 +432,100 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
 
         item { 
             Spacer(modifier = Modifier.height(16.dp))
-            // Contact Button
-            Button(
-                onClick = {
-                    if (propertyId != null) {
-                        navController.navigate(Routes.BookProperty.replace("{propertyId}", propertyId))
+            
+            val isFull = (prop.nbrCollocateurActuel ?: 0) >= (prop.nbrCollocateurMax ?: 0)
+            val isOwner = prop.user == currentUserId
+            
+            // Only show button/status if user is not the owner
+            if (!isOwner) {
+                if (isFull) {
+                // Not Available Card - Enhanced UI
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color.White,
+                    shadowElevation = 4.dp,
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = Color(0xFFE0E0E0)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp, horizontal = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Icon with enhanced styling
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                                        colors = listOf(
+                                            Color(0xFFF5F5F5),
+                                            Color(0xFFE8E8E8)
+                                        )
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Home,
+                                contentDescription = null,
+                                tint = Color(0xFF9E9E9E),
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
+                        
+                        // Title with better styling
+                        Text(
+                            text = "Cette maison n'est pas disponible",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF424242),
+                            textAlign = TextAlign.Center,
+                            lineHeight = 26.sp
+                        )
+                        
+                        // Subtitle with improved spacing
+                    Text(
+                        text = "Tous les emplacements sont occupés",
+                        fontSize = 15.sp,
+                        color = Color(0xFF757575),
+                        textAlign = TextAlign.Center,
+                        lineHeight = 22.sp
+                    )
+                }
+            }
+                } else {
+                    // Contact Button
+                    Button(
+                        onClick = {
+                            if (propertyId != null) {
+                                navController.navigate(Routes.BookProperty.replace("{propertyId}", propertyId))
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF9C27B0)
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(
+                            text = "Contacter les Colocataires",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(vertical = 16.dp)
+                        )
                     }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF9C27B0)
-                ),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text(
-                    text = "Contacter les Colocataires",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(vertical = 16.dp)
-                )
+                }
             }
             Spacer(modifier = Modifier.height(20.dp))
         }

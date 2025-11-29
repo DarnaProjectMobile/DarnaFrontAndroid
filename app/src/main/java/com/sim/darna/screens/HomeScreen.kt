@@ -4,7 +4,14 @@ import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material.icons.Icons
@@ -24,6 +31,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
+import com.sim.darna.components.EmptyStateLottie
 import com.sim.darna.components.PropertyCardView
 import com.sim.darna.model.Property
 import com.sim.darna.navigation.Routes
@@ -41,6 +49,7 @@ sealed class BottomNavItem(
     object Reserve : BottomNavItem("reserve", Icons.Default.Star, "Réserver")
     object Profile : BottomNavItem("profile", Icons.Default.Person, "Profil")
 }
+
 
 @Composable
 fun MainScreen(parentNavController: NavHostController){
@@ -136,23 +145,27 @@ fun HomeScreen(navController: NavController) {
     val prefs = context.getSharedPreferences("APP_PREFS", Context.MODE_PRIVATE)
     val currentUserId = prefs.getString("user_id", null)
     val currentUserRole = prefs.getString("role", "guest") ?: "guest"
-    
+    val notificationCount = com.sim.darna.notifications.NotificationStore
+        .getNotifications(context)
+        .size
+
     val viewModel: PropertyViewModel = remember {
         PropertyViewModel(context).apply {
             init(currentUserId)
         }
     }
-    
+
     val uiState by viewModel.uiState.collectAsState()
     var showFilterSheet by remember { mutableStateOf(false) }
     var showAddPropertyForm by remember { mutableStateOf(false) }
     var editingProperty by remember { mutableStateOf<Property?>(null) }
     var propertyPendingDeletion by remember { mutableStateOf<Property?>(null) }
-    
+    var isGridView by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         viewModel.loadProperties()
     }
-    
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -167,11 +180,13 @@ fun HomeScreen(navController: NavController) {
             SearchAndFilterBar(
                 searchText = uiState.searchText,
                 onSearchTextChange = { viewModel.setSearchText(it) },
-                onFilterClick = { showFilterSheet = true }
+                onFilterClick = { showFilterSheet = true },
+                onNotificationsClick = { navController.navigate(Routes.Notifications) },
+                notificationCount = notificationCount,
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             // Quick Filter Buttons
             QuickFilterButtons(
                 ownershipFilter = uiState.ownershipFilter,
@@ -179,9 +194,17 @@ fun HomeScreen(navController: NavController) {
                     viewModel.toggleOwnershipFilter(filter)
                 }
             )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // View Toggle (Grid/List)
+            ViewToggle(
+                isGridView = isGridView,
+                onViewChange = { isGridView = it }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             // Property List
             when {
                 uiState.isLoading -> {
@@ -213,56 +236,65 @@ fun HomeScreen(navController: NavController) {
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
+                        EmptyStateLottie(
+                            title = "Aucune annonce trouvée",
+                            subtitle = "Essayez de modifier votre recherche ou vos filtres.",
                             modifier = Modifier.padding(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = AppTheme.textSecondary
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "Aucune annonce trouvée",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Essayez de modifier votre recherche ou vos filtres.",
-                                fontSize = 14.sp,
-                                color = AppTheme.textSecondary,
-                                textAlign = TextAlign.Center
-                            )
-                        }
+                        )
                     }
                 }
                 else -> {
-                    LazyColumn(
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(20.dp)
-                    ) {
-                        items(uiState.filteredProperties.size) { index ->
-                            val property = uiState.filteredProperties[index]
-                            val canManage = currentUserRole == "collocator" && property.user == currentUserId
-                            
-                            PropertyCardView(
-                                property = property,
-                                canManage = canManage,
-                                onEdit = { editingProperty = property },
-                                onDelete = { propertyPendingDeletion = property },
-                                onClick = {
-                                    navController.navigate("${Routes.PropertyDetail}/${property.id}")
-                                }
-                            )
+                    if (isGridView) {
+                        // Grid View
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(uiState.filteredProperties.size) { index ->
+                                val property = uiState.filteredProperties[index]
+                                val canManage = currentUserRole == "collocator" && property.user == currentUserId
+
+                                PropertyCardView(
+                                    property = property,
+                                    canManage = canManage,
+                                    onEdit = { editingProperty = property },
+                                    onDelete = { propertyPendingDeletion = property },
+                                    onClick = {
+                                        navController.navigate("${Routes.PropertyDetail}/${property.id}")
+                                    },
+                                    isGridMode = true
+                                )
+                            }
+                        }
+                    } else {
+                        // List View
+                        LazyColumn(
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(20.dp)
+                        ) {
+                            items(uiState.filteredProperties.size) { index ->
+                                val property = uiState.filteredProperties[index]
+                                val canManage = currentUserRole == "collocator" && property.user == currentUserId
+
+                                PropertyCardView(
+                                    property = property,
+                                    canManage = canManage,
+                                    onEdit = { editingProperty = property },
+                                    onDelete = { propertyPendingDeletion = property },
+                                    onClick = {
+                                        navController.navigate("${Routes.PropertyDetail}/${property.id}")
+                                    },
+                                    isGridMode = false
+                                )
+                            }
                         }
                     }
                 }
             }
         }
-        
+
         // Floating Add Button (only for collocators)
         if (currentUserRole == "collocator") {
             FloatingActionButton(
@@ -280,7 +312,7 @@ fun HomeScreen(navController: NavController) {
             }
         }
     }
-    
+
     // Filter Sheet
     if (showFilterSheet) {
         FilterSheet(
@@ -293,7 +325,7 @@ fun HomeScreen(navController: NavController) {
             }
         )
     }
-    
+
     // Add/Edit Property Form
     if (showAddPropertyForm || editingProperty != null) {
         AddPropertyFormView(
@@ -309,7 +341,7 @@ fun HomeScreen(navController: NavController) {
             }
         )
     }
-    
+
     // Delete Confirmation Dialog
     propertyPendingDeletion?.let { property ->
         AlertDialog(
@@ -342,7 +374,9 @@ fun HomeScreen(navController: NavController) {
 fun SearchAndFilterBar(
     searchText: String,
     onSearchTextChange: (String) -> Unit,
-    onFilterClick: () -> Unit
+    onFilterClick: () -> Unit,
+    onNotificationsClick: () -> Unit,
+    notificationCount: Int,
 ) {
     Row(
         modifier = Modifier
@@ -355,7 +389,7 @@ fun SearchAndFilterBar(
             value = searchText,
             onValueChange = onSearchTextChange,
             modifier = Modifier.weight(1f),
-            placeholder = { Text("Rechercher une annonce") },
+            placeholder = { Text("Rechercher") },
             leadingIcon = {
                 Icon(Icons.Default.Search, contentDescription = null)
             },
@@ -372,7 +406,7 @@ fun SearchAndFilterBar(
                 unfocusedContainerColor = AppTheme.card
             )
         )
-        
+
         // Filter button
         IconButton(
             onClick = onFilterClick,
@@ -386,6 +420,44 @@ fun SearchAndFilterBar(
                 tint = Color.White
             )
         }
+
+        IconButton(
+            onClick = onNotificationsClick,
+            modifier = Modifier
+                .size(48.dp)
+                .background(Color(0xFF00BFA5), RoundedCornerShape(14.dp))
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Notifications,
+                    contentDescription = "Notifications",
+                    tint = Color.White,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+                if (notificationCount > 0) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color.Red,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .align(Alignment.TopEnd)
+                            // push slightly outside so it overlaps like Instagram badge
+                            .offset(x = 2.dp, y = (-6).dp)
+                    ) {
+                        Text(
+                            text = if (notificationCount > 9) "9+" else notificationCount.toString(),
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            modifier = Modifier.padding(2.dp),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -398,20 +470,24 @@ fun QuickFilterButtons(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(0.dp)
     ) {
         OwnershipFilterButton(
             title = "Mes annonces",
             isSelected = ownershipFilter == OwnershipFilter.MINE,
             icon = Icons.Default.Person,
-            onClick = { onFilterClick(OwnershipFilter.MINE) }
+            onClick = { onFilterClick(OwnershipFilter.MINE) },
+            isFirst = true,
+            modifier = Modifier.weight(1f)
         )
-        
+
         OwnershipFilterButton(
-            title = "Non possédé par moi",
+            title = "Autre annonces",
             isSelected = ownershipFilter == OwnershipFilter.NOT_MINE,
             icon = Icons.Default.People,
-            onClick = { onFilterClick(OwnershipFilter.NOT_MINE) }
+            onClick = { onFilterClick(OwnershipFilter.NOT_MINE) },
+            isFirst = false,
+            modifier = Modifier.weight(1f)
         )
     }
 }
@@ -421,17 +497,32 @@ fun OwnershipFilterButton(
     title: String,
     isSelected: Boolean,
     icon: ImageVector,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isFirst: Boolean = true,
+    modifier: Modifier = Modifier
 ) {
-    Button(
+    Surface(
         onClick = onClick,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) AppTheme.primary else AppTheme.card
+        modifier = modifier.height(40.dp),
+        color = if (isSelected) AppTheme.primary else AppTheme.card,
+        shape = RoundedCornerShape(
+            topStart = if (isFirst) 12.dp else 0.dp,
+            bottomStart = if (isFirst) 12.dp else 0.dp,
+            topEnd = if (isFirst) 0.dp else 12.dp,
+            bottomEnd = if (isFirst) 0.dp else 12.dp
         ),
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.height(40.dp)
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = if (isSelected) Color.Transparent else Color(0xFFE0E0E0)
+        )
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
@@ -450,6 +541,74 @@ fun OwnershipFilterButton(
 }
 
 @Composable
+fun ViewToggle(
+    isGridView: Boolean,
+    onViewChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(0.dp)
+    ) {
+        // List View Button
+        ViewToggleButton(
+            isSelected = !isGridView,
+            icon = Icons.Default.ViewList,
+            onClick = { onViewChange(false) },
+            isFirst = true,
+            modifier = Modifier.weight(1f)
+        )
+
+        // Grid View Button
+        ViewToggleButton(
+            isSelected = isGridView,
+            icon = Icons.Default.GridView,
+            onClick = { onViewChange(true) },
+            isFirst = false,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+fun ViewToggleButton(
+    isSelected: Boolean,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    isFirst: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(40.dp),
+        color = if (isSelected) AppTheme.primary else Color.White,
+        shape = RoundedCornerShape(
+            topStart = if (isFirst) 12.dp else 0.dp,
+            bottomStart = if (isFirst) 12.dp else 0.dp,
+            topEnd = if (isFirst) 0.dp else 12.dp,
+            bottomEnd = if (isFirst) 0.dp else 12.dp
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = Color(0xFFE0E0E0)
+        )
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = if (isSelected) Color.White else AppTheme.textPrimary
+            )
+        }
+    }
+}
+
+@Composable
 fun FilterSheet(
     minPrice: Double?,
     maxPrice: Double?,
@@ -460,37 +619,37 @@ fun FilterSheet(
     var maxPriceText by remember { mutableStateOf(maxPrice?.toString() ?: "") }
     var minPriceError by remember { mutableStateOf<String?>(null) }
     var maxPriceError by remember { mutableStateOf<String?>(null) }
-    
+
     // Filter to only allow numbers and decimal point
     fun filterNumericInput(text: String): String {
         return text.filter { it.isDigit() || it == '.' }
     }
-    
+
     // Validate prices
     fun validatePrices(): Boolean {
         minPriceError = null
         maxPriceError = null
-        
+
         val min = minPriceText.toDoubleOrNull()
         val max = maxPriceText.toDoubleOrNull()
-        
+
         // If both are empty, it's valid (no filter)
         if (minPriceText.isEmpty() && maxPriceText.isEmpty()) {
             return true
         }
-        
+
         // If min is provided, it must be a valid number
         if (minPriceText.isNotEmpty() && min == null) {
             minPriceError = "Veuillez entrer un nombre valide"
             return false
         }
-        
+
         // If max is provided, it must be a valid number
         if (maxPriceText.isNotEmpty() && max == null) {
             maxPriceError = "Veuillez entrer un nombre valide"
             return false
         }
-        
+
         // If both are provided, min must be < max
         if (min != null && max != null) {
             if (min >= max) {
@@ -499,52 +658,132 @@ fun FilterSheet(
                 return false
             }
         }
-        
+
         return true
     }
-    
+
     val isValid = validatePrices()
-    
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Filtrer par prix") },
+        containerColor = AppTheme.card,
+        shape = RoundedCornerShape(24.dp),
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Tune,
+                    contentDescription = null,
+                    tint = AppTheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    text = "Filtrer par prix",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AppTheme.textPrimary
+                )
+            }
+        },
         text = {
-            Column {
+            Column(
+                modifier = Modifier.padding(top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
                 OutlinedTextField(
                     value = minPriceText,
-                    onValueChange = { 
+                    onValueChange = {
                         val filtered = filterNumericInput(it)
                         minPriceText = filtered
                         validatePrices()
                     },
-                    label = { Text("Prix minimum") },
+                    label = { 
+                        Text(
+                            "Prix minimum",
+                            color = AppTheme.textSecondary
+                        ) 
+                    },
+                    placeholder = { Text("Ex: 100", color = AppTheme.textSecondary.copy(alpha = 0.6f)) },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Decimal
                     ),
                     isError = minPriceError != null,
-                    supportingText = minPriceError?.let { { Text(it, color = Color.Red) } }
+                    supportingText = minPriceError?.let { { 
+                        Text(
+                            it, 
+                            color = Color(0xFFD32F2F),
+                            fontSize = 12.sp
+                        ) 
+                    }},
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = AppTheme.card,
+                        unfocusedContainerColor = AppTheme.card,
+                        focusedBorderColor = AppTheme.primary,
+                        unfocusedBorderColor = Color(0xFFE0E0E0),
+                        errorBorderColor = Color(0xFFD32F2F),
+                        focusedTextColor = AppTheme.textPrimary,
+                        unfocusedTextColor = AppTheme.textPrimary
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.AttachMoney,
+                            contentDescription = null,
+                            tint = AppTheme.textSecondary
+                        )
+                    }
                 )
-                Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = maxPriceText,
-                    onValueChange = { 
+                    onValueChange = {
                         val filtered = filterNumericInput(it)
                         maxPriceText = filtered
                         validatePrices()
                     },
-                    label = { Text("Prix maximum") },
+                    label = { 
+                        Text(
+                            "Prix maximum",
+                            color = AppTheme.textSecondary
+                        ) 
+                    },
+                    placeholder = { Text("Ex: 1000", color = AppTheme.textSecondary.copy(alpha = 0.6f)) },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Decimal
                     ),
                     isError = maxPriceError != null,
-                    supportingText = maxPriceError?.let { { Text(it, color = Color.Red) } }
+                    supportingText = maxPriceError?.let { { 
+                        Text(
+                            it, 
+                            color = Color(0xFFD32F2F),
+                            fontSize = 12.sp
+                        ) 
+                    }},
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = AppTheme.card,
+                        unfocusedContainerColor = AppTheme.card,
+                        focusedBorderColor = AppTheme.primary,
+                        unfocusedBorderColor = Color(0xFFE0E0E0),
+                        errorBorderColor = Color(0xFFD32F2F),
+                        focusedTextColor = AppTheme.textPrimary,
+                        unfocusedTextColor = AppTheme.textPrimary
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.AttachMoney,
+                            contentDescription = null,
+                            tint = AppTheme.textSecondary
+                        )
+                    }
                 )
             }
         },
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = {
                     if (isValid) {
                         val min = minPriceText.toDoubleOrNull()
@@ -552,20 +791,47 @@ fun FilterSheet(
                         onApply(min, max)
                     }
                 },
-                enabled = isValid
+                enabled = isValid,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AppTheme.primary,
+                    contentColor = Color.White,
+                    disabledContainerColor = AppTheme.primary.copy(alpha = 0.5f),
+                    disabledContentColor = Color.White.copy(alpha = 0.5f)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.padding(end = 8.dp)
             ) {
-                Text("Appliquer")
+                Text(
+                    "Appliquer",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp
+                )
             }
         },
         dismissButton = {
-            TextButton(onClick = {
-                minPriceText = ""
-                maxPriceText = ""
-                minPriceError = null
-                maxPriceError = null
-                onApply(null, null)
-            }) {
-                Text("Réinitialiser")
+            OutlinedButton(
+                onClick = {
+                    minPriceText = ""
+                    maxPriceText = ""
+                    minPriceError = null
+                    maxPriceError = null
+                    onApply(null, null)
+                },
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = AppTheme.textPrimary
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    Color(0xFFE0E0E0)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
+                Text(
+                    "Réinitialiser",
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 14.sp
+                )
             }
         }
     )
@@ -817,6 +1083,3 @@ fun InfoChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String
         }
     }
 }
-
-
-

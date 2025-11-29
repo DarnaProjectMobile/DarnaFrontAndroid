@@ -41,6 +41,14 @@ class PropertyTypeAdapter : JsonDeserializer<Property> {
             }
         }
         
+        val attendingListBookings = obj.get("attendingListBookings")?.asJsonArray?.mapNotNull { bookingElement ->
+            try {
+                gson.fromJson(bookingElement, Booking::class.java)
+            } catch (e: Exception) {
+                null
+            }
+        }
+        
         // Deserialize images
         val imagesList = obj.get("images")?.asJsonArray?.mapNotNull { 
             if (it.isJsonPrimitive) it.asString else null
@@ -68,7 +76,8 @@ class PropertyTypeAdapter : JsonDeserializer<Property> {
             endDate = obj.get("endDate")?.asString,
             user = userId,
             ownerUsername = ownerUsername,
-            bookings = bookingsList
+            bookings = bookingsList,
+            attendingListBookings = attendingListBookings
         )
     }
 }

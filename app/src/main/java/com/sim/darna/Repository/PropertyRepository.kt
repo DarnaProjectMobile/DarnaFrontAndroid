@@ -86,5 +86,13 @@ class PropertyRepository(private val context: Context) {
     fun getPropertyWithBookings(id: String): Call<PropertyWithBookings> {
         return api.getPropertyWithBookings(id)
     }
+    
+    fun respondToBooking(
+        annonceId: String,
+        bookingId: String,
+        accept: Boolean
+    ): Call<Property> {
+        return api.respondToBooking(annonceId, bookingId, accept)
+    }
 }
 

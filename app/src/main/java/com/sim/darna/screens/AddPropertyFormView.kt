@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.preference.PreferenceManager
+import com.sim.darna.components.CustomDatePickerDialog
 import com.sim.darna.model.Property
 import com.sim.darna.network.NominatimResult
 import com.sim.darna.network.NominatimService
@@ -279,26 +280,88 @@ fun AddPropertyFormView(
     
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (propertyToEdit == null) "Nouvelle Annonce" else "Modifier l'annonce") },
+        containerColor = AppTheme.card,
+        shape = RoundedCornerShape(24.dp),
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = if (propertyToEdit == null) Icons.Default.Add else Icons.Default.Edit,
+                    contentDescription = null,
+                    tint = AppTheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    text = if (propertyToEdit == null) "Nouvelle Annonce" else "Modifier l'annonce",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AppTheme.textPrimary
+                )
+            }
+        },
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 OutlinedTextField(
                     value = propertyTitle,
                     onValueChange = { propertyTitle = it },
-                    label = { Text("Titre de l'annonce") },
-                    modifier = Modifier.fillMaxWidth()
+                    label = { 
+                        Text(
+                            "Titre de l'annonce",
+                            color = AppTheme.textSecondary
+                        ) 
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = AppTheme.card,
+                        unfocusedContainerColor = AppTheme.card,
+                        focusedBorderColor = AppTheme.primary,
+                        unfocusedBorderColor = Color(0xFFE0E0E0),
+                        focusedTextColor = AppTheme.textPrimary,
+                        unfocusedTextColor = AppTheme.textPrimary
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Title,
+                            contentDescription = null,
+                            tint = AppTheme.textSecondary
+                        )
+                    }
                 )
                 
                 OutlinedTextField(
                     value = location,
                     onValueChange = { location = it },
-                    label = { Text("Localisation") },
-                    modifier = Modifier.fillMaxWidth()
+                    label = { 
+                        Text(
+                            "Localisation",
+                            color = AppTheme.textSecondary
+                        ) 
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = AppTheme.card,
+                        unfocusedContainerColor = AppTheme.card,
+                        focusedBorderColor = AppTheme.primary,
+                        unfocusedBorderColor = Color(0xFFE0E0E0),
+                        focusedTextColor = AppTheme.textPrimary,
+                        unfocusedTextColor = AppTheme.textPrimary
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = AppTheme.textSecondary
+                        )
+                    }
                 )
                 
                 Column(
@@ -325,14 +388,37 @@ fun AddPropertyFormView(
                                 searchError = null
                             }
                         },
-                        label = { Text("Rechercher une adresse") },
+                        label = { 
+                            Text(
+                                "Rechercher une adresse",
+                                color = AppTheme.textSecondary
+                            ) 
+                        },
+                        placeholder = { Text("Ex: Tunis, Avenue Habib Bourguiba", color = AppTheme.textSecondary.copy(alpha = 0.6f)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = AppTheme.card,
+                            unfocusedContainerColor = AppTheme.card,
+                            focusedBorderColor = AppTheme.primary,
+                            unfocusedBorderColor = Color(0xFFE0E0E0),
+                            focusedTextColor = AppTheme.textPrimary,
+                            unfocusedTextColor = AppTheme.textPrimary
+                        ),
+                        shape = RoundedCornerShape(14.dp),
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                tint = AppTheme.textSecondary
+                            )
+                        },
                         trailingIcon = {
                             if (isSearchingLocation) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp
+                                    strokeWidth = 2.dp,
+                                    color = AppTheme.primary
                                 )
                             } else if (addressSearchQuery.isNotEmpty()) {
                                 IconButton(onClick = {
@@ -340,7 +426,11 @@ fun AddPropertyFormView(
                                     searchResults = emptyList()
                                     searchError = null
                                 }) {
-                                    Icon(Icons.Default.Close, contentDescription = "Effacer")
+                                    Icon(
+                                        Icons.Default.Close, 
+                                        contentDescription = "Effacer",
+                                        tint = AppTheme.textSecondary
+                                    )
                                 }
                             }
                         }
@@ -351,9 +441,27 @@ fun AddPropertyFormView(
                     ) {
                         Button(
                             onClick = { searchLocation() },
-                            enabled = !isSearchingLocation && addressSearchQuery.length >= 3
+                            enabled = !isSearchingLocation && addressSearchQuery.length >= 3,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = AppTheme.primary,
+                                contentColor = Color.White,
+                                disabledContainerColor = AppTheme.primary.copy(alpha = 0.5f),
+                                disabledContentColor = Color.White.copy(alpha = 0.5f)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text(if (isSearchingLocation) "Recherche..." else "Rechercher")
+                            if (isSearchingLocation) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                            Text(
+                                if (isSearchingLocation) "Recherche..." else "Rechercher",
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
                     }
                     if (searchError != null) {
@@ -521,19 +629,53 @@ fun AddPropertyFormView(
                 OutlinedTextField(
                     value = price,
                     onValueChange = { price = it },
-                    label = { Text("Prix (DT)") },
+                    label = { 
+                        Text(
+                            "Prix (DT)",
+                            color = AppTheme.textSecondary
+                        ) 
+                    },
+                    placeholder = { Text("Ex: 500", color = AppTheme.textSecondary.copy(alpha = 0.6f)) },
                     modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = AppTheme.card,
+                        unfocusedContainerColor = AppTheme.card,
+                        focusedBorderColor = AppTheme.primary,
+                        unfocusedBorderColor = Color(0xFFE0E0E0),
+                        focusedTextColor = AppTheme.textPrimary,
+                        unfocusedTextColor = AppTheme.textPrimary
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.AttachMoney,
+                            contentDescription = null,
+                            tint = AppTheme.textSecondary
+                        )
+                    }
                 )
                 
                 // Multiple image picker
                 Button(
                     onClick = { imagePickerLauncher.launch("image/*") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppTheme.primary,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(Icons.Default.AddPhotoAlternate, contentDescription = null)
+                    Icon(
+                        Icons.Default.AddPhotoAlternate, 
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (imageBase64List.isEmpty()) "Sélectionner des images" else "Ajouter plus d'images")
+                    Text(
+                        if (imageBase64List.isEmpty()) "Sélectionner des images" else "Ajouter plus d'images",
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
                 
                 // Display selected images
@@ -542,7 +684,8 @@ fun AddPropertyFormView(
                     Text(
                         text = "Images sélectionnées (${imageBase64List.size})",
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.SemiBold,
+                        color = AppTheme.textPrimary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     LazyRow(
@@ -628,11 +771,32 @@ fun AddPropertyFormView(
                         value = selectedType,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Type de logement") },
+                        label = { 
+                            Text(
+                                "Type de logement",
+                                color = AppTheme.textSecondary
+                            ) 
+                        },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor()
+                            .menuAnchor(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = AppTheme.card,
+                            unfocusedContainerColor = AppTheme.card,
+                            focusedBorderColor = AppTheme.primary,
+                            unfocusedBorderColor = Color(0xFFE0E0E0),
+                            focusedTextColor = AppTheme.textPrimary,
+                            unfocusedTextColor = AppTheme.textPrimary
+                        ),
+                        shape = RoundedCornerShape(14.dp),
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Home,
+                                contentDescription = null,
+                                tint = AppTheme.textSecondary
+                            )
+                        }
                     )
                     ExposedDropdownMenu(
                         expanded = expanded,
@@ -659,11 +823,29 @@ fun AddPropertyFormView(
                         value = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(startDate),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Date de début") },
+                        label = { 
+                            Text(
+                                "Date de début",
+                                color = AppTheme.textSecondary
+                            ) 
+                        },
                         modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = AppTheme.card,
+                            unfocusedContainerColor = AppTheme.card,
+                            focusedBorderColor = AppTheme.primary,
+                            unfocusedBorderColor = Color(0xFFE0E0E0),
+                            focusedTextColor = AppTheme.textPrimary,
+                            unfocusedTextColor = AppTheme.textPrimary
+                        ),
+                        shape = RoundedCornerShape(14.dp),
                         trailingIcon = {
                             IconButton(onClick = { showStartDatePicker = true }) {
-                                Icon(Icons.Default.CalendarToday, null)
+                                Icon(
+                                    Icons.Default.CalendarToday, 
+                                    null,
+                                    tint = AppTheme.primary
+                                )
                             }
                         }
                     )
@@ -672,11 +854,29 @@ fun AddPropertyFormView(
                         value = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(endDate),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Date de fin") },
+                        label = { 
+                            Text(
+                                "Date de fin",
+                                color = AppTheme.textSecondary
+                            ) 
+                        },
                         modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = AppTheme.card,
+                            unfocusedContainerColor = AppTheme.card,
+                            focusedBorderColor = AppTheme.primary,
+                            unfocusedBorderColor = Color(0xFFE0E0E0),
+                            focusedTextColor = AppTheme.textPrimary,
+                            unfocusedTextColor = AppTheme.textPrimary
+                        ),
+                        shape = RoundedCornerShape(14.dp),
                         trailingIcon = {
                             IconButton(onClick = { showEndDatePicker = true }) {
-                                Icon(Icons.Default.CalendarToday, null)
+                                Icon(
+                                    Icons.Default.CalendarToday, 
+                                    null,
+                                    tint = AppTheme.primary
+                                )
                             }
                         }
                     )
@@ -685,43 +885,131 @@ fun AddPropertyFormView(
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Description") },
+                    label = { 
+                        Text(
+                            "Description",
+                            color = AppTheme.textSecondary
+                        ) 
+                    },
+                    placeholder = { Text("Décrivez votre annonce...", color = AppTheme.textSecondary.copy(alpha = 0.6f)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(100.dp),
-                    maxLines = 5
+                    maxLines = 5,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = AppTheme.card,
+                        unfocusedContainerColor = AppTheme.card,
+                        focusedBorderColor = AppTheme.primary,
+                        unfocusedBorderColor = Color(0xFFE0E0E0),
+                        focusedTextColor = AppTheme.textPrimary,
+                        unfocusedTextColor = AppTheme.textPrimary
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Description,
+                            contentDescription = null,
+                            tint = AppTheme.textSecondary
+                        )
+                    }
                 )
                 
                 OutlinedTextField(
                     value = nbrCollocateurMax,
                     onValueChange = { nbrCollocateurMax = it },
-                    label = { Text("Nombre maximum de colocataires") },
+                    label = { 
+                        Text(
+                            "Nombre maximum de colocataires",
+                            color = AppTheme.textSecondary
+                        ) 
+                    },
+                    placeholder = { Text("Ex: 4", color = AppTheme.textSecondary.copy(alpha = 0.6f)) },
                     modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = AppTheme.card,
+                        unfocusedContainerColor = AppTheme.card,
+                        focusedBorderColor = AppTheme.primary,
+                        unfocusedBorderColor = Color(0xFFE0E0E0),
+                        focusedTextColor = AppTheme.textPrimary,
+                        unfocusedTextColor = AppTheme.textPrimary
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.People,
+                            contentDescription = null,
+                            tint = AppTheme.textSecondary
+                        )
+                    }
                 )
                 
                 OutlinedTextField(
                     value = nbrCollocateurActuel,
                     onValueChange = { nbrCollocateurActuel = it },
-                    label = { Text("Nombre actuel de colocataires") },
+                    label = { 
+                        Text(
+                            "Nombre actuel de colocataires",
+                            color = AppTheme.textSecondary
+                        ) 
+                    },
+                    placeholder = { Text("Ex: 0", color = AppTheme.textSecondary.copy(alpha = 0.6f)) },
                     modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = AppTheme.card,
+                        unfocusedContainerColor = AppTheme.card,
+                        focusedBorderColor = AppTheme.primary,
+                        unfocusedBorderColor = Color(0xFFE0E0E0),
+                        focusedTextColor = AppTheme.textPrimary,
+                        unfocusedTextColor = AppTheme.textPrimary
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = AppTheme.textSecondary
+                        )
+                    }
                 )
                 
                 errorMessage?.let {
-                    Text(
-                        text = it,
-                        color = MaterialTheme.colorScheme.error,
-                        fontSize = 12.sp
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFFFEBEE),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = null,
+                                tint = Color(0xFFD32F2F),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = it,
+                                color = Color(0xFFD32F2F),
+                                fontSize = 12.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
                 }
             }
         },
         confirmButton = {
             if (isLoading) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(
+                    color = AppTheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
             } else {
-                TextButton(
+                Button(
                     onClick = {
                         val trimmedTitle = propertyTitle.trim()
                         val trimmedLocation = location.trim()
@@ -729,7 +1017,7 @@ fun AddPropertyFormView(
                         if (trimmedTitle.isEmpty() || trimmedLocation.isEmpty() || price.isEmpty() || 
                             imageBase64List.isEmpty() || description.isEmpty()) {
                             errorMessage = "Merci de remplir tous les champs requis et de sélectionner au moins une image."
-                            return@TextButton
+                            return@Button
                         }
                         
                         val priceValue = price.toDoubleOrNull()
@@ -738,17 +1026,17 @@ fun AddPropertyFormView(
                         
                         if (priceValue == null || nbrMax == null || nbrActuel == null) {
                             errorMessage = "Valeurs numériques invalides."
-                            return@TextButton
+                            return@Button
                         }
                         
                         if (startDate.after(endDate)) {
                             errorMessage = "La date de fin doit être après la date de début."
-                            return@TextButton
+                            return@Button
                         }
                         
                         if (nbrActuel > nbrMax) {
                             errorMessage = "Le nombre actuel dépasse le maximum."
-                            return@TextButton
+                            return@Button
                         }
                         
                         isLoading = true
@@ -823,24 +1111,69 @@ fun AddPropertyFormView(
                                 }
                             })
                         }
-                    }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppTheme.primary,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.padding(end = 8.dp)
                 ) {
-                    Icon(Icons.Default.Check, null)
+                    Icon(
+                        Icons.Default.Check, 
+                        null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        if (propertyToEdit == null) "Créer" else "Enregistrer",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp
+                    )
                 }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Annuler")
+            OutlinedButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = AppTheme.textPrimary
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    Color(0xFFE0E0E0)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
+                Text(
+                    "Annuler",
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 14.sp
+                )
             }
         }
     )
     
     // Date pickers
     if (showStartDatePicker) {
+        // Set minimum date to today (start of day)
+        val today = Calendar.getInstance()
+        today.set(Calendar.HOUR_OF_DAY, 0)
+        today.set(Calendar.MINUTE, 0)
+        today.set(Calendar.SECOND, 0)
+        today.set(Calendar.MILLISECOND, 0)
+        val minDateMillis = today.timeInMillis
+        
+        // Use today if startDate is in the past, otherwise use startDate
         val calendar = Calendar.getInstance()
-        calendar.time = startDate
-        DatePickerDialog(
+        if (startDate.before(today.time)) {
+            calendar.time = today.time
+        } else {
+            calendar.time = startDate
+        }
+        
+        CustomDatePickerDialog(
             initialYear = calendar.get(Calendar.YEAR),
             initialMonth = calendar.get(Calendar.MONTH),
             initialDay = calendar.get(Calendar.DAY_OF_MONTH),
@@ -849,14 +1182,16 @@ fun AddPropertyFormView(
                 startDate = calendar.time
                 showStartDatePicker = false
             },
-            onDismiss = { showStartDatePicker = false }
+            onDismiss = { showStartDatePicker = false },
+            minDate = minDateMillis
         )
     }
     
     if (showEndDatePicker) {
         val calendar = Calendar.getInstance()
         calendar.time = endDate
-        DatePickerDialog(
+        val minDateMillis = startDate.time
+        CustomDatePickerDialog(
             initialYear = calendar.get(Calendar.YEAR),
             initialMonth = calendar.get(Calendar.MONTH),
             initialDay = calendar.get(Calendar.DAY_OF_MONTH),
@@ -865,134 +1200,10 @@ fun AddPropertyFormView(
                 endDate = calendar.time
                 showEndDatePicker = false
             },
-            onDismiss = { showEndDatePicker = false }
+            onDismiss = { showEndDatePicker = false },
+            minDate = minDateMillis
         )
     }
 }
 
-@Composable
-fun DatePickerDialog(
-    initialYear: Int,
-    initialMonth: Int,
-    initialDay: Int,
-    onDateSelected: (Int, Int, Int) -> Unit,
-    onDismiss: () -> Unit,
-    minDate: Long? = null,
-    maxDate: Long? = null
-) {
-    val context = LocalContext.current
-    val blueColor = android.graphics.Color.parseColor("#0066FF")
-    
-    LaunchedEffect(Unit) {
-        val datePickerDialog = android.app.DatePickerDialog(
-            context,
-            android.R.style.Theme_Material_Light_Dialog,
-            { _, year, month, dayOfMonth ->
-                onDateSelected(year, month, dayOfMonth)
-            },
-            initialYear,
-            initialMonth,
-            initialDay
-        )
-        
-        // Set min and max dates if provided
-        minDate?.let { datePickerDialog.datePicker.minDate = it }
-        maxDate?.let { datePickerDialog.datePicker.maxDate = it }
-        
-        // Apply blue theme to date picker using multiple methods
-        try {
-            val datePicker = datePickerDialog.datePicker
-            
-            // Method 1: Try to set accent color directly (Android 5.0+)
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                try {
-                    // Try setAccentColor method
-                    val setAccentColorMethod = datePicker.javaClass.getMethod("setAccentColor", Int::class.java)
-                    setAccentColorMethod.invoke(datePicker, blueColor)
-                } catch (e: Exception) {
-                    // Try alternative methods
-                    try {
-                        val setSelectionDividerColorMethod = datePicker.javaClass.getMethod("setSelectionDividerColor", Int::class.java)
-                        setSelectionDividerColorMethod.invoke(datePicker, blueColor)
-                    } catch (e2: Exception) {
-                        // Try reflection on all methods
-                        datePicker.javaClass.methods.forEach { method ->
-                            if (method.name.contains("setAccentColor", ignoreCase = true) ||
-                                method.name.contains("setSelectionDividerColor", ignoreCase = true) ||
-                                method.name.contains("setHeaderBackgroundColor", ignoreCase = true)) {
-                                try {
-                                    method.invoke(datePicker, blueColor)
-                                } catch (e3: Exception) {
-                                    // Ignore
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Method 2: Try to set calendar view accent color
-                try {
-                    val calendarViewField = datePicker.javaClass.getDeclaredField("mCalendarView")
-                    calendarViewField.isAccessible = true
-                    val calendarView = calendarViewField.get(datePicker)
-                    if (calendarView != null) {
-                        val calendarViewClass = calendarView.javaClass
-                        try {
-                            val setAccentColorMethod = calendarViewClass.getMethod("setAccentColor", Int::class.java)
-                            setAccentColorMethod.invoke(calendarView, blueColor)
-                        } catch (e: Exception) {
-                            // Try all methods
-                            calendarViewClass.methods.forEach { method ->
-                                if (method.name.contains("setAccentColor", ignoreCase = true) ||
-                                    method.name.contains("setSelectionDividerColor", ignoreCase = true)) {
-                                    try {
-                                        method.invoke(calendarView, blueColor)
-                                    } catch (e2: Exception) {
-                                        // Ignore
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    // Ignore if calendar view not available
-                }
-                
-                // Method 3: Try to set year picker accent color
-                try {
-                    val yearPickerField = datePicker.javaClass.getDeclaredField("mYearPicker")
-                    yearPickerField.isAccessible = true
-                    val yearPicker = yearPickerField.get(datePicker)
-                    if (yearPicker != null) {
-                        yearPicker.javaClass.methods.forEach { method ->
-                            if (method.name.contains("setAccentColor", ignoreCase = true)) {
-                                try {
-                                    method.invoke(yearPicker, blueColor)
-                                } catch (e: Exception) {
-                                    // Ignore
-                                }
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    // Ignore if year picker not available
-                }
-            }
-            
-            // Method 4: Set background and window properties
-            datePickerDialog.window?.let { window ->
-                window.setBackgroundDrawableResource(android.R.color.white)
-                // Try to set status bar color
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                    window.statusBarColor = blueColor
-                }
-            }
-            
-        } catch (e: Exception) {
-            // If all methods fail, at least show the dialog
-        }
-        
-        datePickerDialog.show()
-    }
-}
 

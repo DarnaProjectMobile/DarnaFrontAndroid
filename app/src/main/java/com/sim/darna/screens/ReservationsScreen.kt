@@ -13,13 +13,20 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import androidx.compose.foundation.Image
+import com.sim.darna.auth.RetrofitClient
+import com.sim.darna.components.EmptyStateLottie
 import com.sim.darna.model.Property
 import com.sim.darna.navigation.Routes
 import com.sim.darna.repository.PropertyRepository
@@ -103,13 +110,13 @@ fun ReservationsScreen(navController: androidx.navigation.NavController) {
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "Mes réservations",
+                                text = "Demandes en attente",
                                 color = Color.White,
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = if (properties.isNotEmpty()) "${properties.size} annonces publiées" else "Aucune annonce publiée",
+                                text = if (properties.isNotEmpty()) "Gérer les demandes." else "Aucune annonce publiée",
                                 color = Color.White.copy(alpha = 0.85f),
                                 fontSize = 13.sp
                             )
@@ -185,30 +192,11 @@ fun ReservationsScreen(navController: androidx.navigation.NavController) {
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
+                        EmptyStateLottie(
+                            title = "Aucune annonce",
+                            subtitle = "Vous n'avez pas encore créé d'annonces.",
                             modifier = Modifier.padding(16.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Home,
-                                contentDescription = null,
-                                modifier = Modifier.size(64.dp),
-                                tint = AppTheme.textSecondary
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = "Aucune annonce",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Vous n'avez pas encore créé d'annonces.",
-                                fontSize = 14.sp,
-                                color = AppTheme.textSecondary
-                            )
-                        }
+                        )
                     }
                 }
                 else -> {
@@ -238,86 +226,163 @@ fun PropertyReservationCard(
     property: Property,
     onClick: () -> Unit
 ) {
+    val pendingCount = property.attendingListBookings?.size ?: 0
+    val imageUrl = property.getFirstImage()
+    val baseUrl = "http://192.168.100.3:3000/"
+    
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .shadow(
-                elevation = 4.dp,
-                shape = RoundedCornerShape(16.dp),
-                spotColor = Color.Black.copy(alpha = 0.05f)
+                elevation = 2.dp,
+                shape = RoundedCornerShape(12.dp),
+                spotColor = Color.Black.copy(alpha = 0.1f)
             ),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Title and Price row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Left: Square thumbnail image
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFFF5F5F5))
             ) {
-                Text(
-                    text = property.title,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = AppTheme.textPrimary
-                )
-                
-                Text(
-                    text = "${property.price.toInt()} DT/mois",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = AppTheme.primary
-                )
+                if (imageUrl != null && imageUrl.isNotEmpty()) {
+                    if (imageUrl.startsWith("data:image")) {
+                        // Base64 image
+                        val base64String = imageUrl.substringAfter(",")
+                        val imageBytes = android.util.Base64.decode(base64String, android.util.Base64.DEFAULT)
+                        val bitmap = android.graphics.BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                        
+                        if (bitmap != null) {
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = "Property image",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Home,
+                                contentDescription = "Property",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(20.dp),
+                                tint = AppTheme.textSecondary
+                            )
+                        }
+                    } else {
+                        // URL image - using Coil
+                        val fullUrl = if (imageUrl.startsWith("http")) imageUrl else "$baseUrl$imageUrl"
+                        AsyncImage(
+                            model = fullUrl,
+                            contentDescription = "Property image",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Home,
+                        contentDescription = "Property",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(20.dp),
+                        tint = AppTheme.textSecondary
+                    )
+                }
             }
             
-            // Location row
-            if (!property.location.isNullOrEmpty()) {
+            // Middle: Title, Location, Capacity
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Title
+                Text(
+                    text = property.title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AppTheme.textPrimary,
+                    maxLines = 1
+                )
+                
+                // Location with Send icon
+                if (!property.location.isNullOrEmpty()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Send,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = AppTheme.textSecondary
+                        )
+                        Text(
+                            text = property.location ?: "",
+                            fontSize = 12.sp,
+                            color = AppTheme.textSecondary,
+                            maxLines = 1
+                        )
+                    }
+                }
+                
+                // Capacity with People icon
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Icon(
-                        Icons.Default.LocationOn,
+                        Icons.Default.People,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(14.dp),
                         tint = AppTheme.textSecondary
                     )
                     Text(
-                        text = property.location ?: "",
-                        fontSize = 14.sp,
+                        text = "${property.nbrCollocateurActuel ?: 0}/${property.nbrCollocateurMax ?: 0}",
+                        fontSize = 12.sp,
                         color = AppTheme.textSecondary
                     )
                 }
             }
             
-            // Colocataires count and chevron row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Right: Price, Badge, and Arrow
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Person,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = AppTheme.textSecondary
-                    )
-                    Text(
-                        text = "${property.nbrCollocateurActuel ?: 0}/${property.nbrCollocateurMax ?: 0} colocataires",
-                        fontSize = 14.sp,
-                        color = AppTheme.textSecondary
-                    )
+                Text(
+                    text = "${property.price.toInt()} DT/mois",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AppTheme.primary
+                )
+                
+                // Badge showing pending requests
+                if (pendingCount > 0) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFFFFA726), // Orange color
+                        modifier = Modifier.padding(top = 2.dp)
+                    ) {
+                        Text(
+                            text = "$pendingCount en attente",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                 }
                 
                 Icon(

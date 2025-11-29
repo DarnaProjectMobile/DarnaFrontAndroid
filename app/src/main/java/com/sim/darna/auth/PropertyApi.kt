@@ -33,6 +33,13 @@ interface PropertyApi {
     
     @GET("annonces/{id}")
     fun getPropertyWithBookings(@Path("id") id: String): Call<PropertyWithBookings>
+    
+    @POST("annonces/{annonceId}/booking/{bookingId}/respond")
+    fun respondToBooking(
+        @Path("annonceId") annonceId: String,
+        @Path("bookingId") bookingId: String,
+        @Query("accept") accept: Boolean
+    ): Call<Property>
 }
 
 data class CreatePropertyRequest(

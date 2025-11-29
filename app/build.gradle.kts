@@ -2,7 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
-
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -99,6 +99,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.compose.material:material:1.6.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
 // Retrofit core
@@ -115,6 +116,10 @@ dependencies {
 
     implementation("io.coil-kt:coil-compose:2.4.0")
     implementation("io.coil-kt:coil:2.4.0")
+    implementation("io.coil-kt:coil-gif:2.4.0")
+    
+    // Lottie for high-quality vector animations (optional - best quality)
+    implementation("com.airbnb.android:lottie-compose:6.1.0")
 
     implementation("org.osmdroid:osmdroid-android:6.1.18")
     implementation("androidx.preference:preference-ktx:1.2.1")
@@ -131,4 +136,8 @@ dependencies {
 // ✅ Converter for Retrofit to use Kotlinx Serialization
     implementation("com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:1.0.0")
 
+    // Firebase Cloud Messaging + Analytics
+    implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-analytics-ktx")
 }

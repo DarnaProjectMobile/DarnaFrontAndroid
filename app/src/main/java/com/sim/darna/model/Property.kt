@@ -158,6 +158,9 @@ data class Property(
     
     @SerializedName("bookings")
     val bookings: List<Booking>? = null,
+
+    @SerializedName("attendingListBookings")
+    val attendingListBookings: List<Booking>? = null,
     
     // Additional fields from iOS model
     @SerializedName("tags")
@@ -232,6 +235,9 @@ class BookingUserDeserializer : JsonDeserializer<BookingUser?> {
 }
 
 data class Booking(
+    @SerializedName("_id")
+    val id: String? = null,
+    
     @SerializedName("user")
     @JsonAdapter(BookingUserDeserializer::class)
     val user: BookingUser? = null,
@@ -271,6 +277,9 @@ data class PropertyWithBookings(
     val title: String,
     
     @SerializedName("bookings")
-    val bookings: List<Booking>
+    val bookings: List<Booking> = emptyList(),
+    
+    @SerializedName("attendingListBookings")
+    val attendingListBookings: List<Booking> = emptyList()
 )
 

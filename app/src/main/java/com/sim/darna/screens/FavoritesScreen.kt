@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sim.darna.components.EmptyStateLottie
 import com.sim.darna.components.PropertyCardView
 import com.sim.darna.model.Property
 import com.sim.darna.navigation.Routes
@@ -117,12 +118,11 @@ fun FavoritesScreen(navController: androidx.navigation.NavController) {
             }
         } else if (properties.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.FavoriteBorder, null, modifier = Modifier.size(64.dp), tint = AppTheme.textSecondary)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Aucun favori", fontSize = 18.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                    Text("Vous n'avez pas encore de favoris", fontSize = 14.sp, color = AppTheme.textSecondary)
-                }
+                EmptyStateLottie(
+                    title = "Aucun favori",
+                    subtitle = "Vous n'avez pas encore de favoris",
+                    modifier = Modifier.padding(16.dp)
+                )
             }
         } else {
             LazyColumn(

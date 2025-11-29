@@ -9,7 +9,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
 
-    private const val BASE_URL = "http://172.16.8.34:3000/"
+    private const val BASE_URL = "http://192.168.100.3:3000/"
 
     /**
      * Creates a Retrofit instance with JWT token automatically added.
