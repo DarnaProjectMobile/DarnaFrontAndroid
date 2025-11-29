@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -25,7 +26,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.sim.darna.auth.TokenStorage
 import com.sim.darna.navigation.Routes
+import com.sim.darna.notifications.FirebaseTokenRegistrar
 import kotlinx.coroutines.delay
 
 @Composable
@@ -36,7 +39,7 @@ fun ProfileScreen(navController: NavHostController) {
 
     // State to trigger reload when coming back from UpdateProfile
     var refreshTrigger by remember { mutableStateOf(0) }
-    
+
     // Reload data whenever screen appears or refreshTrigger changes
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -45,8 +48,7 @@ fun ProfileScreen(navController: NavHostController) {
     var phone by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
     var createdAt by remember { mutableStateOf("") }
-    var userId by remember { mutableStateOf("") }
-    
+
     // Load data from SharedPreferences
     LaunchedEffect(refreshTrigger) {
         username = prefs.getString("username", "") ?: ""
@@ -56,9 +58,8 @@ fun ProfileScreen(navController: NavHostController) {
         phone = prefs.getString("numTel", "") ?: ""
         gender = prefs.getString("gender", "") ?: ""
         createdAt = prefs.getString("createdAt", "") ?: ""
-        userId = prefs.getString("user_id", "") ?: ""
     }
-    
+
     // Refresh data when navigating back
     DisposableEffect(Unit) {
         onDispose {
@@ -192,7 +193,7 @@ fun ProfileScreen(navController: NavHostController) {
             Spacer(Modifier.height(32.dp))
 
             // Contact Card
-            AnimatedCard(visible, 400) {
+            AnimatedCard(visible, 420) {
                 InfoCard("Informations de contact") {
                     ProfileRow(Icons.Default.Email, "Email", email)
                     DividerSpacer()
@@ -203,7 +204,7 @@ fun ProfileScreen(navController: NavHostController) {
             Spacer(Modifier.height(16.dp))
 
             // Personal Card
-            AnimatedCard(visible, 500) {
+            AnimatedCard(visible, 520) {
                 InfoCard("Informations personnelles") {
                     ProfileRow(Icons.Default.Person, "Username", username)
                     DividerSpacer()
@@ -216,41 +217,46 @@ fun ProfileScreen(navController: NavHostController) {
             Spacer(Modifier.height(16.dp))
 
             // Account Card
-            AnimatedCard(visible, 600) {
+            AnimatedCard(visible, 620) {
                 InfoCard("Détails du compte") {
-                    ProfileRow(Icons.Default.CalendarToday, "Created At", createdAt)
-                    DividerSpacer()
-                    ProfileRow(Icons.Default.Badge, "User ID", userId)
-                }
-            }
-
-            Spacer(Modifier.height(32.dp))
-
-            // LOGOUT BUTTON (FIXED)
-            AnimatedCard(visible, 700) {
-                GradientButton(
-                    text = "Logout",
-                    icon = Icons.Default.Logout,
-                    colors = listOf(Color(0xFFEF5350), Color(0xFFE53935))
-                ) {
-                    prefs.edit().clear().apply()
-
-                    navController.navigate(Routes.Login) {
-                        popUpTo(Routes.Main) { inclusive = true }
-                    }
+                    ProfileRow(Icons.Default.CalendarToday, "Créé le", createdAt)
                 }
             }
 
             Spacer(Modifier.height(16.dp))
 
+            AnimatedCard(visible, 680) {
+                ReservationManagementCard(
+                    onPendingClick = { navController.navigate(Routes.Reservations) },
+                    onAcceptedClick = { navController.navigate(Routes.AcceptedClients) }
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Spacer(Modifier.height(32.dp))
+
             // UPDATE PROFILE BUTTON
-            AnimatedCard(visible, 800) {
+            AnimatedCard(visible, 700) {
                 GradientButton(
                     text = "Update Profile",
                     icon = Icons.Default.Edit,
                     colors = listOf(Color(0xFF4CAF50), Color(0xFF388E3C))
                 ) {
                     navController.navigate(Routes.UpdateProfile)
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // FAVORITES BUTTON
+            AnimatedCard(visible, 800) {
+                GradientButton(
+                    text = "Mes Favoris",
+                    icon = Icons.Default.Favorite,
+                    colors = listOf(Color(0xFFE91E63), Color(0xFFC2185B))
+                ) {
+                    navController.navigate(Routes.Favorites)
                 }
             }
 
@@ -264,6 +270,25 @@ fun ProfileScreen(navController: NavHostController) {
                     colors = listOf(Color(0xFF1A73E8), Color(0xFF0D47A1))
                 ) {
                     navController.navigate("feedback")
+                }
+            }
+
+            Spacer(Modifier.height(32.dp))
+
+            // LOGOUT BUTTON - MOVED TO BOTTOM
+            AnimatedCard(visible, 1000) {
+                GradientButton(
+                    text = "Logout",
+                    icon = Icons.Default.Logout,
+                    colors = listOf(Color(0xFFEF5350), Color(0xFFE53935))
+                ) {
+                    FirebaseTokenRegistrar.unregisterCurrentToken(context)
+                    TokenStorage.clearAuth(context)
+                    prefs.edit().clear().apply()
+
+                    navController.navigate(Routes.Login) {
+                        popUpTo(Routes.Main) { inclusive = true }
+                    }
                 }
             }
 
@@ -304,6 +329,73 @@ fun InfoCard(title: String, content: @Composable ColumnScope.() -> Unit) {
             Spacer(Modifier.height(20.dp))
             content()
         }
+    }
+}
+
+@Composable
+fun ReservationManagementCard(
+    onPendingClick: () -> Unit,
+    onAcceptedClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(4.dp),
+        colors = CardDefaults.cardColors(Color.White)
+    ) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text("Gestion des réservations", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            ReservationOptionRow(
+                icon = Icons.Default.Schedule,
+                iconColor = Color(0xFFFFA726),
+                title = "Demandes en attente",
+                subtitle = "Examiner et répondre aux nouvelles demandes",
+                onClick = onPendingClick
+            )
+            HorizontalDivider(color = Color(0xFFE0E0E0))
+            ReservationOptionRow(
+                icon = Icons.Default.VerifiedUser,
+                iconColor = Color(0xFF43A047),
+                title = "Clients acceptés",
+                subtitle = "Consulter les colocataires confirmés",
+                onClick = onAcceptedClick
+            )
+        }
+    }
+}
+
+@Composable
+fun ReservationOptionRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconColor: Color,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(50.dp)
+                .clip(CircleShape)
+                .background(iconColor.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = iconColor)
+        }
+
+        Spacer(Modifier.width(16.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, fontSize = 13.sp, color = Color(0xFF757575))
+        }
+
+        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFFB0BEC5))
     }
 }
 

@@ -2,9 +2,11 @@ package com.sim.darna.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.sim.darna.screens.*
 
 object Routes {
@@ -16,9 +18,17 @@ object Routes {
     const val Fingerprint = "fingerprint"
     const val Main = "main"
     const val PropertyDetail = "property_detail"
+    const val PropertyDetailWithId = "property_detail/{propertyId}"
     const val ResetPassword = "reset_password"
     const val Reviews = "reviews"
     const val UpdateProfile = "update_profile"
+    const val Favorites = "favorites"
+    const val Reservations = "reservations"
+    const val AcceptedClients = "accepted_clients"
+    const val ConfirmedClients = "confirmed_clients/{propertyId}"
+    const val BookProperty = "book_property/{propertyId}"
+    const val PropertyBookings = "property_bookings/{propertyId}"
+    const val Notifications = "notifications"
 }
 
 @Composable
@@ -89,8 +99,45 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
 
         // ⭐ FULL SCREEN PAGES
         composable(Routes.PropertyDetail) { PropertyDetailScreen(navController) }
+        composable(
+            route = Routes.PropertyDetailWithId,
+            arguments = listOf(navArgument("propertyId") { type = androidx.navigation.NavType.StringType })
+        ) { backStackEntry ->
+            val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
+            PropertyDetailScreen(navController, propertyId)
+        }
         composable(Routes.Reviews) { ReviewsScreen() }
         composable(Routes.ForgotPassword) { ForgotPasswordScreen(navController) }
         composable(Routes.ResetPassword) { ResetPasswordScreen(navController) }
+        composable(Routes.Favorites) { FavoritesScreen(navController) }
+        composable(Routes.Reservations) { ReservationsScreen(navController) }
+        composable(Routes.AcceptedClients) { AcceptedClientsScreen(navController) }
+        composable(Routes.Notifications) {
+            NotificationsScreen(
+                navController = navController,
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = Routes.BookProperty,
+            arguments = listOf(navArgument("propertyId") { type = androidx.navigation.NavType.StringType })
+        ) { backStackEntry ->
+            val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
+            BookPropertyScreen(navController, propertyId)
+        }
+        composable(
+            route = Routes.PropertyBookings,
+            arguments = listOf(navArgument("propertyId") { type = androidx.navigation.NavType.StringType })
+        ) { backStackEntry ->
+            val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
+            PropertyBookingsScreen(navController, propertyId)
+        }
+        composable(
+            route = Routes.ConfirmedClients,
+            arguments = listOf(navArgument("propertyId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
+            ConfirmedClientsScreen(navController, propertyId)
+        }
     }
 }
