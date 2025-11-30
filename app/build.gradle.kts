@@ -4,6 +4,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.dagger.hilt.android")
     id("kotlin-kapt")
+
 }
 
 android {
@@ -81,6 +82,12 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.6.0")
 
     // --- Retrofit + OkHttp ---
+    implementation("io.coil-kt:coil-compose:2.4.0")
+    implementation("io.coil-kt:coil:2.4.0")
+
+
+
+    // ✅ Retrofit + OkHttp + Kotlin Serialization
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")

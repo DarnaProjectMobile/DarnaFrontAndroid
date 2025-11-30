@@ -1,9 +1,8 @@
 package com.sim.darna.screens
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -13,8 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +29,10 @@ import androidx.navigation.navArgument
 import com.sim.darna.navigation.Routes
 
 // ---------------------- Navigation destinations ----------------------
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.*
+import com.sim.darna.navigation.Routes
+
 sealed class BottomNavItem(
     val route: String,
     val icon: ImageVector,
@@ -45,17 +46,19 @@ sealed class BottomNavItem(
 
 // ---------------------- MainScreen ----------------------
 @Composable
-fun MainScreen() {
-    val navController = rememberNavController()
+fun MainScreen(parentNavController: NavHostController){
+
+    val bottomNavController = rememberNavController()
 
     Scaffold(
-        bottomBar = { BottomNavBar(navController) },
+        bottomBar = { BottomNavBar(bottomNavController) },
         containerColor = Color(0xFFF5F5F5)
-    ) { innerPadding ->
+    ) { padding ->
+
         NavHost(
-            navController = navController,
+            navController = bottomNavController,
             startDestination = BottomNavItem.Home.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(padding)
         ) {
             composable(BottomNavItem.Home.route) { HomeScreen(navController) }
 
@@ -79,6 +82,19 @@ fun MainScreen() {
                     onCancel = { navController.popBackStack() }
                 )
             }
+            composable(BottomNavItem.Home.route) {
+                HomeScreen(parentNavController)   // ⭐ forward parent nav
+            }
+            composable(BottomNavItem.Calendar.route) { CalendarScreen() }
+            composable(BottomNavItem.Reserve.route) { ReserveScreen() }
+            composable(BottomNavItem.Profile.route) {
+                ProfileScreen(parentNavController) // ⭐ FIXED
+            }
+        }
+    }
+}
+
+
 
             composable(BottomNavItem.Reserve.route) { ReserveScreen() }
             composable(BottomNavItem.Profile.route) { ProfileScreen() }
@@ -90,6 +106,7 @@ fun MainScreen() {
 // ---------------------- BottomNavBar ----------------------
 @Composable
 fun BottomNavBar(navController: NavController) {
+
     val items = listOf(
         BottomNavItem.Home,
         BottomNavItem.Publicite,
@@ -97,68 +114,31 @@ fun BottomNavBar(navController: NavController) {
         BottomNavItem.Profile
     )
 
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
+    val navBackStack by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStack?.destination?.route
 
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)),
-        shadowElevation = 4.dp,
-        color = Color.White
+    NavigationBar(
+        containerColor = Color.White
     ) {
-        NavigationBar(
-            modifier = Modifier.height(80.dp),
-            containerColor = Color.White,
-            tonalElevation = 0.dp
-        ) {
-            items.forEach { item ->
-                val isSelected = currentDestination?.hierarchy?.any {
-                    it.route == item.route
-                } == true
+        items.forEach { item ->
 
-                val scale by animateFloatAsState(
-                    targetValue = if (isSelected) 1.1f else 1f,
-                    animationSpec = tween(durationMillis = 200),
-                    label = "scale"
-                )
-
-                NavigationBarItem(
-                    icon = {
-                        Icon(
-                            imageVector = item.icon,
-                            contentDescription = item.label,
-                            modifier = Modifier
-                                .scale(scale)
-                                .size(24.dp)
-                        )
-                    },
-                    label = {
-                        Text(
-                            text = item.label,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                        )
-                    },
-                    selected = isSelected,
-                    onClick = {
-                        navController.navigate(item.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFF0066FF),
-                        selectedTextColor = Color(0xFF0066FF),
-                        unselectedIconColor = Color(0xFF9E9E9E),
-                        unselectedTextColor = Color(0xFF9E9E9E),
-                        indicatorColor = Color(0xFF0066FF).copy(alpha = 0.1f)
+            NavigationBarItem(
+                selected = currentRoute == item.route,
+                onClick = {
+                    navController.navigate(item.route) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                icon = {
+                    Icon(
+                        imageVector = item.icon,
+                        contentDescription = item.label
                     )
-                )
-            }
+                },
+                label = { Text(item.label) }
+            )
         }
     }
 }
@@ -199,21 +179,12 @@ fun HomeScreen(navController: NavController) {
                     )
                 }
 
-                Surface(
-                    modifier = Modifier.size(48.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    color = Color(0xFF0066FF).copy(alpha = 0.1f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = "Notifications",
-                        modifier = Modifier.padding(12.dp),
-                        tint = Color(0xFF0066FF)
-                    )
-                }
-            }
+// Home Screen
+@Composable
+fun HomeScreen(navController: NavController) {
+    Column(Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
 
-            Spacer(modifier = Modifier.height(20.dp))
+        // HEADER / SEARCH = unchanged for you
 
             // Search Bar
             Card(
@@ -291,6 +262,24 @@ fun HomeScreen(navController: NavController) {
                     area = listOf(85, 45, 120)[index],
                     imageColor = item.third,
                     navController = navController
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+
+            item {
+                Text("À la une", style = MaterialTheme.typography.titleLarge)
+            }
+
+            items(3) {
+                PropertyCard(
+                    title = "Colocation moderne",
+                    location = "75011 Bastille",
+                    price = 650,
+                    roommates = 3,
+                    area = 85,
+                    imageColor = Color(0xFF4A90E2),
+                    navController = navController // ⭐ correct
                 )
             }
         }
@@ -299,6 +288,41 @@ fun HomeScreen(navController: NavController) {
 }
 
 // ---------------------- PropertyCard ----------------------
+
+@Composable
+fun CategoryCard(icon: ImageVector, label: String, color: Color) {
+    Card(
+        modifier = Modifier
+            .width(110.dp)
+            .height(100.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                modifier = Modifier.size(32.dp),
+                tint = color
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = color,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
 @Composable
 fun PropertyCard(
     title: String,

@@ -5,16 +5,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.sim.darna.auth.AuthApi
 import com.sim.darna.repository.AuthRepository
-import com.sim.darna.viewmodel.RegisterViewModel
+import com.sim.darna.viewmodel.ResetPasswordViewModel
 
 @Suppress("UNCHECKED_CAST")
-class RegisterVmFactory(
+class ResetPasswordVmFactory(
     private val baseUrl: String,
     private val sharedPreferences: SharedPreferences
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        val api = AuthApi.create(baseUrl)
-        val repo = AuthRepository(api, sharedPreferences)
-        return RegisterViewModel(repo) as T
+        if (modelClass.isAssignableFrom(ResetPasswordViewModel::class.java)) {
+            val api = AuthApi.create(baseUrl)
+            val repo = AuthRepository(api, sharedPreferences)
+            return ResetPasswordViewModel(repo) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
