@@ -46,15 +46,10 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
     var passwordError by remember { mutableStateOf<String?>(null) }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    val baseUrl = "http://192.168.0.238:3000/"
-    val sharedPreferences = LocalContext.current.getSharedPreferences("APP_PREFS", Context.MODE_PRIVATE)
-    val viewModel: LoginViewModel = viewModel(
-        factory = LoginVmFactory(
-            baseUrl = baseUrl,
-            sharedPreferences = sharedPreferences
-        )
-    )
-    val uiState by viewModel.state.collectAsState()
+    // ✅ ViewModel setup (your base URL here)
+    val baseUrl = "http://192.168.1.11:3000/"
+    val viewModel: LoginViewModel = viewModel(factory = LoginVmFactory(baseUrl))
+    val uiState = viewModel.state.collectAsState().value
 
     val coroutineScope = rememberCoroutineScope()
     var rememberMe by remember { mutableStateOf(false) }
