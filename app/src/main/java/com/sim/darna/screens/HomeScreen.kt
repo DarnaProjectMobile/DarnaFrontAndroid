@@ -29,9 +29,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.sim.darna.navigation.Routes
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
 // Navigation destinations
 sealed class BottomNavItem(
@@ -59,7 +58,8 @@ fun MainScreen() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(BottomNavItem.Home.route) { HomeScreen(navController) }
-            composable(BottomNavItem.Publicite.route) { 
+
+            composable(BottomNavItem.Publicite.route) {
                 com.sim.darna.ui.screens.PubliciteListScreen(
                     navController = navController,
                     onPubliciteClick = { publiciteId ->
@@ -72,64 +72,73 @@ fun MainScreen() {
                         navController.navigate("edit_publicite/$id")
                     },
                     onDeletePublicite = { id ->
-                        // TODO: Implémenter la suppression
                         navController.currentBackStackEntry?.savedStateHandle?.set("refreshOffers", true)
                     }
                 )
             }
+
             composable(
                 route = Routes.PubliciteDetail,
                 arguments = listOf(navArgument("publiciteId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val publiciteId = backStackEntry.arguments?.getString("publiciteId") ?: ""
                 com.sim.darna.ui.screens.PubliciteDetailScreen(
-                    publiciteId = publiciteId,
-                    onNavigateBack = { navController.popBackStack() },
-                    onDelete = { navController.popBackStack() },
-                    onEdit = { id ->
-                        navController.navigate("edit_publicite/$id")
-                    }
+                    navController = navController,
+                    publiciteId = publiciteId
                 )
             }
+
             composable(Routes.AddPublicite) {
                 com.sim.darna.ui.screens.AddPubliciteScreen(
-                    publiciteId = null,
-                    onNavigateBack = { navController.popBackStack() },
-                    onPubliciteSaved = {
-                        navController.previousBackStackEntry?.savedStateHandle?.set("refreshOffers", true)
-                    }
+                    navController = navController,
+                    publiciteId = null
                 )
             }
+
             composable(
                 route = Routes.EditPublicite,
                 arguments = listOf(navArgument("publiciteId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val publiciteId = backStackEntry.arguments?.getString("publiciteId") ?: ""
                 com.sim.darna.ui.screens.AddPubliciteScreen(
-                    publiciteId = publiciteId,
-                    onNavigateBack = { navController.popBackStack() },
-                    onPubliciteSaved = {
-                        navController.previousBackStackEntry?.savedStateHandle?.set("refreshOffers", true)
-                    }
+                    navController = navController,
+                    publiciteId = publiciteId
                 )
             }
+
+            composable(Routes.Payment) {
+                val viewModel: com.sim.darna.viewmodel.PaymentViewModel = hiltViewModel()
+                com.sim.darna.ui.screens.PaymentScreen(
+                    navController = navController,
+                    viewModel = viewModel
+                )
+            }
+
             composable(BottomNavItem.Reserve.route) { ReserveScreen() }
             composable(BottomNavItem.Profile.route) { ProfileScreen() }
-
         }
     }
 }
 
 @Composable
 fun ProfileScreen() {
-    TODO("Not yet implemented")
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("Écran Profil - En cours de développement")
+    }
 }
 
 @Composable
 fun ReserveScreen() {
-    TODO("Not yet implemented")
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("Écran Réservation - En cours de développement")
+    }
 }
-
 
 @Composable
 fun BottomNavBar(navController: NavController) {
@@ -373,7 +382,7 @@ fun HomeScreen(navController: NavController) {
                         1 -> Color(0xFF50C878)
                         else -> Color(0xFFFF6B6B)
                     },
-                    navController = navController // ✅ added
+                    navController = navController
                 )
             }
         }
@@ -414,6 +423,7 @@ fun CategoryCard(icon: ImageVector, label: String, color: Color) {
         }
     }
 }
+
 @Composable
 fun PropertyCard(
     title: String,
@@ -498,28 +508,26 @@ fun PropertyCard(
             Column(modifier = Modifier.padding(16.dp)) {
 
                 // Title + Location
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1A1A1A)
+                Text(
+                    text = title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1A1A1A)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = Color(0xFF757575)
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = Color(0xFF757575)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = location,
-                            fontSize = 14.sp,
-                            color = Color(0xFF757575)
-                        )
-                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = location,
+                        fontSize = 14.sp,
+                        color = Color(0xFF757575)
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -599,7 +607,7 @@ fun PropertyCard(
 }
 
 @Composable
-fun InfoChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+fun InfoChip(icon: ImageVector, text: String) {
     Surface(
         color = Color(0xFFF5F5F5),
         shape = RoundedCornerShape(8.dp)
@@ -655,4 +663,3 @@ fun PropertyCardPreview() {
         navController = navController
     )
 }
-

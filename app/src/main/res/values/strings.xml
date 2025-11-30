@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">Darna</string>
+    <!-- TODO: Remplacez par votre vraie clé publique Stripe (commence par pk_test_ pour le mode test ou pk_live_ pour le mode production) -->
+    <!-- Vous pouvez trouver cette clé dans votre tableau de bord Stripe : https://dashboard.stripe.com/apikeys -->
+    <string name="stripe_publishable_key">pk_test_51SWhKDHzDVVYaCTRXPPjTHX3wP0Qsz5aFDkOfK2ji9vd26xwucYJsFFKx271d767HVHN3f6hVC07wb6a0cnEcR5Y00UqB3vKCH</string>
 </resources>

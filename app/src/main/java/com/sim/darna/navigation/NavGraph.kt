@@ -1,6 +1,7 @@
 package com.sim.darna.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -8,8 +9,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.sim.darna.screens.*
+import com.sim.darna.ui.screens.PaymentScreen
+import com.sim.darna.viewmodel.PaymentViewModel
 import java.net.URLDecoder
-import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
 /**
@@ -23,8 +25,7 @@ object Routes {
     const val Selfie = "selfie"
     const val Fingerprint = "fingerprint"
     const val Main = "main"
-    // Change this line
-    const val PropertyDetail = "property_detail/{propertyName}" // Add the argument placeholder
+    const val PropertyDetail = "property_detail/{propertyName}"
     const val Reviews = "reviews/{propertyId}"
 
     // Publicités routes
@@ -32,6 +33,8 @@ object Routes {
     const val PubliciteDetail = "publicite_detail/{publiciteId}"
     const val AddPublicite = "add_publicite"
     const val EditPublicite = "edit_publicite/{publiciteId}"
+
+    const val Payment = "payment"
 }
 
 @Composable
@@ -109,10 +112,9 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         }
 
         composable(
-            route = Routes.PropertyDetail, // This now correctly uses "property_detail/{propertyName}"
+            route = Routes.PropertyDetail,
             arguments = listOf(navArgument("propertyName") { type = NavType.StringType })
         ) { backStackEntry ->
-            // Extract the argument
             val propertyName = backStackEntry.arguments?.getString("propertyName")?.let {
                 URLDecoder.decode(it, StandardCharsets.UTF_8.name())
             } ?: "Détails du bien"
@@ -148,19 +150,15 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         ) { backStackEntry ->
             val publiciteId = backStackEntry.arguments?.getString("publiciteId") ?: ""
             com.sim.darna.ui.screens.PubliciteDetailScreen(
-                publiciteId = publiciteId,
-                onNavigateBack = { navController.popBackStack() },
-                onDelete = { navController.popBackStack() },
-                onEdit = { id ->
-                    navController.navigate("edit_publicite/$id")
-                }
+                navController = navController,
+                publiciteId = publiciteId
             )
         }
 
         composable(Routes.AddPublicite) {
             com.sim.darna.ui.screens.AddPubliciteScreen(
-                publiciteId = null,
-                onNavigateBack = { navController.popBackStack() }
+                navController = navController,
+                publiciteId = null
             )
         }
 
@@ -170,11 +168,15 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         ) { backStackEntry ->
             val publiciteId = backStackEntry.arguments?.getString("publiciteId") ?: ""
             com.sim.darna.ui.screens.AddPubliciteScreen(
-                publiciteId = publiciteId,
-                onNavigateBack = { navController.popBackStack() }
+                navController = navController,
+                publiciteId = publiciteId
             )
+        }
+
+        composable(Routes.Payment) {
+            val viewModel: PaymentViewModel = hiltViewModel()
+            PaymentScreen(navController = navController, viewModel = viewModel)
         }
 
     }
 }
-

@@ -33,9 +33,8 @@ import com.sim.darna.utils.SessionManager
 import com.sim.darna.viewmodel.PubliciteListViewModel
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.tooling.preview.PreviewParameter
-import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import com.sim.darna.data.model.PubliciteType
+import com.sim.darna.navigation.Routes
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,6 +56,14 @@ fun PubliciteListScreen(
     val sessionManager = remember { SessionManager(context) }
     val currentUser = remember { sessionManager.getUser() }
     val isSponsor = currentUser?.role == "sponsor" || currentUser?.role == "admin"
+
+    // Logs pour déboguer l'utilisateur
+    LaunchedEffect(currentUser) {
+        android.util.Log.d("UserDebug", "currentUser complet: $currentUser")
+        android.util.Log.d("UserDebug", "currentUser.id: ${currentUser?.id}")
+        android.util.Log.d("UserDebug", "currentUser.username: ${currentUser?.username}")
+        android.util.Log.d("UserDebug", "currentUser.role: ${currentUser?.role}")
+    }
 
     var searchText by remember { mutableStateOf("") }
 
@@ -101,11 +108,13 @@ fun PubliciteListScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddPubliciteClick,
-                containerColor = BluePrimary
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Ajouter", tint = White)
+            if (isSponsor) {
+                FloatingActionButton(
+                    onClick = { navController.navigate(Routes.Payment) },
+                    containerColor = BluePrimary
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Paiement", tint = White)
+                }
             }
         }
     ) { paddingValues ->
@@ -194,26 +203,28 @@ fun PubliciteListScreen(
                     .take(10)
             }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp)
-            ) {
-                Text(
-                    text = "Nos Marques Partenaires",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp)
+            if (uniqueBrands.isNotEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp)
                 ) {
-                    items(uniqueBrands) { brand ->
-                        PartnerBrandItem(brandName = brand)
+                    Text(
+                        text = "Nos Marques Partenaires",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp)
+                    ) {
+                        items(uniqueBrands) { brand ->
+                            PartnerBrandItem(brandName = brand)
+                        }
                     }
                 }
             }
@@ -263,48 +274,40 @@ fun PubliciteListScreen(
                         contentPadding = PaddingValues(bottom = 16.dp)
                     ) {
                         items(publicites) { publicite ->
-                            // Vérifier si l'utilisateur est le propriétaire de la publicité
+                            // Logs pour déboguer
+                            android.util.Log.d("PubliciteDebug", "=== Publicité: ${publicite.titre} ===")
+                            android.util.Log.d("PubliciteDebug", "publicite.id: ${publicite.id}")
+                            android.util.Log.d("PubliciteDebug", "publicite.sponsorId: ${publicite.sponsorId}")
+                            android.util.Log.d("PubliciteDebug", "publicite.sponsorName: ${publicite.sponsorName}")
+                            android.util.Log.d("PubliciteDebug", "currentUser.username: ${currentUser?.username}")
+
+                            // Vérifier si l'utilisateur est le propriétaire
                             val isOwner = if (isSponsor && currentUser != null) {
                                 if (currentUser.role == "admin") {
-                                    true // Les admins peuvent modifier toutes les publicités
+                                    true // Les admins peuvent tout modifier
                                 } else {
-                                    // Pour les sponsors, vérifier si c'est leur publicité
-                                    val userIdentifier = currentUser.id ?: currentUser.username
-
-                                    if (publicite.sponsorId.isEmpty()) {
-                                        true // Si pas de sponsorId, permettre à tous les sponsors
+                                    // Comparer par sponsorName puisque sponsorId est vide et currentUser.id est null
+                                    if (publicite.sponsorId.isEmpty() || publicite.sponsorId == "unknown") {
+                                        // Si pas de sponsorId, comparer par sponsorName
+                                        publicite.sponsorName?.equals(currentUser.username, ignoreCase = true) == true
                                     } else {
-                                        publicite.sponsorId == currentUser.id ||
-                                                publicite.sponsorId == currentUser.username ||
-                                                publicite.sponsorId == userIdentifier ||
-                                                publicite.sponsorName?.equals(currentUser.username, ignoreCase = true) == true ||
-                                                publicite.sponsorName == currentUser.id
+                                        // Si sponsorId existe, l'utiliser en priorité
+                                        if (currentUser.id != null) {
+                                            publicite.sponsorId == currentUser.id
+                                        } else {
+                                            // Sinon fallback sur le sponsorName
+                                            publicite.sponsorName?.equals(currentUser.username, ignoreCase = true) == true
+                                        }
                                     }
                                 }
                             } else {
                                 false
                             }
 
-                            // AJOUTEZ CES LOGS POUR DÉBOGUER
-                            android.util.Log.d("PubliciteDebug", "=== Publicité: ${publicite.titre} ===")
-                            android.util.Log.d("PubliciteDebug", "publicite.sponsorId: ${publicite.sponsorId}")
-                            android.util.Log.d("PubliciteDebug", "publicite.sponsorName: ${publicite.sponsorName}")
-                            android.util.Log.d("PubliciteDebug", "currentUser.id: ${currentUser?.id}")
-                            android.util.Log.d("PubliciteDebug", "currentUser.username: ${currentUser?.username}")
-                            android.util.Log.d("PubliciteDebug", "currentUser.role: ${currentUser?.role}")
-                            android.util.Log.d("PubliciteDebug", "isSponsor: $isSponsor")
                             android.util.Log.d("PubliciteDebug", "isOwner: $isOwner")
-
-
-                            // Utiliser isOwner pour la sécurité (ou isSponsor pour tous les sponsors)
-                            val showButtons = isOwner
-
-                            android.util.Log.d("PubliciteDebug", "showButtons: $showButtons")
                             android.util.Log.d("PubliciteDebug", "===============================")
-                            android.util.Log.d("PubliciteDebug", "publicite.id: ${publicite.id}")
-                            android.util.Log.d("PubliciteDebug", "isOwner: $isOwner")
-                            android.util.Log.d("PubliciteDebug", "publicite.id != null: ${publicite.id != null}")
-                            android.util.Log.d("PubliciteDebug", "showButtons: $showButtons")
+
+                            val showButtons = isOwner
 
                             PubliciteCardWithActions(
                                 publicite = publicite,
@@ -318,11 +321,11 @@ fun PubliciteListScreen(
                                     }
                                 } else null,
                                 onDelete = if (showButtons) {
-                                    { /* Sera géré par le dialog dans PubliciteCardWithActions */ }
+                                    { /* Sera géré par le dialog */ }
                                 } else null,
                                 onDeleteConfirm = { id ->
                                     viewModel.deletePublicite(id) {
-                                        // Suppression réussie, la liste sera automatiquement mise à jour
+                                        // Suppression réussie
                                     }
                                 }
                             )
@@ -349,7 +352,7 @@ fun PartnerBrandItem(brandName: String) {
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = brandName.take(1),
+                text = brandName.take(1).uppercase(),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = BluePrimary
@@ -359,7 +362,8 @@ fun PartnerBrandItem(brandName: String) {
             text = brandName,
             fontSize = 12.sp,
             color = TextPrimary,
-            modifier = Modifier.padding(top = 8.dp)
+            modifier = Modifier.padding(top = 8.dp),
+            maxLines = 1
         )
     }
 }
@@ -463,12 +467,10 @@ fun PubliciteListScreenPreview() {
         )
 
         val samplePublicite = Publicite(
-            id = "1",
             titre = "2 Pizzas Achetées = 1 Offerte",
             description = "Profitez de notre offre spéciale étudiants",
             imageUrl = null,
             type = PubliciteType.PROMOTION,
-            sponsorId = "sponsor1",
             sponsorName = "Pizza Express",
             categorie = Categorie.NOURRITURE,
             dateExpiration = "31 décembre 2025"

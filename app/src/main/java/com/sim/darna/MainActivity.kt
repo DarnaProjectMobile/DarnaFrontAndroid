@@ -8,7 +8,9 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.sim.darna.navigation.AppNavGraph
+import com.sim.darna.payment.PaymentSheetManager
 import com.sim.darna.ui.theme.DarnaTheme
+import com.stripe.android.paymentsheet.PaymentSheetResult
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -25,12 +27,21 @@ class MainActivity : ComponentActivity() {
         // Hide system bars for immersive fullscreen experience
         hideSystemBars()
 
+        // Initialiser PaymentSheetManager (doit être fait dans onCreate, avant STARTED)
+        // Le callback sera défini dans PaymentScreen
+        PaymentSheetManager.initialize(this)
+
         // Launch the full app navigation
         setContent {
             DarnaTheme {
                 AppNavGraph() // ⬅️ Handles Splash → Login/Signup → MainScreen
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        PaymentSheetManager.clear()
     }
 
     override fun onResume() {

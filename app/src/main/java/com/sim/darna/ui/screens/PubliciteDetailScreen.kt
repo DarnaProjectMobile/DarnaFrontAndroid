@@ -1,17 +1,15 @@
 package com.sim.darna.ui.screens
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -19,143 +17,144 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
-import com.sim.darna.data.model.PubliciteType
-import com.sim.darna.ui.components.QRCodeView
+import com.sim.darna.data.model.*
+import com.sim.darna.ui.components.QRCodeDisplay
+import com.sim.darna.ui.components.RouletteGame
 import com.sim.darna.ui.theme.*
-import com.sim.darna.utils.SessionManager
 import com.sim.darna.viewmodel.PubliciteDetailViewModel
+import com.sim.darna.viewmodel.PubliciteDetailUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PubliciteDetailScreen(
+    navController: NavController,
     publiciteId: String,
-    onNavigateBack: () -> Unit,
-    onDelete: () -> Unit,
-    onEdit: ((String) -> Unit)? = null,
     viewModel: PubliciteDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    val sessionManager = remember { SessionManager(context) }
-    val currentUser = remember { sessionManager.getUser() }
-    val isSponsor = currentUser?.role == "sponsor" || currentUser?.role == "admin"
-    
-    var showDeleteDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(publiciteId) {
         viewModel.loadPublicite(publiciteId)
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { 
+    when (val state = uiState) {
+        is PubliciteDetailUiState.Loading -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(GreyLight),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator(
+                        color = BluePrimary,
+                        strokeWidth = 3.dp,
+                        modifier = Modifier.size(48.dp)
+                    )
                     Text(
-                        text = "Offres Étudiantes",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
-                    ) 
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { /* Notifications */ }) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Notifications")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = White,
-                    titleContentColor = TextPrimary
-                )
-            )
+                        text = "Chargement...",
+                        color = TextSecondary,
+                        fontSize = 14.sp
+                    )
+                }
+            }
         }
-    ) { paddingValues ->
-        // Dialogue de confirmation de suppression
-        if (showDeleteDialog) {
-            AlertDialog(
-                onDismissRequest = { showDeleteDialog = false },
-                title = { Text("Supprimer l'annonce") },
-                text = { Text("Êtes-vous sûr de vouloir supprimer cette annonce ? Cette action est irréversible.") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            when (val state = uiState) {
-                                is com.sim.darna.viewmodel.PubliciteDetailUiState.Success -> {
-                                    viewModel.deletePublicite(state.publicite.id ?: "", onDelete)
-                                    showDeleteDialog = false
-                                }
-                                else -> {}
+        is PubliciteDetailUiState.Error -> {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = { Text("Erreur", fontWeight = FontWeight.Bold) },
+                        navigationIcon = {
+                            IconButton(onClick = { navController.navigateUp() }) {
+                                Icon(
+                                    Icons.Default.ArrowBack,
+                                    contentDescription = "Retour",
+                                    tint = TextPrimary
+                                )
                             }
-                        }
-                    ) {
-                        Text("Supprimer", color = Color.Red)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDeleteDialog = false }) {
-                        Text("Annuler")
-                    }
-                }
-            )
-        }
-        
-        val currentState = uiState
-        when (currentState) {
-            is com.sim.darna.viewmodel.PubliciteDetailUiState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = BluePrimary)
-                }
-            }
-            is com.sim.darna.viewmodel.PubliciteDetailUiState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Text(
-                            text = "Erreur: ${currentState.message}",
-                            color = Color.Red
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = White,
+                            titleContentColor = TextPrimary
                         )
-                        Button(onClick = { viewModel.loadPublicite(publiciteId) }) {
-                            Text("Réessayer")
-                        }
-                    }
-                }
-            }
-            is com.sim.darna.viewmodel.PubliciteDetailUiState.Success -> {
-                PubliciteDetailContent(
-                    publicite = currentState.publicite,
-                    currentUser = currentUser,
+                    )
+                },
+                containerColor = GreyLight
+            ) { paddingValues ->
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
-                        .background(GreyLight)
-                        .verticalScroll(rememberScrollState())
-                )
+                        .padding(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFFFEBEE)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = Color(0xFFD32F2F),
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Text(
+                                text = "Oups !",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFD32F2F)
+                            )
+                            Text(
+                                text = state.message,
+                                fontSize = 14.sp,
+                                color = TextSecondary,
+                                textAlign = TextAlign.Center
+                            )
+                            Button(
+                                onClick = { viewModel.loadPublicite(publiciteId) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = BluePrimary
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Réessayer")
+                            }
+                        }
+                    }
+                }
             }
+        }
+        is PubliciteDetailUiState.Success -> {
+            PubliciteDetailContent(
+                navController = navController,
+                publicite = state.publicite
+            )
         }
     }
 }
@@ -163,340 +162,685 @@ fun PubliciteDetailScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PubliciteDetailContent(
-    publicite: com.sim.darna.data.model.Publicite,
-    currentUser: com.sim.darna.auth.UserDto?,
-    modifier: Modifier = Modifier
+    navController: NavController,
+    publicite: Publicite
 ) {
-    val context = LocalContext.current
-    var showCopiedToast by remember { mutableStateOf(false) }
-    
-    // Utiliser le nom de l'utilisateur connecté comme nom de marque par défaut
-    val brandName = publicite.sponsorName ?: currentUser?.username ?: "Marque"
-    
-    // Générer le code promo à partir de l'ID ou utiliser un code existant
-    val promoCode = remember(publicite.id) {
-        publicite.qrCode ?: "STUDENT2025${brandName.uppercase().take(6)}"
-    }
-    
-    Column(modifier = modifier) {
-        // Image avec badge
-        Box(
+    var showShareDialog by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(300.dp)
+                .fillMaxSize()
+                .background(GreyLight)
+                .verticalScroll(rememberScrollState())
         ) {
-            if (publicite.imageUrl != null) {
-                Image(
-                    painter = rememberAsyncImagePainter(publicite.imageUrl),
-                    contentDescription = publicite.titre,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
+            // Image principale avec boutons overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(320.dp)
+            ) {
+                // Image de fond
+                if (publicite.imageUrl != null) {
+                    Image(
+                        painter = rememberAsyncImagePainter(publicite.imageUrl),
+                        contentDescription = publicite.titre,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        when (publicite.type) {
+                                            PubliciteType.REDUCTION -> Color(0xFF00C853)
+                                            PubliciteType.PROMOTION -> BluePrimary
+                                            PubliciteType.JEU -> Color(0xFFFF6D00)
+                                        }.copy(alpha = 0.7f),
+                                        when (publicite.type) {
+                                            PubliciteType.REDUCTION -> Color(0xFF00C853)
+                                            PubliciteType.PROMOTION -> BluePrimary
+                                            PubliciteType.JEU -> Color(0xFFFF6D00)
+                                        }
+                                    )
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = when (publicite.type) {
+                                PubliciteType.REDUCTION -> Icons.Default.Favorite
+                                PubliciteType.PROMOTION -> Icons.Default.CheckCircle
+                                PubliciteType.JEU -> Icons.Default.Star
+                            },
+                            contentDescription = null,
+                            tint = White.copy(alpha = 0.3f),
+                            modifier = Modifier.size(120.dp)
+                        )
+                    }
+                }
+
+                // Gradient overlay en bas
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .background(GreyMedium)
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    GreyLight.copy(alpha = 0.8f),
+                                    GreyLight
+                                )
+                            )
+                        )
                 )
+
+                // Boutons en haut
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Bouton retour
+                    IconButton(
+                        onClick = { navController.navigateUp() },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(White.copy(alpha = 0.95f), CircleShape)
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Fermer",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    // Bouton partager
+                    IconButton(
+                        onClick = { showShareDialog = true },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(White.copy(alpha = 0.95f), CircleShape)
+                    ) {
+                        Icon(
+                            Icons.Default.Share,
+                            contentDescription = "Partager",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
             }
-            
-            // Badge -33% ou pourcentage de réduction
-            val reductionPercent = publicite.detailReduction?.pourcentage ?: 33
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp),
-                shape = RoundedCornerShape(8.dp),
-                color = BluePrimary
-            ) {
-                Text(
-                    text = "-$reductionPercent%",
-                    color = White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                )
-            }
-        }
-        
-        // Card principale
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = White)
-        ) {
+
+            // Contenu principal
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp)
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // Logo et nom de la marque avec tag catégorie
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                // Badge de réduction/promotion
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = when (publicite.type) {
+                        PubliciteType.REDUCTION -> Color(0xFF00C853)
+                        PubliciteType.PROMOTION -> BluePrimary
+                        PubliciteType.JEU -> Color(0xFFFF6D00)
+                    },
+                    modifier = Modifier.wrapContentWidth()
                 ) {
-                    // Logo carré avec initiale
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(BlueLight),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = brandName.take(1).uppercase(),
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = BluePrimary
+                        Icon(
+                            imageVector = when (publicite.type) {
+                                PubliciteType.REDUCTION -> Icons.Default.Favorite
+                                PubliciteType.PROMOTION -> Icons.Default.CheckCircle
+                                PubliciteType.JEU -> Icons.Default.Star
+                            },
+                            contentDescription = null,
+                            tint = White,
+                            modifier = Modifier.size(20.dp)
                         )
-                    }
-                    
-                    // Nom de la marque en bleu
-                    Text(
-                        text = brandName,
-                        color = BluePrimary,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    
-                    // Tag catégorie
-                    val categorieName = when (publicite.categorie) {
-                        com.sim.darna.data.model.Categorie.NOURRITURE -> "Nourriture"
-                        com.sim.darna.data.model.Categorie.TECH -> "Tech"
-                        com.sim.darna.data.model.Categorie.LOISIRS -> "Loisirs"
-                        com.sim.darna.data.model.Categorie.VOYAGE -> "Voyage"
-                        com.sim.darna.data.model.Categorie.MODE -> "Mode"
-                        else -> "Autre"
-                    }
-                    
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = BlueLight
-                    ) {
                         Text(
-                            text = categorieName,
-                            fontSize = 12.sp,
-                            color = BluePrimary,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            text = when (publicite.type) {
+                                PubliciteType.REDUCTION -> if (publicite.detailReduction != null)
+                                    "-${publicite.detailReduction.pourcentage}% pour les étudiants"
+                                else "Réduction étudiante"
+                                PubliciteType.PROMOTION -> "Offre spéciale"
+                                PubliciteType.JEU -> "Jouez et gagnez !"
+                            },
+                            color = White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
+
                 // Titre
                 Text(
                     text = publicite.titre,
-                    fontSize = 22.sp,
+                    fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    lineHeight = 36.sp
                 )
-                
+
                 // Description
                 Text(
                     text = publicite.description,
-                    fontSize = 15.sp,
+                    fontSize = 16.sp,
                     color = TextSecondary,
-                    modifier = Modifier.padding(bottom = 24.dp),
-                    lineHeight = 22.sp
+                    lineHeight = 24.sp
                 )
-                
-                // Section QR Code et Code Promo
+
+                // Info sponsor
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = GreyLight)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Code Promo",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-                        
-                        // QR Code
-                        QRCodeView(
-                            qrCodeData = promoCode,
-                            modifier = Modifier
-                                .size(200.dp)
-                                .padding(bottom = 16.dp)
-                        )
-                        
-                        // Code à utiliser
-                        Text(
-                            text = "Code à utiliser :",
-                            fontSize = 14.sp,
-                            color = TextSecondary,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                        
-                        // Champ code promo avec bouton copier
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        Surface(
+                            shape = CircleShape,
+                            color = BlueLight,
+                            modifier = Modifier.size(56.dp)
                         ) {
-                            OutlinedTextField(
-                                value = promoCode,
-                                onValueChange = {},
-                                readOnly = true,
-                                modifier = Modifier.weight(1f),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = White,
-                                    unfocusedContainerColor = White
-                                ),
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                            
-                            IconButton(
-                                onClick = {
-                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    val clip = ClipData.newPlainText("Code Promo", promoCode)
-                                    clipboard.setPrimaryClip(clip)
-                                    showCopiedToast = true
-                                },
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .background(BluePrimary, RoundedCornerShape(8.dp))
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.fillMaxSize()
                             ) {
-                                Icon(
-                                    Icons.Default.ContentCopy,
-                                    contentDescription = "Copier",
-                                    tint = White
+                                Text(
+                                    text = publicite.sponsorName?.take(1)?.uppercase() ?: "?",
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = BluePrimary
                                 )
                             }
                         }
-                        
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        // Bouton Télécharger QR Code
-                        Button(
-                            onClick = { /* Télécharger QR code */ },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Icon(Icons.Default.Download, contentDescription = null, tint = White)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Télécharger le QR Code", color = White)
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Offre proposée par",
+                                fontSize = 12.sp,
+                                color = TextSecondary
+                            )
+                            Text(
+                                text = publicite.sponsorName ?: "Sponsor",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
                         }
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                // Section Comment utiliser
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = White)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
+
+                // Date d'expiration
+                if (publicite.dateExpiration != null) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        Text(
-                            text = "Comment utiliser ?",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-                        
-                        val steps = listOf(
-                            "Scannez le QR code en magasin",
-                            "Ou copiez le code promo",
-                            "Présentez votre carte étudiante",
-                            "Profitez de votre réduction !"
-                        )
-                        
-                        steps.forEachIndexed { index, step ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFFFF6D00).copy(alpha = 0.1f),
+                                modifier = Modifier.size(48.dp)
                             ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DateRange,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFF6D00),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                            Column {
                                 Text(
-                                    text = "${index + 1}.",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = BluePrimary,
-                                    modifier = Modifier.width(24.dp)
+                                    text = "Date d'expiration",
+                                    fontSize = 12.sp,
+                                    color = TextSecondary
                                 )
                                 Text(
-                                    text = step,
-                                    fontSize = 15.sp,
+                                    text = "Valable jusqu'au ${publicite.dateExpiration}",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
                                     color = TextPrimary
                                 )
                             }
                         }
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(32.dp))
+
+                // Contenu spécifique selon le type
+                when (publicite.type) {
+                    PubliciteType.REDUCTION -> {
+                        // Afficher le QR Code
+                        QRCodeSection(
+                            qrCodeData = publicite.qrCode ?: publicite.id ?: "NO_ID",
+                            detailReduction = publicite.detailReduction
+                        )
+                    }
+                    PubliciteType.PROMOTION -> {
+                        // Afficher les détails de la promotion
+                        if (publicite.detailPromotion != null) {
+                            PromotionDetailsSection(publicite.detailPromotion)
+                        }
+                    }
+                    PubliciteType.JEU -> {
+                        // Afficher la roulette
+                        RouletteSection(publicite.detailJeu)
+                    }
+                }
+
+                // Bouton d'action principal
+                Button(
+                    onClick = {
+                        // TODO: Logique selon le type
+                        when (publicite.type) {
+                            PubliciteType.REDUCTION -> {
+                                // Afficher le QR code en plein écran ou copier le code
+                            }
+                            PubliciteType.PROMOTION -> {
+                                // Afficher les conditions
+                            }
+                            PubliciteType.JEU -> {
+                                // Pas d'action, la roulette est déjà affichée
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = when (publicite.type) {
+                            PubliciteType.REDUCTION -> Color(0xFF00C853)
+                            PubliciteType.PROMOTION -> BluePrimary
+                            PubliciteType.JEU -> Color(0xFFFF6D00)
+                        }
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(
+                        imageVector = when (publicite.type) {
+                            PubliciteType.REDUCTION -> Icons.Default.Check
+                            PubliciteType.PROMOTION -> Icons.Default.Info
+                            PubliciteType.JEU -> Icons.Default.Star
+                        },
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = when (publicite.type) {
+                            PubliciteType.REDUCTION -> "J'en Profite !"
+                            PubliciteType.PROMOTION -> "Voir les conditions"
+                            PubliciteType.JEU -> "Bonne chance !"
+                        },
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
             }
         }
     }
-    
-    // Toast pour confirmation de copie
-    if (showCopiedToast) {
-        LaunchedEffect(Unit) {
-            kotlinx.coroutines.delay(2000)
-            showCopiedToast = false
-        }
+
+    // Dialog de partage
+    if (showShareDialog) {
         AlertDialog(
-            onDismissRequest = { showCopiedToast = false },
-            title = { Text("Code copié !") },
-            text = { Text("Le code promo a été copié dans le presse-papiers.") },
+            onDismissRequest = { showShareDialog = false },
+            icon = {
+                Icon(
+                    Icons.Default.Share,
+                    contentDescription = null,
+                    tint = BluePrimary,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    "Partager cette offre",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text("Cette fonctionnalité sera bientôt disponible !")
+            },
             confirmButton = {
-                TextButton(onClick = { showCopiedToast = false }) {
-                    Text("OK")
+                TextButton(onClick = { showShareDialog = false }) {
+                    Text("OK", color = BluePrimary)
                 }
             }
         )
     }
 }
 
-// Preview pour PubliciteDetailContent
-@Preview(showBackground = true, device = "spec:width=411dp,height=891dp")
 @Composable
-fun PubliciteDetailContentPreview() {
-    val samplePublicite = com.sim.darna.data.model.Publicite(
-        id = "1",
-        titre = "2 Pizzas Achetées = 1 Offerte",
-        description = "Profitez de notre offre spéciale étudiants: achetez 2 pizzas et recevez la 3ème gratuitement!",
-        imageUrl = null,
-        type = com.sim.darna.data.model.PubliciteType.REDUCTION,
-        sponsorId = "sponsor1",
-        sponsorName = "Pizza Express",
-        categorie = com.sim.darna.data.model.Categorie.NOURRITURE,
-        dateExpiration = "31 décembre 2025",
-        detailReduction = com.sim.darna.data.model.DetailReduction(
-            pourcentage = 33,
-            conditionsUtilisation = "Valable uniquement sur présentation de la carte étudiante"
+fun QRCodeSection(
+    qrCodeData: String,
+    detailReduction: DetailReduction?
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            // En-tête avec icône
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color(0xFF00C853).copy(alpha = 0.1f),
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = Color(0xFF00C853),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+
+                Column {
+                    Text(
+                        text = "Votre QR Code",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "Prêt à être scanné",
+                        fontSize = 12.sp,
+                        color = TextSecondary
+                    )
+                }
+            }
+
+            Text(
+                text = "Présentez ce code en caisse pour bénéficier de votre réduction",
+                fontSize = 14.sp,
+                color = TextSecondary,
+                textAlign = TextAlign.Center,
+                lineHeight = 20.sp
+            )
+
+            // QR Code Display
+            QRCodeDisplay(
+                data = qrCodeData,
+                size = 220.dp
+            )
+
+            if (detailReduction != null) {
+                Divider(color = GreyLight, thickness = 1.dp)
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = BluePrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Conditions d'utilisation",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                    }
+                    Text(
+                        text = detailReduction.conditionsUtilisation,
+                        fontSize = 13.sp,
+                        color = TextSecondary,
+                        lineHeight = 20.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PromotionDetailsSection(detailPromotion: DetailPromotion) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            // En-tête
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = BluePrimary.copy(alpha = 0.1f),
+                    modifier = Modifier.size(56.dp)
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = BluePrimary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Détails de l'offre",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+            }
+
+            Divider(color = GreyLight, thickness = 1.dp)
+
+            // Détails
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                InfoRow(
+                    label = "Offre",
+                    value = detailPromotion.offre,
+                    icon = Icons.Default.Star,
+                    iconColor = Color(0xFFFFC107)
+                )
+
+                InfoRow(
+                    label = "Conditions",
+                    value = detailPromotion.conditions,
+                    icon = Icons.Default.Info,
+                    iconColor = BluePrimary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun InfoRow(
+    label: String,
+    value: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconColor: Color = BluePrimary
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = iconColor.copy(alpha = 0.05f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = iconColor.copy(alpha = 0.1f),
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    fontSize = 12.sp,
+                    color = TextSecondary,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = value,
+                    fontSize = 15.sp,
+                    color = TextPrimary,
+                    lineHeight = 22.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun RouletteSection(detailJeu: DetailJeu?) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFFF6D00).copy(alpha = 0.05f)
         ),
-        qrCode = "STUDENT2025PIZZA"
-    )
-    
-    val sampleUser = com.sim.darna.auth.UserDto(
-        id = "user1",
-        username = "manel",
-        email = "manel@example.com",
-        role = "sponsor"
-    )
-    
-    PubliciteDetailContent(
-        publicite = samplePublicite,
-        currentUser = sampleUser,
-        modifier = Modifier.background(GreyLight)
-    )
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            // En-tête
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "🎰",
+                    fontSize = 48.sp
+                )
+                Text(
+                    text = "Tournez la roue !",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFFF6D00)
+                )
+
+                if (detailJeu != null) {
+                    Text(
+                        text = detailJeu.description,
+                        fontSize = 14.sp,
+                        color = TextSecondary,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 20.sp
+                    )
+                } else {
+                    Text(
+                        text = "Tentez votre chance et gagnez des récompenses exclusives !",
+                        fontSize = 14.sp,
+                        color = TextSecondary,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 20.sp
+                    )
+                }
+            }
+
+            Divider(color = Color(0xFFFF6D00).copy(alpha = 0.2f), thickness = 1.dp)
+
+            // Roulette Game Component
+            RouletteGame(
+                gains = detailJeu?.gains ?: listOf(
+                    "10% de réduction",
+                    "Boisson offerte",
+                    "Dessert gratuit",
+                    "20% de réduction",
+                    "Café offert",
+                    "5€ offerts"
+                )
+            )
+        }
+    }
 }

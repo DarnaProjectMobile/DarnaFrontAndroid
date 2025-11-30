@@ -85,7 +85,7 @@ fun PubliciteCard(
                                 onClick = it,
                                 modifier = Modifier.size(40.dp),
                                 shape = CircleShape,
-                                color = Color(0xFF2196F3), // Bleu plus visible
+                                color = Color(0xFF2196F3),
                                 shadowElevation = 6.dp
                             ) {
                                 Box(
@@ -106,7 +106,7 @@ fun PubliciteCard(
                                 onClick = it,
                                 modifier = Modifier.size(40.dp),
                                 shape = CircleShape,
-                                color = Color(0xFFF44336), // Rouge plus visible
+                                color = Color(0xFFF44336),
                                 shadowElevation = 6.dp
                             ) {
                                 Box(
@@ -173,17 +173,15 @@ fun PubliciteCard(
 @Composable
 fun PubliciteCardPreview() {
     val samplePublicite = Publicite(
-        id = "1",
         titre = "2 Pizzas Achetées = 1 Offerte",
         description = "Profitez de notre offre spéciale étudiants",
         imageUrl = null,
         type = PubliciteType.PROMOTION,
-        sponsorId = "sponsor1",
         sponsorName = "Pizza Express",
         categorie = Categorie.NOURRITURE,
         dateExpiration = "31 décembre 2025"
     )
-    
+
     PubliciteCard(
         publicite = samplePublicite,
         onClick = {},
@@ -197,21 +195,18 @@ fun PubliciteCardPreview() {
 @Composable
 fun PubliciteCardWithoutActionsPreview() {
     val samplePublicite = Publicite(
-        id = "1",
         titre = "2 Pizzas Achetées = 1 Offerte",
         description = "Profitez de notre offre spéciale étudiants",
         imageUrl = null,
         type = PubliciteType.PROMOTION,
-        sponsorId = "sponsor1",
         sponsorName = "Baristas",
         categorie = Categorie.NOURRITURE,
         dateExpiration = "31 décembre 2025"
     )
-    
+
     PubliciteCard(
         publicite = samplePublicite,
         onClick = {},
         showEditDelete = false
     )
 }
-

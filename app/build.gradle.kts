@@ -69,7 +69,8 @@ dependencies {
 
 
     // Compose + Material 3
-    implementation(platform("androidx.compose:compose-bom:2024.10.01"))
+    // BOM compatible avec Stripe SDK 21.0.0
+    implementation(platform("androidx.compose:compose-bom:2024.08.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui-tooling-preview")
@@ -93,7 +94,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2024.10.01"))
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.08.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
@@ -142,5 +143,18 @@ dependencies {
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
+
+    // QR Code generation
+    implementation("com.google.zxing:core:3.5.2")
+
+    // Coil pour les images (déjà présent normalement)
+    implementation("io.coil-kt:coil-compose:2.5.0")
+
+    // Stripe SDK - version mise à jour pour compatibilité avec Compose
+    implementation("com.stripe:stripe-android:21.0.0")
+    // vérifie la dernière version sur docs
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
 }

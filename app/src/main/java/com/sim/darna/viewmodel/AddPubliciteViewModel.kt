@@ -1,5 +1,6 @@
 package com.sim.darna.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sim.darna.data.model.*
@@ -35,7 +36,7 @@ class AddPubliciteViewModel @Inject constructor(
     fun createPublicite(
         titre: String,
         description: String,
-        imageUrl: String?,
+        imageUri: Uri?,
         type: PubliciteType,
         categorie: Categorie,
         dateExpiration: String?,
@@ -51,6 +52,10 @@ class AddPubliciteViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.value = AddPubliciteUiState.Loading
+            // Convertir Uri en String pour le backend
+            // Note: Vous devrez peut-être uploader l'image vers votre backend
+            // et obtenir une URL. Pour l'instant, on utilise le toString() du Uri
+            val imageUrl = imageUri?.toString() ?: ""
             val request = CreatePubliciteRequest(
                 titre = titre,
                 description = description,
@@ -80,7 +85,7 @@ class AddPubliciteViewModel @Inject constructor(
         id: String,
         titre: String,
         description: String,
-        imageUrl: String?,
+        imageUri: Uri?,
         type: PubliciteType,
         categorie: Categorie,
         dateExpiration: String?,
@@ -96,6 +101,10 @@ class AddPubliciteViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.value = AddPubliciteUiState.Loading
+            // Convertir Uri en String pour le backend
+            // Note: Vous devrez peut-être uploader l'image vers votre backend
+            // et obtenir une URL. Pour l'instant, on utilise le toString() du Uri
+            val imageUrl = imageUri?.toString() ?: ""
             val request = UpdatePubliciteRequest(
                 titre = titre,
                 description = description,

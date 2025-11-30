@@ -2,6 +2,7 @@ package com.sim.darna.di
 
 import android.content.Context
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import com.sim.darna.data.api.PaymentApi
 import com.sim.darna.data.remote.ArrayToObjectInterceptor
 import com.sim.darna.data.remote.AuthInterceptor
 import com.sim.darna.data.remote.PubliciteApi
@@ -24,18 +25,21 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
+    // SessionManager singleton
     @Provides
     @Singleton
     fun provideSessionManager(@ApplicationContext context: Context): SessionManager {
         return SessionManager(context)
     }
 
+    // AuthInterceptor singleton
     @Provides
     @Singleton
     fun provideAuthInterceptor(sessionManager: SessionManager): AuthInterceptor {
         return AuthInterceptor(sessionManager)
     }
 
+    // OkHttpClient singleton
     @Provides
     @Singleton
     fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient {
@@ -46,7 +50,7 @@ object AppModule {
 
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
-            .addInterceptor(arrayToObjectInterceptor) // Transforme les tableaux en objets pour getPubliciteById
+            .addInterceptor(arrayToObjectInterceptor)
             .addInterceptor(loggingInterceptor)
             .connectTimeout(Constants.TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(Constants.TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -54,6 +58,7 @@ object AppModule {
             .build()
     }
 
+    // Retrofit singleton
     @Provides
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
@@ -70,10 +75,17 @@ object AppModule {
             .build()
     }
 
+    // PubliciteApi singleton
     @Provides
     @Singleton
     fun providePubliciteApi(retrofit: Retrofit): PubliciteApi {
         return retrofit.create(PubliciteApi::class.java)
     }
-}
 
+    // PaymentApi singleton
+    @Provides
+    @Singleton
+    fun providePaymentApi(retrofit: Retrofit): PaymentApi {
+        return retrofit.create(PaymentApi::class.java)
+    }
+}

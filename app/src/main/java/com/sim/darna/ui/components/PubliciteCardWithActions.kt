@@ -21,7 +21,7 @@ fun PubliciteCardWithActions(
     onDeleteConfirm: (String) -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
-    
+
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -44,7 +44,7 @@ fun PubliciteCardWithActions(
             }
         )
     }
-    
+
     PubliciteCard(
         publicite = publicite,
         onClick = onClick,
@@ -59,17 +59,15 @@ fun PubliciteCardWithActions(
 @Composable
 fun PubliciteCardWithActionsPreview() {
     val samplePublicite = Publicite(
-        id = "1",
         titre = "2 Pizzas Achetées = 1 Offerte",
         description = "Profitez de notre offre spéciale étudiants",
         imageUrl = null,
         type = PubliciteType.PROMOTION,
-        sponsorId = "sponsor1",
         sponsorName = "Pizza Express",
         categorie = Categorie.NOURRITURE,
         dateExpiration = "31 décembre 2025"
     )
-    
+
     PubliciteCardWithActions(
         publicite = samplePublicite,
         onClick = {},
@@ -79,4 +77,3 @@ fun PubliciteCardWithActionsPreview() {
         onDeleteConfirm = { }
     )
 }
-

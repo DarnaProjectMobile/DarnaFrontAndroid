@@ -35,7 +35,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
 
-    val context = LocalContext.current // ✅ Needed for Toast messages
+    val context = LocalContext.current // Needed for Toast messages
     val sessionManager = remember { SessionManager(context) }
 
     var email by remember { mutableStateOf("") }
@@ -44,7 +44,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
     var passwordError by remember { mutableStateOf<String?>(null) }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    // ✅ ViewModel setup (your base URL here)
+    // ViewModel setup (your base URL here)
     val baseUrl = "http://10.0.2.2:3000/api/" // Pour l'émulateur Android (utilise le préfixe /api)
     // val baseUrl = "http://192.168.1.11:3000/api/" // Pour un appareil physique
     val viewModel: LoginViewModel = viewModel(factory = LoginVmFactory(baseUrl, sessionManager))
@@ -52,7 +52,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
 
     val coroutineScope = rememberCoroutineScope()
 
-    // ✅ Validation
+    // Validation
     fun validateEmail(emailStr: String): String? {
         return when {
             emailStr.isBlank() -> "L'email est requis"
