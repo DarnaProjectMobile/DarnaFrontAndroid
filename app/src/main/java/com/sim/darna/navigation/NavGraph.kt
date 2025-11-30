@@ -30,9 +30,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.sim.darna.auth.SessionManager
-import com.sim.darna.factory.NotificationVmFactory
+import com.sim.darna.factory.FirebaseNotificationVmFactory
 import com.sim.darna.network.NetworkConfig
-import com.sim.darna.notification.NotificationViewModel
+import com.sim.darna.firebase.FirebaseNotificationViewModel
 import com.sim.darna.screens.*
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -150,8 +150,8 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             val context = LocalContext.current
             val sessionManager = remember { SessionManager(context.applicationContext) }
             val baseUrl = remember { NetworkConfig.getBaseUrl(context.applicationContext) }
-            val notificationViewModel: NotificationViewModel = viewModel(
-                factory = NotificationVmFactory(baseUrl, sessionManager)
+            val notificationViewModel: FirebaseNotificationViewModel = viewModel(
+                factory = FirebaseNotificationVmFactory(baseUrl, sessionManager)
             )
             NotificationsScreen(navController = navController, viewModel = notificationViewModel)
         }
@@ -174,8 +174,8 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             val context = LocalContext.current
             val sessionManager = remember { SessionManager(context.applicationContext) }
             val baseUrl = remember { NetworkConfig.getBaseUrl(context.applicationContext) }
-            val notificationViewModel: NotificationViewModel = viewModel(
-                factory = NotificationVmFactory(baseUrl, sessionManager)
+            val notificationViewModel: FirebaseNotificationViewModel = viewModel(
+                factory = FirebaseNotificationVmFactory(baseUrl, sessionManager)
             )
             
             val uiState by notificationViewModel.state.collectAsState()

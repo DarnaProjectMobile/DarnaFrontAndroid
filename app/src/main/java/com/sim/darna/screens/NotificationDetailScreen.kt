@@ -14,7 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.sim.darna.notification.NotificationResponse
+import com.sim.darna.firebase.FirebaseNotificationResponse
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -22,7 +22,7 @@ import java.util.*
 @Composable
 fun NotificationDetailScreen(
     navController: NavController,
-    notification: NotificationResponse
+    notification: FirebaseNotificationResponse
 ) {
     Scaffold(
         topBar = {
@@ -145,40 +145,11 @@ fun NotificationDetailScreen(
                     
                     // Message
                     Text(
-                        text = notification.message ?: "",
+                        text = notification.body ?: "",
                         fontSize = 16.sp,
                         color = Color(0xFF424242),
                         lineHeight = 24.sp
                     )
-                    
-                    // Informations sur le logement
-                    notification.logementTitle?.let { logementTitle ->
-                        Divider(color = Color(0xFFE0E0E0))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Home,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = Color(0xFF0066FF)
-                            )
-                            Column {
-                                Text(
-                                    text = "Logement",
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF757575)
-                                )
-                                Text(
-                                    text = logementTitle,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF1A1A1A)
-                                )
-                            }
-                        }
-                    }
                     
                     // Date de création
                     notification.createdAt?.let { createdAt ->
@@ -209,35 +180,6 @@ fun NotificationDetailScreen(
                         }
                     }
                     
-                    // Date programmée (pour les rappels)
-                    notification.scheduledFor?.let { scheduledFor ->
-                        Divider(color = Color(0xFFE0E0E0))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Notifications,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = Color(0xFFFFC107)
-                            )
-                            Column {
-                                Text(
-                                    text = "Rappel programmé pour",
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF757575)
-                                )
-                                Text(
-                                    text = formatNotificationDate(scheduledFor),
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF1A1A1A)
-                                )
-                            }
-                        }
-                    }
-                    
                     // Statut
                     Divider(color = Color(0xFFE0E0E0))
                     Row(
@@ -245,44 +187,17 @@ fun NotificationDetailScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(
-                            imageVector = if (notification.read == true) Icons.Default.Done else Icons.Default.Circle,
+                            imageVector = if (notification.isRead == true) Icons.Default.Done else Icons.Default.Circle,
                             contentDescription = null,
                             modifier = Modifier.size(20.dp),
-                            tint = if (notification.read == true) Color(0xFF00C853) else Color(0xFFFFC107)
+                            tint = if (notification.isRead == true) Color(0xFF00C853) else Color(0xFFFFC107)
                         )
                         Text(
-                            text = if (notification.read == true) "Lu" else "Non lu",
+                            text = if (notification.isRead == true) "Lu" else "Non lu",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
-                            color = if (notification.read == true) Color(0xFF00C853) else Color(0xFFFFC107)
+                            color = if (notification.isRead == true) Color(0xFF00C853) else Color(0xFFFFC107)
                         )
-                    }
-                }
-            }
-            
-            // Actions
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                if (notification.visiteId != null) {
-                    Button(
-                        onClick = {
-                            // Navigation vers la visite
-                            // navController.navigate("visite/${notification.visiteId}")
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF0066FF)
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Visibility,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Voir la visite")
                     }
                 }
             }

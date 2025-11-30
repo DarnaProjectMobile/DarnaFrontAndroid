@@ -63,5 +63,14 @@ class SessionManager(private val context: Context) {
             null
         }
     }
+
+    suspend fun getUserId(): String? {
+        return try {
+            val preferences = context.sessionDataStore.data.firstOrNull()
+            preferences?.get(USER_ID_KEY)
+        } catch (e: Exception) {
+            null
+        }
+    }
 }
 

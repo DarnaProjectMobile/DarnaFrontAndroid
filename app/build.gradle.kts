@@ -10,22 +10,23 @@ val localProperties = Properties().apply {
 val backendUrl =
     localProperties.getProperty("backend.url")
         ?: System.getenv("DARNA_BACKEND_URL")
-        ?: "http://192.168.1.109:3007/"
+        ?: "http://192.168.1.101:3007/"
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    alias(libs.plugins.google.gms.google.services)
 }
 
 android {
     namespace = "com.sim.darna"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.sim.darna"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -57,7 +58,7 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.7.5"
+        kotlinCompilerExtensionVersion = "1.5.14"
     }
 
     packaging {
@@ -109,6 +110,11 @@ dependencies {
 
     // Session storage
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Firebase Cloud Messaging
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-installations")
 
     // Tests
     testImplementation("junit:junit:4.13.2")

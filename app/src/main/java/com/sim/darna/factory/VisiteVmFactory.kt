@@ -5,8 +5,6 @@ import androidx.lifecycle.ViewModelProvider
 import com.sim.darna.auth.SessionManager
 import com.sim.darna.logement.LogementApi
 import com.sim.darna.logement.LogementRepository
-import com.sim.darna.notification.NotificationApi
-import com.sim.darna.notification.NotificationRepository
 import com.sim.darna.visite.VisiteApi
 import com.sim.darna.visite.VisiteRepository
 import com.sim.darna.visite.VisiteViewModel
@@ -70,14 +68,10 @@ class VisiteVmFactory(
         val visiteApi = retrofit.create(VisiteApi::class.java)
         val visiteRepo = VisiteRepository(visiteApi)
         
-        // Créer aussi NotificationRepository pour les rappels
-        val notificationApi = retrofit.create(NotificationApi::class.java)
-        val notificationRepo = NotificationRepository(notificationApi)
-        
         // Créer LogementRepository pour récupérer l'ownerId
         val logementApi = retrofit.create(LogementApi::class.java)
         val logementRepo = LogementRepository(logementApi)
         
-        return VisiteViewModel(visiteRepo, notificationRepo, sessionManager, logementRepo) as T
+        return VisiteViewModel(visiteRepo, sessionManager, logementRepo) as T
     }
 }

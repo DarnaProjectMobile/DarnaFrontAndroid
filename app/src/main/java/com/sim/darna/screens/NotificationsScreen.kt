@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,25 +21,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.sim.darna.notification.NotificationViewModel
-import com.sim.darna.notification.NotificationUiState
+import com.sim.darna.firebase.FirebaseNotificationViewModel
+import com.sim.darna.firebase.FirebaseNotificationUiState
+import com.sim.darna.firebase.FirebaseNotificationResponse
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationsScreen(
     navController: androidx.navigation.NavController,
-    viewModel: NotificationViewModel
+    viewModel: FirebaseNotificationViewModel
 ) {
     val uiState by viewModel.state.collectAsState()
     val unreadCount by viewModel.unreadCount.collectAsState()
+    var showUnreadOnly by remember { mutableStateOf(false) }
 
     // Charger les notifications au démarrage et quand on revient sur l'écran
     LaunchedEffect(Unit) {
@@ -52,6 +61,15 @@ fun NotificationsScreen(
         android.util.Log.d("NotificationsScreen", "Rafraîchissement des notifications...")
         viewModel.loadNotifications()
         viewModel.loadUnreadCount()
+    }
+
+    // Filtrer les notifications selon le filtre
+    val filteredNotifications = remember(uiState.notifications, showUnreadOnly) {
+        if (showUnreadOnly) {
+            uiState.notifications.filter { it.isRead != true }
+        } else {
+            uiState.notifications
+        }
     }
 
     Scaffold(
@@ -93,6 +111,16 @@ fun NotificationsScreen(
                     }
                 },
                 actions = {
+                    // Filtre pour masquer/afficher les non lues
+                    IconButton(
+                        onClick = { showUnreadOnly = !showUnreadOnly }
+                    ) {
+                        Icon(
+                            imageVector = if (showUnreadOnly) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (showUnreadOnly) "Afficher toutes" else "Masquer les lues",
+                            tint = if (showUnreadOnly) Color(0xFF0066FF) else Color(0xFF9E9E9E)
+                        )
+                    }
                     IconButton(
                         onClick = { 
                             viewModel.loadNotifications()
@@ -104,17 +132,6 @@ fun NotificationsScreen(
                             contentDescription = "Actualiser",
                             tint = Color(0xFF0066FF)
                         )
-                    }
-                    if (unreadCount > 0) {
-                        TextButton(
-                            onClick = { viewModel.markAllAsRead() }
-                        ) {
-                            Text(
-                                text = "Tout lire",
-                                color = Color(0xFF0066FF),
-                                fontSize = 14.sp
-                            )
-                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -151,49 +168,64 @@ fun NotificationsScreen(
                 )
             }
             else -> {
-                // Filtrer les notifications cachées et afficher les notifications visibles
-                val visibleNotifications = uiState.notifications.filter { notification ->
-                    val isHidden = notification.hidden == true
-                    if (isHidden) {
-                        android.util.Log.d("NotificationsScreen", "Notification cachée ignorée: id=${notification.id}, type=${notification.type}")
-                    }
-                    !isHidden
-                }
-                android.util.Log.d("NotificationsScreen", "Affichage de ${visibleNotifications.size} notification(s) visible(s) sur ${uiState.notifications.size} total")
+                // Afficher les notifications filtrées
+                android.util.Log.d("NotificationsScreen", "Affichage de ${filteredNotifications.size} notification(s)")
                 NotificationList(
-                    notifications = visibleNotifications,
+                    notifications = filteredNotifications,
                     onNotificationClick = { notification ->
                         try {
+                            android.util.Log.d("NotificationsScreen", "Clic sur notification: ${notification.id}, titre: ${notification.title}")
+                            
                             // Marquer comme lu si nécessaire
-                            if (notification.read != true) {
-                                viewModel.markAsRead(notification.id ?: "")
+                            if (notification.isRead != true) {
+                                notification.id?.let { id ->
+                                    viewModel.markAsRead(id)
+                                }
                             }
+                            
                             // Navigation vers les détails de la notification
                             notification.id?.let { id ->
                                 if (id.isNotEmpty()) {
                                     try {
-                                        navController.navigate("notification_detail/$id")
+                                        android.util.Log.d("NotificationsScreen", "Navigation vers notification_detail/$id")
+                                        navController.navigate("notification_detail/$id") {
+                                            // Options de navigation pour une meilleure expérience
+                                            launchSingleTop = true
+                                        }
                                     } catch (e: Exception) {
                                         android.util.Log.e("NotificationsScreen", "Erreur lors de la navigation", e)
                                         // Essayer avec un encodage URL si nécessaire
                                         try {
                                             val encodedId = java.net.URLEncoder.encode(id, "UTF-8")
-                                            navController.navigate("notification_detail/$encodedId")
+                                            android.util.Log.d("NotificationsScreen", "Tentative avec encodage: notification_detail/$encodedId")
+                                            navController.navigate("notification_detail/$encodedId") {
+                                                launchSingleTop = true
+                                            }
                                         } catch (e2: Exception) {
                                             android.util.Log.e("NotificationsScreen", "Erreur lors de la navigation avec encodage", e2)
                                         }
                                     }
+                                } else {
+                                    android.util.Log.w("NotificationsScreen", "ID de notification vide, impossible de naviguer")
                                 }
+                            } ?: run {
+                                android.util.Log.w("NotificationsScreen", "ID de notification null, impossible de naviguer")
                             }
                         } catch (e: Exception) {
                             android.util.Log.e("NotificationsScreen", "Erreur lors du clic sur la notification", e)
                         }
                     },
                     onHideClick = { notification ->
-                        viewModel.hideNotification(notification.id ?: "")
+                        // Marquer comme lu
+                        notification.id?.let { id ->
+                            viewModel.markAsRead(id)
+                        }
                     },
                     onDeleteClick = { notification ->
-                        viewModel.deleteNotification(notification.id ?: "")
+                        // Supprimer la notification
+                        notification.id?.let { id ->
+                            viewModel.deleteNotification(id)
+                        }
                     },
                     modifier = Modifier.padding(paddingValues)
                 )
@@ -204,10 +236,10 @@ fun NotificationsScreen(
 
 @Composable
 fun NotificationList(
-    notifications: List<com.sim.darna.notification.NotificationResponse>,
-    onNotificationClick: (com.sim.darna.notification.NotificationResponse) -> Unit,
-    onHideClick: (com.sim.darna.notification.NotificationResponse) -> Unit,
-    onDeleteClick: (com.sim.darna.notification.NotificationResponse) -> Unit,
+    notifications: List<FirebaseNotificationResponse>,
+    onNotificationClick: (FirebaseNotificationResponse) -> Unit,
+    onHideClick: (FirebaseNotificationResponse) -> Unit,
+    onDeleteClick: (FirebaseNotificationResponse) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -219,10 +251,14 @@ fun NotificationList(
             items = notifications,
             key = { it.id ?: "" }
         ) { notification ->
-            NotificationItem(
+            SwipeableNotificationItem(
                 notification = notification,
                 onClick = { onNotificationClick(notification) },
-                onHide = { onHideClick(notification) },
+                onMarkAsRead = { onHideClick(notification) },
+                onMarkAsUnread = { 
+                    // Pour l'instant, on ne peut pas marquer comme non lu via l'API
+                    // On peut juste recharger les notifications
+                },
                 onDelete = { onDeleteClick(notification) }
             )
         }
@@ -230,14 +266,149 @@ fun NotificationList(
 }
 
 @Composable
-fun NotificationItem(
-    notification: com.sim.darna.notification.NotificationResponse,
+fun SwipeableNotificationItem(
+    notification: FirebaseNotificationResponse,
     onClick: () -> Unit,
-    onHide: () -> Unit,
+    onMarkAsRead: () -> Unit,
+    onMarkAsUnread: () -> Unit = {},
     onDelete: () -> Unit
 ) {
+    val density = LocalDensity.current
+    var cardWidth by remember { mutableStateOf(0) }
+    var offsetX by remember { mutableStateOf(0f) }
+    var isDragging by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    
+    // Calculer la largeur de swipe (120dp pour les actions)
+    val swipeThreshold = with(density) { 120.dp.toPx() }
+    val maxSwipe = with(density) { 160.dp.toPx() }
+    
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min)
+    ) {
+        // Actions de swipe (en arrière-plan) - Design amélioré
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.CenterEnd)
+                .padding(start = 16.dp, end = 16.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Action: Marquer comme lu
+            if (notification.isRead != true) {
+                Surface(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clickable { 
+                            scope.launch {
+                                offsetX = 0f
+                            }
+                            onMarkAsRead()
+                        },
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFF00C853),
+                    shadowElevation = 4.dp
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Done,
+                            contentDescription = "Marquer comme lu",
+                            modifier = Modifier.size(28.dp),
+                            tint = Color.White
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+            }
+            
+            // Action: Supprimer
+            Surface(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clickable { 
+                        scope.launch {
+                            offsetX = 0f
+                        }
+                        onDelete()
+                    },
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xFFFF3B30),
+                shadowElevation = 4.dp
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Supprimer",
+                        modifier = Modifier.size(28.dp),
+                        tint = Color.White
+                    )
+                }
+            }
+        }
+        
+        // Carte de notification (au premier plan)
+        NotificationItem(
+            notification = notification,
+            onClick = onClick,
+            onHide = onMarkAsRead,
+            onDelete = onDelete,
+            onMarkAsUnread = onMarkAsUnread,
+            offsetX = offsetX,
+            isDragging = isDragging,
+            onOffsetChange = { newOffset ->
+                offsetX = newOffset.coerceIn(-maxSwipe, 0f)
+            },
+            onDragStart = {
+                isDragging = true
+            },
+            onSwipeEnd = {
+                scope.launch {
+                    isDragging = false
+                    if (offsetX < -swipeThreshold / 2) {
+                        // Swipe suffisant, déclencher l'action
+                        if (notification.isRead != true && offsetX < -swipeThreshold) {
+                            onMarkAsRead()
+                        } else {
+                            onDelete()
+                        }
+                    }
+                    // Réinitialiser la position avec animation
+                    offsetX = 0f
+                }
+            },
+            onWidthMeasured = { width ->
+                cardWidth = width
+            }
+        )
+    }
+}
+
+@Composable
+fun NotificationItem(
+    notification: FirebaseNotificationResponse,
+    onClick: () -> Unit,
+    onHide: () -> Unit,
+    onDelete: () -> Unit,
+    onMarkAsUnread: () -> Unit = {},
+    offsetX: Float = 0f,
+    isDragging: Boolean = false,
+    onOffsetChange: (Float) -> Unit = {},
+    onDragStart: () -> Unit = {},
+    onSwipeEnd: () -> Unit = {},
+    onWidthMeasured: (Int) -> Unit = {}
+) {
+    val density = LocalDensity.current
     var showMenu by remember { mutableStateOf(false) }
-    val isRead = notification.read ?: false
+    val isRead = notification.isRead ?: false
     val type = notification.type ?: "info"
     
     // Animation d'entrée
@@ -285,100 +456,152 @@ fun NotificationItem(
         )
     }
 
+    // Animation fluide pour l'offset
+    val animatedOffset by animateFloatAsState(
+        targetValue = offsetX,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "swipe_offset"
+    )
+    val animatedOffsetDp = with(density) { animatedOffset.toDp() }
+    
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .offset(x = animatedOffsetDp)
             .scale(scale)
-            .animateContentSize(),
-        shape = RoundedCornerShape(16.dp),
+            .animateContentSize()
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragStart = { 
+                        onDragStart()
+                    },
+                    onDragEnd = { 
+                        onSwipeEnd() 
+                    }
+                ) { change, dragAmount ->
+                    val newOffset = offsetX + dragAmount
+                    onOffsetChange(newOffset)
+                }
+            }
+            .onGloballyPositioned { coordinates ->
+                onWidthMeasured(coordinates.size.width)
+            },
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isRead) Color.White else Color(0xFFE3F2FD)
+            containerColor = if (isRead) Color.White else Color(0xFFF0F7FF)
         ),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isRead) 2.dp else 4.dp
-        )
+            defaultElevation = if (isRead) 1.dp else 6.dp
+        ),
+        border = if (!isRead) androidx.compose.foundation.BorderStroke(
+            width = 1.5.dp,
+            color = Color(0xFF0066FF).copy(alpha = 0.3f)
+        ) else null
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .clickable(
+                    enabled = !isDragging && kotlin.math.abs(offsetX) < 10f,
+                    onClick = {
+                        // Ne déclencher le clic que si on n'est pas en train de swiper
+                        if (!isDragging && kotlin.math.abs(offsetX) < 10f) {
+                            onClick()
+                        }
+                    }
+                )
                 .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.Top
         ) {
-            // Icône avec badge si non lu
+            // Icône avec badge si non lu - Design amélioré
             Box {
                 Surface(
-                    modifier = Modifier.size(48.dp),
-                    shape = CircleShape,
-                    color = backgroundColor
+                    modifier = Modifier.size(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    color = backgroundColor,
+                    shadowElevation = if (!isRead) 4.dp else 2.dp
                 ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(24.dp)
-                            .padding(12.dp),
-                        tint = iconColor
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(28.dp),
+                            tint = iconColor
+                        )
+                    }
                 }
                 if (!isRead) {
                     Surface(
                         modifier = Modifier
-                            .size(12.dp)
-                            .align(Alignment.TopEnd),
+                            .size(14.dp)
+                            .align(Alignment.TopEnd)
+                            .offset(x = (-2).dp, y = 2.dp),
                         shape = CircleShape,
-                        color = Color(0xFFFF3B30)
+                        color = Color(0xFFFF3B30),
+                        shadowElevation = 2.dp
                     ) {}
                 }
             }
 
-            // Contenu
+            // Contenu - Design amélioré
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = notification.title ?: "",
+                        fontSize = 17.sp,
+                        fontWeight = if (isRead) FontWeight.SemiBold else FontWeight.Bold,
+                        color = Color(0xFF1A1A1A),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (!isRead) {
+                        Surface(
+                            modifier = Modifier.size(8.dp),
+                            shape = CircleShape,
+                            color = Color(0xFF0066FF)
+                        ) {}
+                    }
+                }
                 Text(
-                    text = notification.title ?: "",
-                    fontSize = 16.sp,
-                    fontWeight = if (isRead) FontWeight.Normal else FontWeight.Bold,
-                    color = Color(0xFF1A1A1A),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = notification.message ?: "",
+                    text = notification.body ?: "",
                     fontSize = 14.sp,
-                    color = Color(0xFF757575),
+                    color = Color(0xFF424242),
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 20.sp
                 )
-                if (notification.logementTitle != null) {
+                notification.createdAt?.let { dateString ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Home,
+                            imageVector = Icons.Default.Schedule,
                             contentDescription = null,
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(12.dp),
                             tint = Color(0xFF9E9E9E)
                         )
                         Text(
-                            text = notification.logementTitle,
-                            fontSize = 12.sp,
+                            text = formatDate(dateString),
+                            fontSize = 11.sp,
                             color = Color(0xFF9E9E9E),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            fontWeight = FontWeight.Medium
                         )
                     }
-                }
-                notification.createdAt?.let { dateString ->
-                    Text(
-                        text = formatDate(dateString),
-                        fontSize = 12.sp,
-                        color = Color(0xFF9E9E9E)
-                    )
                 }
             }
 
@@ -400,39 +623,73 @@ fun NotificationItem(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false }
                 ) {
-                    DropdownMenuItem(
-                        text = { 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.VisibilityOff,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp),
-                                    tint = Color(0xFF757575)
-                                )
-                                Text("Masquer")
+                    if (!isRead) {
+                        DropdownMenuItem(
+                            text = { 
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Done,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp),
+                                        tint = Color(0xFF00C853)
+                                    )
+                                    Text(
+                                        "Marquer comme lu",
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            },
+                            onClick = {
+                                onHide()
+                                showMenu = false
                             }
-                        },
-                        onClick = {
-                            onHide()
-                            showMenu = false
-                        }
-                    )
+                        )
+                    } else {
+                        DropdownMenuItem(
+                            text = { 
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp),
+                                        tint = Color(0xFFFFC107)
+                                    )
+                                    Text(
+                                        "Marquer comme non lu",
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            },
+                            onClick = {
+                                onMarkAsUnread()
+                                showMenu = false
+                            }
+                        )
+                    }
+                    Divider()
                     DropdownMenuItem(
                         text = { 
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
                                     contentDescription = null,
-                                    modifier = Modifier.size(18.dp),
+                                    modifier = Modifier.size(20.dp),
                                     tint = Color(0xFFFF3B30)
                                 )
-                                Text("Supprimer", color = Color(0xFFFF3B30))
+                                Text(
+                                    "Supprimer",
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFFFF3B30)
+                                )
                             }
                         },
                         onClick = {
@@ -454,40 +711,63 @@ fun EmptyState(modifier: Modifier = Modifier, onRefresh: (() -> Unit)? = null) {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            modifier = Modifier.padding(32.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.NotificationsNone,
-                contentDescription = null,
-                modifier = Modifier.size(80.dp),
-                tint = Color(0xFF9E9E9E)
-            )
-            Text(
-                text = "Aucune notification",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1A1A1A)
-            )
-            Text(
-                text = "Vous n'avez pas encore de notifications",
-                fontSize = 14.sp,
-                color = Color(0xFF757575)
-            )
+            Surface(
+                modifier = Modifier.size(120.dp),
+                shape = CircleShape,
+                color = Color(0xFF0066FF).copy(alpha = 0.1f)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.NotificationsNone,
+                        contentDescription = null,
+                        modifier = Modifier.size(60.dp),
+                        tint = Color(0xFF0066FF)
+                    )
+                }
+            }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Aucune notification",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1A1A1A)
+                )
+                Text(
+                    text = "Vous n'avez pas encore de notifications",
+                    fontSize = 15.sp,
+                    color = Color(0xFF757575),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
             if (onRefresh != null) {
-                Spacer(modifier = Modifier.height(8.dp))
                 Button(
                     onClick = onRefresh,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF0066FF)
-                    )
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.padding(top = 8.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Actualiser")
+                    Text(
+                        "Actualiser",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
         }
@@ -506,34 +786,61 @@ fun ErrorState(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            modifier = Modifier.padding(32.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Error,
-                contentDescription = null,
-                modifier = Modifier.size(80.dp),
-                tint = Color(0xFFFF3B30)
-            )
-            Text(
-                text = "Erreur",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1A1A1A)
-            )
-            Text(
-                text = message,
-                fontSize = 14.sp,
-                color = Color(0xFF757575),
-                modifier = Modifier.padding(horizontal = 32.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
+            Surface(
+                modifier = Modifier.size(120.dp),
+                shape = CircleShape,
+                color = Color(0xFFFF3B30).copy(alpha = 0.1f)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Error,
+                        contentDescription = null,
+                        modifier = Modifier.size(60.dp),
+                        tint = Color(0xFFFF3B30)
+                    )
+                }
+            }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Erreur",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1A1A1A)
+                )
+                Text(
+                    text = message,
+                    fontSize = 15.sp,
+                    color = Color(0xFF757575),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
             Button(
                 onClick = onRetry,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF0066FF)
-                )
+                ),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Réessayer")
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "Réessayer",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }

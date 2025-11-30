@@ -196,8 +196,8 @@ fun MainScreen(parentNavController: NavHostController? = null) {
             
             // Écran de notifications (accessible depuis HomeScreen)
             composable("notifications") {
-                val notificationViewModel: com.sim.darna.notification.NotificationViewModel = viewModel(
-                    factory = com.sim.darna.factory.NotificationVmFactory(baseUrl, sessionManager)
+                val notificationViewModel: com.sim.darna.firebase.FirebaseNotificationViewModel = viewModel(
+                    factory = com.sim.darna.factory.FirebaseNotificationVmFactory(baseUrl, sessionManager)
                 )
                 NotificationsScreen(navController = navController, viewModel = notificationViewModel)
             }
@@ -218,8 +218,8 @@ fun MainScreen(parentNavController: NavHostController? = null) {
                     return@composable
                 }
                 
-                val notificationViewModel: com.sim.darna.notification.NotificationViewModel = viewModel(
-                    factory = com.sim.darna.factory.NotificationVmFactory(baseUrl, sessionManager)
+                val notificationViewModel: com.sim.darna.firebase.FirebaseNotificationViewModel = viewModel(
+                    factory = com.sim.darna.factory.FirebaseNotificationVmFactory(baseUrl, sessionManager)
                 )
                 
                 val uiState by notificationViewModel.state.collectAsState()
@@ -1310,6 +1310,32 @@ fun BottomNavBar(navController: NavController) {
 // Home Screen
 @Composable
 fun HomeScreen(navController: NavController) {
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context.applicationContext) }
+    val baseUrl = remember { NetworkConfig.getBaseUrl(context.applicationContext) }
+    val notificationViewModel: com.sim.darna.firebase.FirebaseNotificationViewModel = viewModel(
+        factory = com.sim.darna.factory.FirebaseNotificationVmFactory(baseUrl, sessionManager)
+    )
+    val unreadCount by notificationViewModel.unreadCount.collectAsState()
+
+    // Charger les notifications et le compteur au démarrage
+    LaunchedEffect(Unit) {
+        android.util.Log.d("HomeScreen", "Chargement initial des notifications...")
+        notificationViewModel.loadUnreadCount()
+        notificationViewModel.loadNotifications()
+    }
+    
+    // Rafraîchir les notifications périodiquement
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(5000) // Attendre 5 secondes avant le premier rafraîchissement
+        while (true) {
+            android.util.Log.d("HomeScreen", "Rafraîchissement périodique des notifications...")
+            notificationViewModel.loadUnreadCount()
+            notificationViewModel.loadNotifications()
+            kotlinx.coroutines.delay(30000) // Attendre 30 secondes entre chaque rafraîchissement
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1361,20 +1387,37 @@ fun HomeScreen(navController: NavController) {
                             tint = Color(0xFFFFC107)
                         )
                     }
-                    // Icône notifications
-                    Surface(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clickable { navController.navigate("notifications") },
-                        shape = RoundedCornerShape(24.dp),
-                        color = Color(0xFF0066FF).copy(alpha = 0.1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notifications",
-                            modifier = Modifier.padding(12.dp),
-                            tint = Color(0xFF0066FF)
-                        )
+                    // Icône notifications avec badge
+                    Box {
+                        Surface(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clickable { navController.navigate("notifications") },
+                            shape = RoundedCornerShape(24.dp),
+                            color = Color(0xFF0066FF).copy(alpha = 0.1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = "Notifications",
+                                modifier = Modifier.padding(12.dp),
+                                tint = Color(0xFF0066FF)
+                            )
+                        }
+                        if (unreadCount > 0) {
+                            Badge(
+                                containerColor = Color(0xFFFF3B30),
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = 4.dp, y = (-4).dp)
+                            ) {
+                                Text(
+                                    text = if (unreadCount > 9) "9+" else unreadCount.toString(),
+                                    fontSize = 10.sp,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -1754,8 +1797,8 @@ fun CollocatorHomeScreen(navController: NavController) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context.applicationContext) }
     val baseUrl = remember { NetworkConfig.getBaseUrl(context.applicationContext) }
-    val notificationViewModel: com.sim.darna.notification.NotificationViewModel = viewModel(
-        factory = com.sim.darna.factory.NotificationVmFactory(baseUrl, sessionManager)
+    val notificationViewModel: com.sim.darna.firebase.FirebaseNotificationViewModel = viewModel(
+        factory = com.sim.darna.factory.FirebaseNotificationVmFactory(baseUrl, sessionManager)
     )
     val unreadCount by notificationViewModel.unreadCount.collectAsState()
 

@@ -5,7 +5,7 @@
 # 
 # Assurez-vous que le backend est démarré et accessible.
 
-$BACKEND_URL = if ($env:BACKEND_URL) { $env:BACKEND_URL } else { "http://192.168.1.109:3007" }
+$BACKEND_URL = if ($env:BACKEND_URL) { $env:BACKEND_URL } else { "http://192.168.56.1:3007" }
 
 $logements = @(
     @{

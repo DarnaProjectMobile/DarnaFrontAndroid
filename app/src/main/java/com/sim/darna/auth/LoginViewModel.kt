@@ -67,40 +67,6 @@ class LoginViewModel(
         val serverUrl = com.sim.darna.network.NetworkConfig.BASE_URL
         
         return when (error) {
-            is SocketTimeoutException -> {
-                val isVirtualBoxIP = serverUrl.contains("192.168.56")
-                val isVMWareIP = serverUrl.contains("192.168.1") && serverUrl.contains("192.168.1.109")
-                val message = when {
-                    isVirtualBoxIP -> {
-                        "⚠️ IP VirtualBox détectée (192.168.56.x)\n\n" +
-                        "Cette IP n'est pas accessible depuis un téléphone réel.\n\n" +
-                        "✅ Solution:\n\n" +
-                        "1. Trouvez votre IP WiFi réelle:\n" +
-                        "   Windows: ipconfig | findstr IPv4\n" +
-                        "   (Cherchez 192.168.1.x ou 192.168.0.x)\n\n" +
-                        "2. Modifiez backend_url.txt avec cette IP\n\n" +
-                        "3. Recompilez l'application\n\n" +
-                        "💡 Si le WiFi change, mettez à jour backend_url.txt"
-                    }
-                    else -> {
-                        "Timeout : Le serveur ne répond pas.\n\n" +
-                        "Serveur: $serverUrl\n\n" +
-                        "Causes possibles:\n" +
-                        "• WiFi changé → IP du serveur a changé\n" +
-                        "• Serveur non démarré\n" +
-                        "• Firewall bloque le port 3007\n\n" +
-                        "✅ Solutions:\n\n" +
-                        "1. Vérifiez l'IP actuelle du serveur:\n" +
-                        "   (Regardez la console du serveur)\n\n" +
-                        "2. Si l'IP a changé:\n" +
-                        "   Modifiez app/src/main/assets/backend_url.txt\n" +
-                        "   avec la nouvelle IP\n\n" +
-                        "3. Testez dans le navigateur:\n" +
-                        "   $serverUrl"
-                    }
-                }
-                message
-            }
             
             is ConnectException -> {
                 val isApipa = serverUrl.contains("169.254")
@@ -155,6 +121,24 @@ class LoginViewModel(
                         }
                     }
                 }
+            }
+            
+            is SocketTimeoutException -> {
+                "Impossible de joindre le serveur.\n\n" +
+                "Causes possibles:\n" +
+                "• WiFi changé → IP du serveur a changé\n" +
+                "• Serveur non démarré\n" +
+                "• Firewall bloque le port 3007\n\n" +
+                "✅ Solutions:\n\n" +
+                "1. Vérifiez l'IP actuelle du serveur:\n" +
+                "   (Regardez la console: Network: http://...)\n\n" +
+                "2. Si l'IP a changé:\n" +
+                "   Modifiez app/src/main/assets/backend_url.txt\n" +
+                "   avec la nouvelle IP affichée\n\n" +
+                "3. Vérifiez:\n" +
+                "   • Téléphone et PC sur le même WiFi\n" +
+                "   • Firewall autorise le port 3007\n\n" +
+                "4. Recompilez et réinstallez l'app"
             }
             
             is UnknownHostException -> {

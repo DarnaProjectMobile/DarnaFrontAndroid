@@ -12,10 +12,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -32,7 +32,15 @@ import com.sim.darna.auth.LoginViewModel
 import com.sim.darna.auth.SessionManager
 import com.sim.darna.factory.LoginVmFactory
 import com.sim.darna.network.NetworkConfig
+import com.sim.darna.network.NetworkConfigManager
+import com.sim.darna.firebase.FirebaseNotificationManager
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 
 @Composable
 fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
@@ -44,11 +52,13 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
     var password by remember { mutableStateOf("") }
     var passwordError by remember { mutableStateOf<String?>(null) }
     var passwordVisible by remember { mutableStateOf(false) }
+    var showIpConfigDialog by remember { mutableStateOf(false) }
+    var ipInput by remember { mutableStateOf("") }
 
     // ✅ ViewModel setup (backend Nest sur la machine hôte, accès depuis téléphone réel)
-    val sessionManager = remember { SessionManager(context.applicationContext) }
     // Forcer le rafraîchissement de l'URL à chaque affichage de l'écran
-    val baseUrl = remember { NetworkConfig.getBaseUrl(context.applicationContext, forceRefresh = true) }
+    var baseUrl by remember { mutableStateOf(NetworkConfig.getBaseUrl(context.applicationContext, forceRefresh = true)) }
+    val sessionManager = remember { SessionManager(context.applicationContext) }
     val viewModel: LoginViewModel = viewModel(
         factory = LoginVmFactory(baseUrl, sessionManager)
     )
@@ -92,6 +102,53 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
     LaunchedEffect(uiState.success) {
         if (uiState.success) {
             Toast.makeText(context, "Connexion réussie ✅", Toast.LENGTH_SHORT).show()
+            
+            // Enregistrer le token Firebase après connexion réussie
+            coroutineScope.launch {
+                try {
+                    val baseUrl = NetworkConfig.getBaseUrl(context.applicationContext)
+                    val normalizedBaseUrl = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
+                    val logging = HttpLoggingInterceptor().apply {
+                        level = HttpLoggingInterceptor.Level.BODY
+                    }
+                    val client = OkHttpClient.Builder()
+                        .addInterceptor { chain ->
+                            try {
+                                val token = runBlocking { sessionManager.getToken() }
+                                val requestBuilder = chain.request().newBuilder()
+                                if (!token.isNullOrBlank()) {
+                                    requestBuilder.addHeader("Authorization", "Bearer $token")
+                                }
+                                requestBuilder.addHeader("Accept", "application/json")
+                                chain.proceed(requestBuilder.build())
+                            } catch (e: Exception) {
+                                chain.proceed(chain.request().newBuilder()
+                                    .addHeader("Accept", "application/json")
+                                    .build())
+                            }
+                        }
+                        .addInterceptor(logging)
+                        .connectTimeout(30, TimeUnit.SECONDS)
+                        .readTimeout(30, TimeUnit.SECONDS)
+                        .writeTimeout(30, TimeUnit.SECONDS)
+                        .retryOnConnectionFailure(true)
+                        .build()
+                    
+                    val retrofit = Retrofit.Builder()
+                        .baseUrl(normalizedBaseUrl)
+                        .client(client)
+                        .addConverterFactory(GsonConverterFactory.create())
+                        .build()
+                    
+                    val notificationApi = retrofit.create(com.sim.darna.firebase.FirebaseNotificationApi::class.java)
+                    FirebaseNotificationManager.registerToken(context.applicationContext, sessionManager, notificationApi)
+                    android.util.Log.d("LoginScreen", "Token Firebase enregistré avec succès")
+                } catch (e: Exception) {
+                    android.util.Log.e("LoginScreen", "Erreur lors de l'enregistrement du token Firebase", e)
+                    // Ne pas bloquer la connexion si l'enregistrement du token échoue
+                }
+            }
+            
             onLoginSuccess()
         }
     }
@@ -351,66 +408,6 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    // Afficher l'URL actuelle avec possibilité de rafraîchir
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFF5F5F5)
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "URL actuelle du serveur:",
-                                        fontSize = 11.sp,
-                                        color = Color(0xFF757575),
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = baseUrl,
-                                        fontSize = 11.sp,
-                                        color = Color(0xFF424242),
-                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                                    )
-                                }
-                                TextButton(
-                                    onClick = {
-                                        NetworkConfig.clearCache()
-                                        // Recharger l'URL
-                                        val newUrl = NetworkConfig.getBaseUrl(context.applicationContext, forceRefresh = true)
-                                        // Note: Pour vraiment recharger, il faudrait recréer le ViewModel
-                                        // mais pour l'instant, on affiche juste un message
-                                        Toast.makeText(
-                                            context,
-                                            "Cache vidé. Recompilez l'app si l'IP a changé.",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                ) {
-                                    Text(
-                                        text = "Rafraîchir",
-                                        fontSize = 11.sp
-                                    )
-                                }
-                            }
-                            Text(
-                                text = "💡 Si vous avez changé de WiFi, modifiez backend_url.txt avec la nouvelle IP du serveur",
-                                fontSize = 10.sp,
-                                color = Color(0xFF757575),
-                                lineHeight = 14.sp
-                            )
-                        }
-                    }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -492,5 +489,80 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+    }
+    
+    // Dialog pour configurer l'IP manuellement
+    if (showIpConfigDialog) {
+        AlertDialog(
+            onDismissRequest = { showIpConfigDialog = false },
+            title = {
+                Text(
+                    text = "Configurer l'adresse du serveur",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Entrez l'adresse IP du serveur (sans http:// et :3007)",
+                        fontSize = 14.sp,
+                        color = Color(0xFF757575)
+                    )
+                    OutlinedTextField(
+                        value = ipInput,
+                        onValueChange = { ipInput = it },
+                        label = { Text("Adresse IP") },
+                        placeholder = { Text("192.168.1.101") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = null
+                            )
+                        }
+                    )
+                    Text(
+                        text = "💡 L'URL complète sera: http://$ipInput:3007/",
+                        fontSize = 12.sp,
+                        color = Color(0xFF757575),
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                    )
+                }
+            },
+            confirmButton = {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextButton(
+                        onClick = { showIpConfigDialog = false }
+                    ) {
+                        Text("Annuler")
+                    }
+                    Button(
+                        onClick = {
+                            if (ipInput.isNotBlank()) {
+                                val newUrl = "http://${ipInput.trim()}:3007/"
+                                NetworkConfigManager.saveBackendUrl(context.applicationContext, newUrl)
+                                // Refresh baseUrl from NetworkConfig to ensure consistency
+                                baseUrl = NetworkConfig.getBaseUrl(context.applicationContext, forceRefresh = true)
+                                showIpConfigDialog = false
+                                ipInput = ""
+                                Toast.makeText(
+                                    context,
+                                    "IP configurée: $newUrl",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
+                        enabled = ipInput.isNotBlank()
+                    ) {
+                        Text("Sauvegarder")
+                    }
+                }
+            }
+        )
     }
 }

@@ -63,7 +63,7 @@ const logements = [
 ];
 
 // URL du backend - modifiez selon votre configuration
-const BACKEND_URL = process.env.BACKEND_URL || "http://192.168.1.109:3007";
+const BACKEND_URL = process.env.BACKEND_URL || "http://192.168.56.1:3007";
 
 async function ajouterLogement(logement) {
   try {

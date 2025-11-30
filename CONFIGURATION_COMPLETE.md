@@ -2,14 +2,14 @@
 
 ## ✅ État Actuel
 
-- **IP WiFi de votre ordinateur** : `192.168.1.109` ✅
-- **URL dans backend_url.txt** : `http://192.168.1.109:3007/` ✅
+- **IP WiFi de votre ordinateur** : `192.168.56.1` ✅
+- **URL dans backend_url.txt** : `http://192.168.56.1:3007/` ✅
 - **Configuration réseau Android** : OK ✅
 - **Code Android** : Toutes les corrections appliquées ✅
 
 ## ⚠️ Problème Identifié
 
-Votre serveur NestJS écoute sur `169.254.133.122` (APIPA) au lieu de `192.168.1.109` (WiFi).
+Votre serveur NestJS écoute sur `169.254.133.122` (APIPA) au lieu de `192.168.56.1` (WiFi).
 
 ## 🔧 Solution : Configurer le Serveur NestJS
 
@@ -30,7 +30,7 @@ Cela permettra au serveur d'écouter sur toutes les interfaces réseau, y compri
 ### Option 2 : Écouter spécifiquement sur l'IP WiFi
 
 ```typescript
-await app.listen(3007, '192.168.1.109');
+await app.listen(3007, '192.168.56.1');
 ```
 
 ### Vérification
@@ -40,7 +40,7 @@ Après avoir modifié et redémarré le serveur, vous devriez voir :
 ```
 🚀 Server running on:
    📍 Local:   http://localhost:3007
-   🌐 Network: http://192.168.1.109:3007  ✅ (au lieu de 169.254.133.122)
+   🌐 Network: http://192.168.56.1:3007  ✅ (au lieu de 169.254.133.122)
 ```
 
 ## 📱 Compilation de l'Application Android
@@ -83,18 +83,18 @@ Puis reconstruisez :
 Fichier : `app/src/main/assets/backend_url.txt`
 Contenu attendu :
 ```
-http://192.168.1.109:3007/
+http://192.168.56.1:3007/
 ```
 
 ### 2. Vérifier network_security_config.xml
 
-Le fichier doit contenir `192.168.1.109` dans les domaines autorisés (déjà fait ✅)
+Le fichier doit contenir `192.168.56.1` dans les domaines autorisés (déjà fait ✅)
 
 ### 3. Tester la connexion depuis le navigateur
 
 Depuis votre téléphone (sur le même WiFi), ouvrez :
 ```
-http://192.168.1.109:3007/api
+http://192.168.56.1:3007/api
 ```
 
 Vous devriez voir la documentation Swagger.
@@ -129,11 +129,11 @@ Après compilation, vérifiez que ces fonctionnalités fonctionnent :
    npm run start
    ```
 
-2. Vérifiez que le serveur écoute sur `0.0.0.0` ou `192.168.1.109`
+2. Vérifiez que le serveur écoute sur `0.0.0.0` ou `192.168.56.1`
 
 3. Vérifiez que le téléphone et l'ordinateur sont sur le même WiFi
 
-4. Testez depuis le navigateur du téléphone : `http://192.168.1.109:3007/api`
+4. Testez depuis le navigateur du téléphone : `http://192.168.56.1:3007/api`
 
 ### Problème : Erreurs de compilation Kotlin
 
@@ -160,7 +160,7 @@ Après compilation, vérifiez que ces fonctionnalités fonctionnent :
 - `LoginViewModel.kt` - Messages d'erreur améliorés
 
 ✅ **Configuration** :
-- `backend_url.txt` - IP correcte (192.168.1.109)
+- `backend_url.txt` - IP correcte (192.168.56.1)
 - `network_security_config.xml` - IP autorisée
 - `build.gradle.kts` - URL par défaut correcte
 

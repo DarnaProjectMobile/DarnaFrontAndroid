@@ -3,9 +3,9 @@ package com.sim.darna.factory
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.sim.darna.auth.SessionManager
-import com.sim.darna.notification.NotificationApi
-import com.sim.darna.notification.NotificationRepository
-import com.sim.darna.notification.NotificationViewModel
+import com.sim.darna.firebase.FirebaseNotificationApi
+import com.sim.darna.firebase.FirebaseNotificationRepository
+import com.sim.darna.firebase.FirebaseNotificationViewModel
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -13,7 +13,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 
-class NotificationVmFactory(
+class FirebaseNotificationVmFactory(
     private val baseUrl: String,
     private val sessionManager: SessionManager
 ) : ViewModelProvider.Factory {
@@ -66,9 +66,16 @@ class NotificationVmFactory(
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
-        val api = retrofit.create(NotificationApi::class.java)
-        val repo = NotificationRepository(api)
-        return NotificationViewModel(repo) as T
+        val api = retrofit.create(FirebaseNotificationApi::class.java)
+        val repo = FirebaseNotificationRepository(api)
+        return FirebaseNotificationViewModel(repo) as T
     }
 }
+
+
+
+
+
+
+
 

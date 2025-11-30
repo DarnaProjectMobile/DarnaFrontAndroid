@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Darna</string>
+    <string name="default_notification_channel_id">darna_notifications</string>
 </resources>

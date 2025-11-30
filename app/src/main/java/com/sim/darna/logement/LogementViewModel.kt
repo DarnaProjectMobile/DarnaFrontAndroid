@@ -44,6 +44,96 @@ class LogementViewModel(private val repository: LogementRepository) : ViewModel(
         }
     }
 
+    fun loadMyLogements(force: Boolean = false) {
+        if (_state.value.isLoading && !force) return
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+            try {
+                val logements = repository.getMyLogements()
+                _state.update {
+                    it.copy(
+                        logements = logements,
+                        isLoading = false
+                    )
+                }
+            } catch (error: Exception) {
+                val errorMessage = resolveError(error)
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        error = errorMessage
+                    )
+                }
+            }
+        }
+    }
+    
+    fun getLogementById(id: String, onSuccess: (LogementResponse) -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+            try {
+                val logement = repository.getLogementById(id)
+                _state.update { it.copy(isLoading = false) }
+                onSuccess(logement)
+            } catch (error: Exception) {
+                val errorMessage = resolveError(error) ?: "Erreur lors du chargement"
+                _state.update { it.copy(isLoading = false, error = errorMessage) }
+                onError(errorMessage)
+            }
+        }
+    }
+    
+    fun createLogement(request: CreateLogementRequest, onSuccess: (LogementResponse) -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+            try {
+                val logement = repository.createLogement(request)
+                _state.update { it.copy(isLoading = false) }
+                // Recharger la liste après création
+                loadLogements(force = true)
+                onSuccess(logement)
+            } catch (error: Exception) {
+                val errorMessage = resolveError(error) ?: "Erreur lors de la création"
+                _state.update { it.copy(isLoading = false, error = errorMessage) }
+                onError(errorMessage)
+            }
+        }
+    }
+    
+    fun updateLogement(id: String, request: UpdateLogementRequest, onSuccess: (LogementResponse) -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+            try {
+                val logement = repository.updateLogement(id, request)
+                _state.update { it.copy(isLoading = false) }
+                // Recharger la liste après mise à jour
+                loadLogements(force = true)
+                onSuccess(logement)
+            } catch (error: Exception) {
+                val errorMessage = resolveError(error) ?: "Erreur lors de la mise à jour"
+                _state.update { it.copy(isLoading = false, error = errorMessage) }
+                onError(errorMessage)
+            }
+        }
+    }
+    
+    fun deleteLogement(id: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+            try {
+                repository.deleteLogement(id)
+                _state.update { it.copy(isLoading = false) }
+                // Recharger la liste après suppression
+                loadLogements(force = true)
+                onSuccess()
+            } catch (error: Exception) {
+                val errorMessage = resolveError(error) ?: "Erreur lors de la suppression"
+                _state.update { it.copy(isLoading = false, error = errorMessage) }
+                onError(errorMessage)
+            }
+        }
+    }
+
     fun clearError() {
         _state.update { it.copy(error = null) }
     }

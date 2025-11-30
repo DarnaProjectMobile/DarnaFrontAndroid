@@ -137,7 +137,7 @@ L'écran d'inscription (`SignUpScreen`) contient :
 ## 🔍 Vérification dans le Backend
 
 Tous les comptes créés sont stockés dans MongoDB. Vous pouvez vérifier :
-- Via Swagger : `http://192.168.1.109:3007/api`
+- Via Swagger : `http://192.168.56.1:3007/api`
 - Endpoint : `GET /users` (nécessite authentification admin)
 
 ## 💡 Astuce

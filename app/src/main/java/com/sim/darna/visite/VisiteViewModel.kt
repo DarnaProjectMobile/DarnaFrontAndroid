@@ -25,7 +25,6 @@ data class VisiteUiState(
 
 class VisiteViewModel(
     private val repository: VisiteRepository,
-    private val notificationRepository: com.sim.darna.notification.NotificationRepository? = null,
     private val sessionManager: com.sim.darna.auth.SessionManager? = null,
     private val logementRepository: com.sim.darna.logement.LogementRepository? = null
 ) : ViewModel() {
@@ -304,6 +303,9 @@ class VisiteViewModel(
     /**
      * Crée une notification pour un utilisateur
      */
+    // Note: Les notifications sont maintenant gérées par le backend Firebase (NestJS)
+    // Cette méthode n'est plus utilisée car les notifications sont créées automatiquement
+    // par le backend lors des changements d'état des visites
     private suspend fun createNotificationForUser(
         targetUserId: String,
         type: String,
@@ -311,116 +313,17 @@ class VisiteViewModel(
         message: String,
         visite: VisiteResponse
     ) {
-        if (notificationRepository == null) {
-            android.util.Log.w("VisiteViewModel", "notificationRepository est null, impossible de créer la notification")
-            return
-        }
-        
-        try {
-            android.util.Log.d("VisiteViewModel", "Création notification: type=$type, userId=$targetUserId, title=$title, message=$message")
-            val request = com.sim.darna.notification.CreateNotificationRequest(
-                userId = targetUserId,
-                type = type,
-                title = title,
-                message = message,
-                visiteId = visite.id,
-                logementId = visite.logementId,
-                logementTitle = visite.logementTitle,
-                scheduledFor = null // Notification immédiate
-            )
-            val result = notificationRepository.createNotification(request)
-            android.util.Log.d("VisiteViewModel", "Notification créée avec succès: id=${result.id}, type=$type pour userId: $targetUserId")
-        } catch (e: Exception) {
-            android.util.Log.e("VisiteViewModel", "Erreur création notification $type pour userId: $targetUserId", e)
-            e.printStackTrace()
-        }
+        // Les notifications Firebase sont gérées par le backend NestJS
+        android.util.Log.d("VisiteViewModel", "Notifications gérées par le backend Firebase pour type=$type, userId=$targetUserId")
     }
     
     /**
-     * Crée automatiquement les rappels pour une visite confirmée
+     * Les rappels sont maintenant gérés automatiquement par le backend Firebase (NestJS)
+     * Cette méthode n'est plus utilisée car les notifications Firebase sont créées par le backend
      */
     private suspend fun createRemindersForVisite(visite: VisiteResponse) {
-        if (notificationRepository == null || sessionManager == null) return
-        if (visite.dateVisite.isNullOrBlank()) return
-        
-        try {
-            val userSession = sessionManager.sessionFlow.firstOrNull() ?: return
-            val userId = userSession.userId ?: return
-            
-            // Déterminer si c'est un client ou un colocataire
-            val isCollocator = userSession.role.lowercase() == "collocator"
-            
-            // Utiliser la même logique de rappels pour client et colocataire
-            // Seulement adapter le titre pour le colocataire
-            val reminders = if (isCollocator) {
-                // Rappels pour colocataire (même logique, titre adapté)
-                com.sim.darna.notification.ReminderService.calculateCollocatorReminders(
-                    visiteDateTime = visite.dateVisite,
-                    clientUsername = visite.clientUsername ?: "Client",
-                    logementTitle = visite.logementTitle ?: "Logement"
-                )
-            } else {
-                // Rappels pour client
-                com.sim.darna.notification.ReminderService.calculateReminders(visite.dateVisite)
-            }
-            
-            // Créer aussi les rappels pour l'autre partie (client ou colocataire)
-            if (isCollocator) {
-                // Si c'est le colocataire qui accepte, créer les rappels pour le client
-                // Le userId dans la visite est l'ID du client qui a fait la demande
-                if (visite.userId != null) {
-                    val clientReminders = com.sim.darna.notification.ReminderService.calculateReminders(visite.dateVisite)
-                    clientReminders.forEach { reminder ->
-                        try {
-                            notificationRepository.createNotification(
-                                com.sim.darna.notification.CreateNotificationRequest(
-                                    userId = visite.userId, // ID du client
-                                    type = reminder.type,
-                                    title = reminder.title,
-                                    message = reminder.message,
-                                    visiteId = visite.id,
-                                    logementId = visite.logementId,
-                                    logementTitle = visite.logementTitle,
-                                    scheduledFor = reminder.scheduledFor
-                                )
-                            )
-                            android.util.Log.d("VisiteViewModel", "Rappel client créé: ${reminder.type}")
-                        } catch (e: Exception) {
-                            android.util.Log.e("VisiteViewModel", "Erreur création rappel client", e)
-                        }
-                    }
-                } else {
-                    android.util.Log.w("VisiteViewModel", "userId null dans visite, impossible de créer rappels client")
-                }
-            } else {
-                // Si c'est le client qui accepte, les rappels pour le colocataire sont créés côté backend
-                // ou on peut les créer ici si on a l'ID du colocataire
-                // Note: Normalement, le backend devrait créer les notifications pour le colocataire
-                android.util.Log.d("VisiteViewModel", "Client accepte - rappels colocataire gérés par backend")
-            }
-            
-            // Créer les notifications pour l'utilisateur actuel
-            reminders.forEach { reminder ->
-                try {
-                    notificationRepository.createNotification(
-                        com.sim.darna.notification.CreateNotificationRequest(
-                            userId = userId,
-                            type = reminder.type,
-                            title = reminder.title,
-                            message = reminder.message,
-                            visiteId = visite.id,
-                            logementId = visite.logementId,
-                            logementTitle = visite.logementTitle,
-                            scheduledFor = reminder.scheduledFor
-                        )
-                    )
-                } catch (e: Exception) {
-                    android.util.Log.e("VisiteViewModel", "Erreur création rappel", e)
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("VisiteViewModel", "Erreur lors de la création des rappels", e)
-        }
+        // Les rappels Firebase sont gérés par le backend NestJS
+        android.util.Log.d("VisiteViewModel", "Rappels gérés par le backend Firebase pour visite ${visite.id}")
     }
 
     fun rejectVisite(visiteId: String) {

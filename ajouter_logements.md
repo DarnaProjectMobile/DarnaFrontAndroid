@@ -13,7 +13,7 @@ Ce fichier contient les instructions pour ajouter plusieurs logements au backend
 
 ```bash
 # Lire l'URL du backend depuis le fichier de configuration
-BACKEND_URL="http://192.168.1.109:3007"  # Remplacez par votre URL
+BACKEND_URL="http://192.168.56.1:3007"  # Remplacez par votre URL
 
 # Ajouter chaque logement
 curl -X POST "$BACKEND_URL/logement" \

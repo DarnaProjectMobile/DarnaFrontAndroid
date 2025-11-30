@@ -40,9 +40,10 @@ object NetworkConfig {
     
     /**
      * Récupère l'URL du backend avec priorité:
-     * 1. Fichier backend_url.txt dans assets (modifiable sans recompiler)
-     * 2. BuildConfig.SERVER_URL (depuis local.properties ou variable d'environnement)
-     * 3. URL par défaut (10.0.2.2 pour émulateur)
+     * 1. DataStore (URL sauvegardée via NetworkConfigManager) - PRIORITÉ LA PLUS HAUTE
+     * 2. Fichier backend_url.txt dans assets (modifiable sans recompiler)
+     * 3. BuildConfig.SERVER_URL (depuis local.properties ou variable d'environnement)
+     * 4. URL par défaut (10.0.2.2 pour émulateur)
      */
     fun getBaseUrl(context: Context? = null, forceRefresh: Boolean = false): String {
         // Si on force le rafraîchissement, on vide le cache
@@ -55,7 +56,20 @@ object NetworkConfig {
             cachedUrl?.let { return ensureTrailingSlash(it) }
         }
         
-        // Essayer de lire depuis le fichier assets (priorité 1)
+        // Essayer de lire depuis DataStore (priorité 1 - la plus haute)
+        context?.let {
+            try {
+                val urlFromDataStore = NetworkConfigManager.getBackendUrlSync(it)
+                if (!urlFromDataStore.isNullOrBlank()) {
+                    cachedUrl = urlFromDataStore
+                    return ensureTrailingSlash(urlFromDataStore)
+                }
+            } catch (e: Exception) {
+                // DataStore non disponible, continuer
+            }
+        }
+        
+        // Essayer de lire depuis le fichier assets (priorité 2)
         context?.let {
             try {
                 val urlFromFile = readUrlFromAssets(it)
@@ -68,7 +82,7 @@ object NetworkConfig {
             }
         }
         
-        // Essayer BuildConfig (priorité 2)
+        // Essayer BuildConfig (priorité 3)
         try {
             val buildConfigUrl = try {
                 val buildConfigClass = Class.forName("com.sim.darna.BuildConfig")
@@ -86,7 +100,7 @@ object NetworkConfig {
             // BuildConfig non disponible, continuer
         }
         
-        // Utiliser l'URL par défaut (priorité 3)
+        // Utiliser l'URL par défaut (priorité 4)
         cachedUrl = DEFAULT_URL
         return ensureTrailingSlash(DEFAULT_URL)
     }
