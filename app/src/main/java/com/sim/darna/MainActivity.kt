@@ -15,7 +15,9 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.sim.darna.navigation.AppNavGraph
 import com.sim.darna.notifications.FirebaseTokenRegistrar
 import com.sim.darna.ui.theme.DarnaTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     private val notificationPermissionLauncher =

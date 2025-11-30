@@ -14,6 +14,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -29,6 +31,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.sim.darna.navigation.Routes
+
+// ---------------------- Navigation destinations ----------------------
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.sim.darna.components.EmptyStateLottie
@@ -45,12 +57,13 @@ sealed class BottomNavItem(
     val label: String
 ) {
     object Home : BottomNavItem("home", Icons.Default.Home, "Accueil")
-    object Calendar : BottomNavItem("calendar", Icons.Default.DateRange, "Calendrier")
+    object Publicite : BottomNavItem("publicite", Icons.Default.Campaign, "Publicités")
     object Reserve : BottomNavItem("reserve", Icons.Default.Star, "Réserver")
     object Profile : BottomNavItem("profile", Icons.Default.Person, "Profil")
 }
 
 
+// ---------------------- MainScreen ----------------------
 @Composable
 fun MainScreen(parentNavController: NavHostController){
 
@@ -66,6 +79,28 @@ fun MainScreen(parentNavController: NavHostController){
             startDestination = BottomNavItem.Home.route,
             modifier = Modifier.padding(padding)
         ) {
+            composable(BottomNavItem.Home.route) { HomeScreen(navController) }
+
+            // Liste des publicités
+            composable(BottomNavItem.Publicite.route) {
+                PublicitesListScreen(
+                    onAddClick = { navController.navigate("add_publicite") },
+                    onEdit = { id -> navController.navigate("add_publicite/$id") }
+                )
+            }
+
+            // Ajouter / Modifier une publicité
+            composable(
+                route = "add_publicite/{id?}", // id est optionnel
+                arguments = listOf(navArgument("id") { defaultValue = "" })
+            ) { backStackEntry ->
+                val id = backStackEntry.arguments?.getString("id")
+                AddPubliciteScreen(
+                    publiciteId = id.takeIf { it?.isNotEmpty() == true },
+                    onFinish = { navController.popBackStack() },
+                    onCancel = { navController.popBackStack() }
+                )
+            }
             composable(BottomNavItem.Home.route) {
                 HomeScreen(parentNavController)   // ⭐ forward parent nav
             }
@@ -80,22 +115,20 @@ fun MainScreen(parentNavController: NavHostController){
 
 
 
-@Composable
-fun ReserveScreen() {
-    TODO("Not yet implemented")
+            composable(BottomNavItem.Reserve.route) { ReserveScreen() }
+            composable(BottomNavItem.Profile.route) { ProfileScreen() }
+        }
+
+    }
 }
 
-@Composable
-fun CalendarScreen() {
-    TODO("Not yet implemented")
-}
-
+// ---------------------- BottomNavBar ----------------------
 @Composable
 fun BottomNavBar(navController: NavController) {
 
     val items = listOf(
         BottomNavItem.Home,
-        BottomNavItem.Calendar,
+        BottomNavItem.Publicite,
         BottomNavItem.Reserve,
         BottomNavItem.Profile
     )
@@ -137,6 +170,41 @@ fun BottomNavBar(navController: NavController) {
     }
 }
 
+// ---------------------- HomeScreen ----------------------
+@Composable
+fun HomeScreen(navController: NavController) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF5F5F5))
+            .verticalScroll(rememberScrollState())
+    ) {
+        // Header
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Découvrir",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1A1A1A)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Trouvez votre colocation idéale",
+                        fontSize = 14.sp,
+                        color = Color(0xFF757575)
+                    )
+                }
 
 // Home Screen
 @Composable
@@ -175,6 +243,85 @@ fun HomeScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = 16.dp)
+            // Search Bar
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = Color(0xFF9E9E9E)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Rechercher une colocation...",
+                        color = Color(0xFF9E9E9E),
+                        fontSize = 16.sp
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Categories
+        Text(
+            text = "Catégories",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF1A1A1A),
+            modifier = Modifier.padding(start = 20.dp)
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            CategoryCard(Icons.Default.Home, "Studios", Color(0xFF0066FF))
+            CategoryCard(Icons.Default.Build, "Maisons", Color(0xFFFF6D00))
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // À la une
+        Text(
+            text = "À la une",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF1A1A1A),
+            modifier = Modifier.padding(start = 20.dp)
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Column(
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(horizontal = 20.dp)
+        ) {
+            listOf(
+                Triple("Colocation moderne à Paris", "75011 - Bastille", Color(0xFF4A90E2)),
+                Triple("Studio lumineux Bastille", "75012 - Nation", Color(0xFF50C878)),
+                Triple("Appartement spacieux Marais", "75003 - Le Marais", Color(0xFFFF6B6B))
+            ).forEachIndexed { index, item ->
+                PropertyCard(
+                    title = item.first,
+                    location = item.second,
+                    price = listOf(650, 850, 1200)[index],
+                    roommates = listOf(3, 1, 4)[index],
+                    area = listOf(85, 45, 120)[index],
+                    imageColor = item.third,
+                    navController = navController
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Search and Filter Bar
             SearchAndFilterBar(
@@ -458,387 +605,11 @@ fun SearchAndFilterBar(
                 }
             }
         }
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
-@Composable
-fun QuickFilterButtons(
-    ownershipFilter: OwnershipFilter,
-    onFilterClick: (OwnershipFilter) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(0.dp)
-    ) {
-        OwnershipFilterButton(
-            title = "Mes annonces",
-            isSelected = ownershipFilter == OwnershipFilter.MINE,
-            icon = Icons.Default.Person,
-            onClick = { onFilterClick(OwnershipFilter.MINE) },
-            isFirst = true,
-            modifier = Modifier.weight(1f)
-        )
-
-        OwnershipFilterButton(
-            title = "Autre annonces",
-            isSelected = ownershipFilter == OwnershipFilter.NOT_MINE,
-            icon = Icons.Default.People,
-            onClick = { onFilterClick(OwnershipFilter.NOT_MINE) },
-            isFirst = false,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-@Composable
-fun OwnershipFilterButton(
-    title: String,
-    isSelected: Boolean,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    isFirst: Boolean = true,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        onClick = onClick,
-        modifier = modifier.height(40.dp),
-        color = if (isSelected) AppTheme.primary else AppTheme.card,
-        shape = RoundedCornerShape(
-            topStart = if (isFirst) 12.dp else 0.dp,
-            bottomStart = if (isFirst) 12.dp else 0.dp,
-            topEnd = if (isFirst) 0.dp else 12.dp,
-            bottomEnd = if (isFirst) 0.dp else 12.dp
-        ),
-        border = androidx.compose.foundation.BorderStroke(
-            width = 1.dp,
-            color = if (isSelected) Color.Transparent else Color(0xFFE0E0E0)
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(14.dp),
-                tint = if (isSelected) Color.White else AppTheme.textPrimary
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = title,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (isSelected) Color.White else AppTheme.textPrimary
-            )
-        }
-    }
-}
-
-@Composable
-fun ViewToggle(
-    isGridView: Boolean,
-    onViewChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(0.dp)
-    ) {
-        // List View Button
-        ViewToggleButton(
-            isSelected = !isGridView,
-            icon = Icons.Default.ViewList,
-            onClick = { onViewChange(false) },
-            isFirst = true,
-            modifier = Modifier.weight(1f)
-        )
-
-        // Grid View Button
-        ViewToggleButton(
-            isSelected = isGridView,
-            icon = Icons.Default.GridView,
-            onClick = { onViewChange(true) },
-            isFirst = false,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-@Composable
-fun ViewToggleButton(
-    isSelected: Boolean,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    isFirst: Boolean = true,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        onClick = onClick,
-        modifier = modifier.height(40.dp),
-        color = if (isSelected) AppTheme.primary else Color.White,
-        shape = RoundedCornerShape(
-            topStart = if (isFirst) 12.dp else 0.dp,
-            bottomStart = if (isFirst) 12.dp else 0.dp,
-            topEnd = if (isFirst) 0.dp else 12.dp,
-            bottomEnd = if (isFirst) 0.dp else 12.dp
-        ),
-        border = androidx.compose.foundation.BorderStroke(
-            width = 1.dp,
-            color = Color(0xFFE0E0E0)
-        )
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = if (isSelected) Color.White else AppTheme.textPrimary
-            )
-        }
-    }
-}
-
-@Composable
-fun FilterSheet(
-    minPrice: Double?,
-    maxPrice: Double?,
-    onDismiss: () -> Unit,
-    onApply: (Double?, Double?) -> Unit
-) {
-    var minPriceText by remember { mutableStateOf(minPrice?.toString() ?: "") }
-    var maxPriceText by remember { mutableStateOf(maxPrice?.toString() ?: "") }
-    var minPriceError by remember { mutableStateOf<String?>(null) }
-    var maxPriceError by remember { mutableStateOf<String?>(null) }
-
-    // Filter to only allow numbers and decimal point
-    fun filterNumericInput(text: String): String {
-        return text.filter { it.isDigit() || it == '.' }
-    }
-
-    // Validate prices
-    fun validatePrices(): Boolean {
-        minPriceError = null
-        maxPriceError = null
-
-        val min = minPriceText.toDoubleOrNull()
-        val max = maxPriceText.toDoubleOrNull()
-
-        // If both are empty, it's valid (no filter)
-        if (minPriceText.isEmpty() && maxPriceText.isEmpty()) {
-            return true
-        }
-
-        // If min is provided, it must be a valid number
-        if (minPriceText.isNotEmpty() && min == null) {
-            minPriceError = "Veuillez entrer un nombre valide"
-            return false
-        }
-
-        // If max is provided, it must be a valid number
-        if (maxPriceText.isNotEmpty() && max == null) {
-            maxPriceError = "Veuillez entrer un nombre valide"
-            return false
-        }
-
-        // If both are provided, min must be < max
-        if (min != null && max != null) {
-            if (min >= max) {
-                minPriceError = "Le prix minimum doit être inférieur au prix maximum"
-                maxPriceError = "Le prix maximum doit être supérieur au prix minimum"
-                return false
-            }
-        }
-
-        return true
-    }
-
-    val isValid = validatePrices()
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = AppTheme.card,
-        shape = RoundedCornerShape(24.dp),
-        title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Tune,
-                    contentDescription = null,
-                    tint = AppTheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Text(
-                    text = "Filtrer par prix",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = AppTheme.textPrimary
-                )
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier.padding(top = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                OutlinedTextField(
-                    value = minPriceText,
-                    onValueChange = {
-                        val filtered = filterNumericInput(it)
-                        minPriceText = filtered
-                        validatePrices()
-                    },
-                    label = { 
-                        Text(
-                            "Prix minimum",
-                            color = AppTheme.textSecondary
-                        ) 
-                    },
-                    placeholder = { Text("Ex: 100", color = AppTheme.textSecondary.copy(alpha = 0.6f)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Decimal
-                    ),
-                    isError = minPriceError != null,
-                    supportingText = minPriceError?.let { { 
-                        Text(
-                            it, 
-                            color = Color(0xFFD32F2F),
-                            fontSize = 12.sp
-                        ) 
-                    }},
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = AppTheme.card,
-                        unfocusedContainerColor = AppTheme.card,
-                        focusedBorderColor = AppTheme.primary,
-                        unfocusedBorderColor = Color(0xFFE0E0E0),
-                        errorBorderColor = Color(0xFFD32F2F),
-                        focusedTextColor = AppTheme.textPrimary,
-                        unfocusedTextColor = AppTheme.textPrimary
-                    ),
-                    shape = RoundedCornerShape(14.dp),
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.AttachMoney,
-                            contentDescription = null,
-                            tint = AppTheme.textSecondary
-                        )
-                    }
-                )
-                OutlinedTextField(
-                    value = maxPriceText,
-                    onValueChange = {
-                        val filtered = filterNumericInput(it)
-                        maxPriceText = filtered
-                        validatePrices()
-                    },
-                    label = { 
-                        Text(
-                            "Prix maximum",
-                            color = AppTheme.textSecondary
-                        ) 
-                    },
-                    placeholder = { Text("Ex: 1000", color = AppTheme.textSecondary.copy(alpha = 0.6f)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Decimal
-                    ),
-                    isError = maxPriceError != null,
-                    supportingText = maxPriceError?.let { { 
-                        Text(
-                            it, 
-                            color = Color(0xFFD32F2F),
-                            fontSize = 12.sp
-                        ) 
-                    }},
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = AppTheme.card,
-                        unfocusedContainerColor = AppTheme.card,
-                        focusedBorderColor = AppTheme.primary,
-                        unfocusedBorderColor = Color(0xFFE0E0E0),
-                        errorBorderColor = Color(0xFFD32F2F),
-                        focusedTextColor = AppTheme.textPrimary,
-                        unfocusedTextColor = AppTheme.textPrimary
-                    ),
-                    shape = RoundedCornerShape(14.dp),
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.AttachMoney,
-                            contentDescription = null,
-                            tint = AppTheme.textSecondary
-                        )
-                    }
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (isValid) {
-                        val min = minPriceText.toDoubleOrNull()
-                        val max = maxPriceText.toDoubleOrNull()
-                        onApply(min, max)
-                    }
-                },
-                enabled = isValid,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = AppTheme.primary,
-                    contentColor = Color.White,
-                    disabledContainerColor = AppTheme.primary.copy(alpha = 0.5f),
-                    disabledContentColor = Color.White.copy(alpha = 0.5f)
-                ),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.padding(end = 8.dp)
-            ) {
-                Text(
-                    "Appliquer",
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp
-                )
-            }
-        },
-        dismissButton = {
-            OutlinedButton(
-                onClick = {
-                    minPriceText = ""
-                    maxPriceText = ""
-                    minPriceError = null
-                    maxPriceError = null
-                    onApply(null, null)
-                },
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = AppTheme.textPrimary
-                ),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    Color(0xFFE0E0E0)
-                ),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.padding(start = 8.dp)
-            ) {
-                Text(
-                    "Réinitialiser",
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 14.sp
-                )
-            }
-        }
-    )
-}
-
-// Import statements needed
-
+// ---------------------- PropertyCard ----------------------
 
 @Composable
 fun CategoryCard(icon: ImageVector, label: String, color: Color) {
@@ -894,7 +665,7 @@ fun PropertyCard(
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
 
-            // 🖼️ Image placeholder with gradient
+            // Image placeholder
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -916,7 +687,7 @@ fun PropertyCard(
                     tint = Color.White.copy(alpha = 0.3f)
                 )
 
-                // ❤️ Favorite Button
+                // Favorite button
                 IconButton(
                     onClick = { isFavorite = !isFavorite },
                     modifier = Modifier
@@ -936,7 +707,7 @@ fun PropertyCard(
                     }
                 }
 
-                // 🟢 New Badge
+                // New Badge
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -954,41 +725,34 @@ fun PropertyCard(
                 }
             }
 
-            // 🏡 Content Section
+            // Content
             Column(modifier = Modifier.padding(16.dp)) {
-
-                // Title + Location
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1A1A1A)
+                Text(
+                    text = title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1A1A1A)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = Color(0xFF757575)
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = Color(0xFF757575)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = location,
-                            fontSize = 14.sp,
-                            color = Color(0xFF757575)
-                        )
-                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = location,
+                        fontSize = 14.sp,
+                        color = Color(0xFF757575)
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
-
-                // Info Chips (Roommates, Area, Rating)
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     InfoChip(icon = Icons.Default.Person, text = "$roommates pers.")
                     InfoChip(icon = Icons.Default.Home, text = "${area}m²")
-
                     Surface(
                         color = Color(0xFF0066FF).copy(alpha = 0.1f),
                         shape = RoundedCornerShape(8.dp)
@@ -1015,8 +779,6 @@ fun PropertyCard(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-
-                // 💶 Price and Details Button
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1037,7 +799,7 @@ fun PropertyCard(
                     }
 
                     Button(
-                        onClick = { navController.navigate(Routes.PropertyDetail) },
+                        onClick = { /* Navigate to details */ },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0066FF)),
                         shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
@@ -1058,8 +820,9 @@ fun PropertyCard(
     }
 }
 
+// ---------------------- InfoChip ----------------------
 @Composable
-fun InfoChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+fun InfoChip(icon: ImageVector, text: String) {
     Surface(
         color = Color(0xFFF5F5F5),
         shape = RoundedCornerShape(8.dp)
@@ -1083,3 +846,44 @@ fun InfoChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String
         }
     }
 }
+
+// ---------------------- CategoryCard ----------------------
+@Composable
+fun CategoryCard(icon: ImageVector, label: String, color: Color) {
+    Card(
+        modifier = Modifier
+            .width(110.dp)
+            .height(100.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                modifier = Modifier.size(32.dp),
+                tint = color
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = color,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+// ---------------------- Placeholder Screens ----------------------
+@Composable fun ProfileScreen() { /* TODO */ }
+@Composable fun ReserveScreen() { /* TODO */ }
+@Composable fun PublicitesListScreen() { /* TODO */ }
