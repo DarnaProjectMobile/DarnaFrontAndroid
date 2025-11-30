@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sim.darna.auth.TokenStorage
+import com.sim.darna.notifications.FirebaseTokenRegistrar
 import com.sim.darna.viewmodel.LoginViewModel
 import com.sim.darna.factory.LoginVmFactory
 import kotlinx.coroutines.delay
@@ -141,6 +142,8 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
         }
 
         editor.apply()
+
+        FirebaseTokenRegistrar.syncCurrentToken(context)
         onLoginSuccess()
     }
 
