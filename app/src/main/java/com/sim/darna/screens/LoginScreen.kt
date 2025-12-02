@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sim.darna.auth.TokenStorage
+import com.sim.darna.notifications.FirebaseTokenRegistrar
 import com.sim.darna.viewmodel.LoginViewModel
 import com.sim.darna.factory.LoginVmFactory
 import kotlinx.coroutines.delay
@@ -46,15 +47,10 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
     var passwordError by remember { mutableStateOf<String?>(null) }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    val baseUrl = "http://192.168.0.238:3000/"
-    val sharedPreferences = LocalContext.current.getSharedPreferences("APP_PREFS", Context.MODE_PRIVATE)
-    val viewModel: LoginViewModel = viewModel(
-        factory = LoginVmFactory(
-            baseUrl = baseUrl,
-            sharedPreferences = sharedPreferences
-        )
-    )
-    val uiState by viewModel.state.collectAsState()
+    // ✅ ViewModel setup (your base URL here)
+    val baseUrl = "http://192.168.1.11:3000/"
+    val viewModel: LoginViewModel = viewModel(factory = LoginVmFactory(baseUrl))
+    val uiState = viewModel.state.collectAsState().value
 
     val coroutineScope = rememberCoroutineScope()
     var rememberMe by remember { mutableStateOf(false) }
@@ -146,6 +142,8 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
         }
 
         editor.apply()
+
+        FirebaseTokenRegistrar.syncCurrentToken(context)
         onLoginSuccess()
     }
 
