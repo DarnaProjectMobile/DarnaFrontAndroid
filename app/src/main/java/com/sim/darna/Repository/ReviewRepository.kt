@@ -21,6 +21,18 @@ class ReviewRepository(
             emptyList()
         }
     }
+    
+    // -------------------------
+    // GET REVIEWS FOR PROPERTY
+    // -------------------------
+    suspend fun getReviewsForProperty(propertyId: String): List<Review> {
+        val res = api.getReviews(propertyId = propertyId)
+        return if (res.isSuccessful) {
+            res.body() ?: emptyList()
+        } else {
+            emptyList()
+        }
+    }
 
     // -------------------------
     // CREATE REVIEW

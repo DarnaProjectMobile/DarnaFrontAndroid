@@ -46,6 +46,19 @@ class ReviewViewModel : ViewModel() {
             }
         }
     }
+    
+    // ------------------------------------------------------
+    // LOAD REVIEWS FOR SPECIFIC PROPERTY
+    // ------------------------------------------------------
+    fun loadReviewsForProperty(propertyId: String) {
+        viewModelScope.launch {
+            try {
+                _reviews.value = getRepo().getReviewsForProperty(propertyId)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 
     // ------------------------------------------------------
     // ADD REVIEW
@@ -75,7 +88,10 @@ class ReviewViewModel : ViewModel() {
             try {
                 val updated = getRepo().updateReview(id, rating, comment, userName, propertyName)
                 if (updated != null) {
-                    loadReviews()
+                    // Update the local list directly for immediate feedback
+                    _reviews.value = _reviews.value.map { review ->
+                        if (review.id == id) updated else review
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -90,7 +106,10 @@ class ReviewViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 if (getRepo().deleteReview(id)) {
-                    loadReviews()
+                    // Remove the review from the local list directly for immediate feedback
+                    _reviews.value = _reviews.value.filter { review ->
+                        review.id != id
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

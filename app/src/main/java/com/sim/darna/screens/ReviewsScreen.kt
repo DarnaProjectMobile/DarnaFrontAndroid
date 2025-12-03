@@ -63,7 +63,13 @@ fun ReviewsScreen(
 
     LaunchedEffect(Unit) {
         vm.init(context)
-        vm.loadReviews()
+        if (propertyId != null) {
+            // Load reviews for specific property
+            vm.loadReviewsForProperty(propertyId)
+        } else {
+            // Load all reviews
+            vm.loadReviews()
+        }
     }
 
     Box(

@@ -82,22 +82,25 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
         }
     }
     
-    // Initialize ViewModel and load reviews
-    LaunchedEffect(Unit) {
-        reviewViewModel.init(context)
-        reviewViewModel.loadReviews()
+    // Initialize ViewModel and load reviews for this property
+    LaunchedEffect(propertyId) {
+        if (propertyId != null) {
+            reviewViewModel.init(context)
+            reviewViewModel.loadReviewsForProperty(propertyId)
+        }
     }
     
-    // Take only first 3 reviews
-    val recentReviews = allReviews.take(3)
+    // Take only first 3 reviews for this property
+    val recentReviews = allReviews.filter { it.propertyId == propertyId }.take(3)
     
-    // Calculate average rating and total reviews
-    val averageRating = if (allReviews.isNotEmpty()) {
-        allReviews.map { it.rating }.average().toFloat()
+    // Calculate average rating and total reviews for this property
+    val propertyReviews = allReviews.filter { it.propertyId == propertyId }
+    val averageRating = if (propertyReviews.isNotEmpty()) {
+        propertyReviews.map { it.rating }.average().toFloat()
     } else {
         0f
     }
-    val totalReviews = allReviews.size
+    val totalReviews = propertyReviews.size
     
     if (isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -411,7 +414,7 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                RatingBreakdown(allReviews)
+                RatingBreakdown(propertyReviews)
             }
         }
 
