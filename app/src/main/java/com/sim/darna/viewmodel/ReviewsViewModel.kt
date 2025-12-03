@@ -50,15 +50,19 @@ class ReviewViewModel : ViewModel() {
     // ------------------------------------------------------
     // ADD REVIEW
     // ------------------------------------------------------
-    fun addReview(rating: Int, comment: String) {
+    fun addReview(rating: Int, comment: String, propertyId: String? = null, userName: String? = null, propertyName: String? = null) {
         viewModelScope.launch {
             try {
-                val created = getRepo().createReview(rating, comment)
+                val created = getRepo().createReview(rating, comment, propertyId, userName, propertyName)
                 if (created != null) {
                     _reviews.value = _reviews.value + created
+                } else {
+                    // Handle case where review creation failed
+                    println("Failed to create review - server returned null")
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                println("Error creating review: ${e.message}")
             }
         }
     }
@@ -66,10 +70,10 @@ class ReviewViewModel : ViewModel() {
     // ------------------------------------------------------
     // UPDATE REVIEW
     // ------------------------------------------------------
-    fun updateReview(id: String, rating: Int, comment: String) {
+    fun updateReview(id: String, rating: Int, comment: String, userName: String? = null, propertyName: String? = null) {
         viewModelScope.launch {
             try {
-                val updated = getRepo().updateReview(id, rating, comment)
+                val updated = getRepo().updateReview(id, rating, comment, userName, propertyName)
                 if (updated != null) {
                     loadReviews()
                 }

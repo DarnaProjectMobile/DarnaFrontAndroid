@@ -385,7 +385,16 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                     }
 
                     Button(
-                        onClick = { navController.navigate(Routes.Reviews) },
+                        onClick = { 
+                            // Get current user's username
+                            val currentUser = context.getSharedPreferences("APP_PREFS", android.content.Context.MODE_PRIVATE)
+                            val currentUsername = currentUser.getString("username", "Anonymous")
+                            
+                            // Navigate to reviews screen with property and user information
+                            val encodedTitle = android.net.Uri.encode(prop.title)
+                            val encodedUsername = android.net.Uri.encode(currentUsername)
+                            navController.navigate("${Routes.ReviewsWithParams.replace("{propertyId}", prop.id).replace("{propertyName}", encodedTitle).replace("{userName}", encodedUsername)}")
+                        },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0066FF)),
                         shape = RoundedCornerShape(10.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
@@ -624,7 +633,7 @@ fun RatingBreakdown(reviews: List<DatabaseReview>) {
 
 @Composable
 fun ReviewCard(review: DatabaseReview) {
-    val username = review.user?.username ?: "Anonymous"
+    val username = review.userName
     val userInitial = username.firstOrNull()?.uppercase() ?: "?"
     
     Card(
