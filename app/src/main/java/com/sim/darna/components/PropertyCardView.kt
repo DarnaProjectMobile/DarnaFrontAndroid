@@ -153,23 +153,89 @@ fun PropertyCardView(
                         color = AppTheme.textSecondary,
                         maxLines = 1
                     )
-                    
-                    if (!isGridMode && canManage) {
-                        Row {
-                            IconButton(onClick = { onEdit?.invoke() }) {
+
+                    when {
+                        // List view: pill buttons (Modifier / Supprimer)
+                        !isGridMode && canManage -> {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Edit pill button
+                                Surface(
+                                    onClick = { onEdit?.invoke() },
+                                    shape = RoundedCornerShape(999.dp),
+                                    color = Color(0xFFE3F2FF),
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Modifier",
+                                            modifier = Modifier.size(14.dp),
+                                            tint = AppTheme.primary
+                                        )
+                                        Text(
+                                            text = "Modifier",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = AppTheme.primary
+                                        )
+                                    }
+                                }
+
+                                // Delete pill button
+                                Surface(
+                                    onClick = { onDelete?.invoke() },
+                                    shape = RoundedCornerShape(999.dp),
+                                    color = Color(0xFFFFEBEE),
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Supprimer",
+                                            modifier = Modifier.size(14.dp),
+                                            tint = Color(0xFFE53935)
+                                        )
+                                        Text(
+                                            text = "Supprimer",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFFE53935)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Grid view: simple colored icons (like your second image)
+                        isGridMode && canManage -> {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Icon(
                                     imageVector = Icons.Default.Edit,
-                                    contentDescription = "Edit",
-                                    modifier = Modifier.size(18.dp),
+                                    contentDescription = "Modifier",
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clickable { onEdit?.invoke() },
                                     tint = AppTheme.primary
                                 )
-                            }
-                            IconButton(onClick = { onDelete?.invoke() }) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
-                                    contentDescription = "Delete",
-                                    modifier = Modifier.size(18.dp),
-                                    tint = Color.Red
+                                    contentDescription = "Supprimer",
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clickable { onDelete?.invoke() },
+                                    tint = Color(0xFFE53935)
                                 )
                             }
                         }
