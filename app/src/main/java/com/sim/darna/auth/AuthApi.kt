@@ -30,6 +30,14 @@ interface AuthApi {
         @Part image: MultipartBody.Part? = null
     ): Call<RegisterResponse>
 
+    // 🔹 Forgot Password - Request reset code
+    @POST("users/forgot-password")
+    suspend fun forgotPassword(@Body body: ForgotPasswordRequest): ForgotPasswordResponse
+
+    // 🔹 Reset Password - Reset with code
+    @POST("users/reset-password")
+    suspend fun resetPassword(@Body body: ResetPasswordRequest): ResetPasswordResponse
+
     companion object {
         fun create(baseUrl: String): AuthApi {
             // S'assurer que l'URL de base se termine par un slash (requis par Retrofit)

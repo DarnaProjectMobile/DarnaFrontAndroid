@@ -18,4 +18,12 @@ class AuthRepository(private val api: AuthApi) {
         image: okhttp3.MultipartBody.Part?
     ): Call<RegisterResponse> =
         api.register(username, email, password, role, dateDeNaissance, numTel, gender, image)
+
+    suspend fun forgotPassword(email: String): ForgotPasswordResponse {
+        return api.forgotPassword(ForgotPasswordRequest(email))
+    }
+
+    suspend fun resetPassword(code: String, newPassword: String, confirmPassword: String): ResetPasswordResponse {
+        return api.resetPassword(ResetPasswordRequest(code, newPassword, confirmPassword))
+    }
 }

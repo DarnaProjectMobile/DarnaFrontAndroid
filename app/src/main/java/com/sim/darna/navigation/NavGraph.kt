@@ -54,6 +54,7 @@ object Routes {
     const val Reviews = "reviews/{propertyId}"
     const val Notifications = "notifications"
     const val NotificationDetail = "notification_detail/{notificationId}"
+    const val Chat = "chat/{visiteId}/{visiteTitle}"
 }
 
 @Composable
@@ -267,6 +268,46 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                     }
                 }
             }
+        }
+
+        // ✅ CHAT
+        composable(
+            route = Routes.Chat,
+            arguments = listOf(
+                navArgument("visiteId") { type = NavType.StringType },
+                navArgument("visiteTitle") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val visiteId = backStackEntry.arguments?.getString("visiteId") ?: ""
+            val visiteTitle = backStackEntry.arguments?.getString("visiteTitle")?.let {
+                URLDecoder.decode(it, StandardCharsets.UTF_8.name())
+            } ?: "Chat"
+            
+            if (visiteId.isEmpty()) {
+                LaunchedEffect(Unit) {
+                    navController.popBackStack()
+                }
+                return@composable
+            }
+            
+            val context = LocalContext.current
+            val sessionManager = remember { SessionManager(context.applicationContext) }
+            val baseUrl = remember { NetworkConfig.getBaseUrl(context.applicationContext) }
+            val chatViewModel: com.sim.darna.chat.ChatViewModel = viewModel(
+                factory = com.sim.darna.factory.ChatVmFactory(baseUrl, sessionManager)
+            )
+            
+            val currentUserId = remember {
+                kotlinx.coroutines.runBlocking { sessionManager.getUserId() } ?: ""
+            }
+            
+            ChatScreen(
+                visiteId = visiteId,
+                visiteTitle = visiteTitle,
+                currentUserId = currentUserId,
+                viewModel = chatViewModel,
+                onBack = { navController.popBackStack() }
+            )
         }
 
     }

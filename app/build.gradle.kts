@@ -84,6 +84,9 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.compose.foundation)
+    
+    // Accompanist SwipeRefresh for pull-to-refresh
+    implementation("com.google.accompanist:accompanist-swiperefresh:0.32.0")
 
     // Navigation Compose
     implementation("androidx.navigation:navigation-compose:2.8.2")
@@ -107,6 +110,12 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:1.0.0")
+
+    // Socket.IO for real-time chat
+    implementation("io.socket:socket.io-client:2.1.1")
+
+    // Image loading - Coil
+    implementation("io.coil-kt:coil-compose:2.5.0")
 
     // Session storage
     implementation("androidx.datastore:datastore-preferences:1.1.1")

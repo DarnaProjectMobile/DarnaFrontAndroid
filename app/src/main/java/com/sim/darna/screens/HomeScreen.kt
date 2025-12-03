@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Chat
 // Import wildcard pour avoir accès à ExposedDropdownMenu (fonction d'extension)
 import androidx.compose.material3.*
 import androidx.compose.material3.AlertDialog
@@ -167,7 +168,13 @@ fun MainScreen(parentNavController: NavHostController? = null) {
         ) {
             // Écrans pour les clients
             composable(BottomNavItem.Home.route) { HomeScreen(navController) }
-            composable(BottomNavItem.Calendar.route) { MyVisitsScreen(viewModel = visiteViewModel) }
+            composable(BottomNavItem.Calendar.route) { 
+                MyVisitsScreen(
+                    viewModel = visiteViewModel, 
+                    navController = navController,
+                    parentNavController = parentNavController
+                ) 
+            }
             composable(BottomNavItem.Reserve.route) { 
                 ReserveScreen(
                     navController, 
@@ -182,13 +189,19 @@ fun MainScreen(parentNavController: NavHostController? = null) {
                     parentNavController = parentNavController
                 ) 
             }
+            composable(BottomNavItem.Reviews.route) { 
+                AllReviewsScreen(viewModel = visiteViewModel, navController = navController) 
+            }
             
             // Écrans pour les colocataires
             composable(BottomNavItem.CollocatorHome.route) { 
                 CollocatorHomeScreen(navController = navController) 
             }
             composable(BottomNavItem.VisitsRequests.route) { 
-                CollocatorVisitsScreen(viewModel = visiteViewModel) 
+                CollocatorVisitsScreen(
+                    viewModel = visiteViewModel,
+                    parentNavController = parentNavController
+                ) 
             }
             composable(BottomNavItem.Reviews.route) { 
                 AllReviewsScreen(viewModel = visiteViewModel, navController = navController) 
@@ -1188,7 +1201,6 @@ fun CollocatorBottomNavBar(navController: NavController) {
 fun BottomNavBar(navController: NavController) {
     val items = listOf(
         BottomNavItem.Home,
-        BottomNavItem.Calendar,
         BottomNavItem.Reserve,
         BottomNavItem.Profile
     )
@@ -1372,21 +1384,6 @@ fun HomeScreen(navController: NavController) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Icône étoile pour les évaluations
-                    Surface(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clickable { navController.navigate(BottomNavItem.Reviews.route) },
-                        shape = RoundedCornerShape(24.dp),
-                        color = Color(0xFFFFC107).copy(alpha = 0.1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = "Évaluations",
-                            modifier = Modifier.padding(12.dp),
-                            tint = Color(0xFFFFC107)
-                        )
-                    }
                     // Icône notifications avec badge
                     Box {
                         Surface(
@@ -1937,50 +1934,16 @@ fun CollocatorHomeScreen(navController: NavController) {
                     )
                 }
             }
-
-            // Card pour les évaluations
-            Card(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { navController.navigate(BottomNavItem.Reviews.route) },
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Surface(
-                        modifier = Modifier.size(48.dp),
-                        shape = CircleShape,
-                        color = Color(0xFFFFC107).copy(alpha = 0.1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = null,
-                            modifier = Modifier.padding(12.dp),
-                            tint = Color(0xFFFFC107)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Évaluations",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF1A1A1A)
-                    )
-                }
-            }
         }
     }
 }
 
 // Écran pour les colocataires - Gestion des demandes de visite
 @Composable
-fun CollocatorVisitsScreen(viewModel: VisiteViewModel) {
+fun CollocatorVisitsScreen(
+    viewModel: VisiteViewModel,
+    parentNavController: NavHostController? = null
+) {
     val context = LocalContext.current
     val uiState = viewModel.state.collectAsState().value
     var showRejectConfirmation by remember { mutableStateOf<String?>(null) }
@@ -2130,7 +2093,24 @@ fun CollocatorVisitsScreen(viewModel: VisiteViewModel) {
                                 CollocatorVisitCard(
                                     visite = visite,
                                     onAccept = { id -> viewModel.acceptVisite(id) },
-                                    onReject = { id -> showRejectConfirmation = id }
+                                    onReject = { id -> showRejectConfirmation = id },
+                                    onChat = { visite ->
+                                        val visiteId = visite.id
+                                        if (visiteId == null) {
+                                            Toast.makeText(context, "ID de visite manquant", Toast.LENGTH_SHORT).show()
+                                            return@CollocatorVisitCard
+                                        }
+                                        val visiteTitle = getLogementTitleForCollocator(visite)
+                                        val encodedTitle = java.net.URLEncoder.encode(visiteTitle, java.nio.charset.StandardCharsets.UTF_8.name())
+                                        try {
+                                            parentNavController?.navigate("chat/$visiteId/$encodedTitle") ?: run {
+                                                Toast.makeText(context, "Navigation non disponible", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("CollocatorVisitsScreen", "Erreur de navigation", e)
+                                            Toast.makeText(context, "Erreur de navigation: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -2161,10 +2141,13 @@ fun CollocatorVisitsScreen(viewModel: VisiteViewModel) {
 private fun CollocatorVisitCard(
     visite: com.sim.darna.visite.VisiteResponse,
     onAccept: (String) -> Unit,
-    onReject: (String) -> Unit
+    onReject: (String) -> Unit,
+    onChat: (com.sim.darna.visite.VisiteResponse) -> Unit
 ) {
     val statusChip = mapStatusForCollocator(visite.status)
     val isPending = visite.status?.lowercase() == "pending"
+    val isAccepted = visite.status?.equals("confirmed", ignoreCase = true) == true ||
+                     visite.status?.equals("acceptée", ignoreCase = true) == true
     
     // Design minimaliste avec bordure colorée
     Surface(
@@ -2379,6 +2362,29 @@ private fun CollocatorVisitCard(
                         )
                         Spacer(Modifier.width(4.dp))
                         Text("Refuser", fontSize = 13.sp, color = AppColors.danger)
+                    }
+                }
+            }
+            // Pour les visites acceptées: Afficher le bouton chat
+            else if (isAccepted && visite.id != null) {
+                Divider(color = AppColors.divider, thickness = 1.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(AppSpacing.sm),
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs)
+                ) {
+                    // Bouton chat
+                    IconButton(
+                        onClick = { onChat(visite) },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Chat,
+                            contentDescription = "Chat",
+                            tint = AppColors.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }

@@ -11,6 +11,8 @@
         <domain includeSubdomains="true">192.168.1.101</domain>
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">172.16.11.55</domain>
+        <domain includeSubdomains="true">172.29.224.1</domain>
     </domain-config>
     <!-- Configuration de base pour permettre le HTTP en développement -->
     <base-config cleartextTrafficPermitted="true">

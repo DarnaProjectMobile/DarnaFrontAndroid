@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -50,6 +51,8 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -91,13 +94,23 @@ import com.sim.darna.ui.components.ConfirmationDialog
 import com.sim.darna.ui.components.defaultSlideAnimationSpec
 import com.sim.darna.visite.VisiteResponse
 import com.sim.darna.visite.VisiteViewModel
+import androidx.navigation.NavController
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
+import com.sim.darna.navigation.Routes
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
 
 @Composable
-fun MyVisitsScreen(viewModel: VisiteViewModel) {
+fun MyVisitsScreen(
+    viewModel: VisiteViewModel,
+    navController: NavController? = null,
+    parentNavController: NavHostController? = null
+) {
     val context = LocalContext.current
     val uiState = viewModel.state.collectAsState().value
     var editingVisite by remember { mutableStateOf<VisiteResponse?>(null) }
@@ -105,6 +118,9 @@ fun MyVisitsScreen(viewModel: VisiteViewModel) {
     var showDeleteConfirmation by remember { mutableStateOf<String?>(null) }
     var ratingVisite by remember { mutableStateOf<VisiteResponse?>(null) }
     var selectedStatusFilter by remember { mutableStateOf<String?>(null) }
+    
+    // État pour le pull-to-refresh
+    val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = uiState.isLoadingList)
 
     LaunchedEffect(Unit) {
         viewModel.loadVisites()
@@ -277,34 +293,59 @@ fun MyVisitsScreen(viewModel: VisiteViewModel) {
                     }
                 }
                 else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(AppSpacing.md),
-                        contentPadding = PaddingValues(bottom = AppSpacing.xl)
+                    SwipeRefresh(
+                        state = swipeRefreshState,
+                        onRefresh = { viewModel.loadVisites(force = true) },
+                        modifier = Modifier.fillMaxSize()
                     ) {
-                        items(
-                            items = filteredVisites,
-                            key = { visite -> visite.id ?: visite.dateVisite ?: "" }
-                        ) { visite ->
-                            AnimatedVisibility(
-                                visible = true,
-                                enter = fadeIn() + slideInVertically(
-                                    initialOffsetY = { it / 2 },
-                                    animationSpec = defaultSlideAnimationSpec
-                                ),
-                                exit = fadeOut() + slideOutVertically(
-                                    targetOffsetY = { it / 2 },
-                                    animationSpec = defaultSlideAnimationSpec
-                                )
-                            ) {
-                                ModernVisitCard(
-                                    visite = visite,
-                                    onEdit = { editingVisite = it },
-                                    onCancel = { id -> showCancelConfirmation = id },
-                                    onDelete = { id -> showDeleteConfirmation = id },
-                                    onValidate = { id -> viewModel.validateVisite(id) },
-                                    onRate = { ratingVisite = it }
-                                )
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(AppSpacing.md),
+                            contentPadding = PaddingValues(bottom = AppSpacing.xl)
+                        ) {
+                            items(
+                                items = filteredVisites,
+                                key = { visite -> visite.id ?: visite.dateVisite ?: "" }
+                            ) { visite ->
+                                AnimatedVisibility(
+                                    visible = true,
+                                    enter = fadeIn() + slideInVertically(
+                                        initialOffsetY = { it / 2 },
+                                        animationSpec = defaultSlideAnimationSpec
+                                    ),
+                                    exit = fadeOut() + slideOutVertically(
+                                        targetOffsetY = { it / 2 },
+                                        animationSpec = defaultSlideAnimationSpec
+                                    )
+                                ) {
+                                    ModernVisitCard(
+                                        visite = visite,
+                                        onEdit = { editingVisite = it },
+                                        onCancel = { id -> showCancelConfirmation = id },
+                                        onDelete = { id -> showDeleteConfirmation = id },
+                                        onValidate = { id -> viewModel.validateVisite(id) },
+                                        onRate = { ratingVisite = it },
+                                        onChat = { visite ->
+                                            val visiteId = visite.id
+                                            if (visiteId == null) {
+                                                Toast.makeText(context, "ID de visite manquant", Toast.LENGTH_SHORT).show()
+                                                return@ModernVisitCard
+                                            }
+                                            val visiteTitle = getLogementTitle(visite)
+                                            val encodedTitle = URLEncoder.encode(visiteTitle, StandardCharsets.UTF_8.name())
+                                            try {
+                                                // Utiliser parentNavController pour naviguer vers Chat dans le NavHost principal
+                                                val targetNavController = parentNavController ?: navController
+                                                targetNavController?.navigate("chat/$visiteId/$encodedTitle") ?: run {
+                                                    Toast.makeText(context, "Navigation non disponible", Toast.LENGTH_SHORT).show()
+                                                }
+                                            } catch (e: Exception) {
+                                                android.util.Log.e("MyVisitsScreen", "Erreur de navigation", e)
+                                                Toast.makeText(context, "Erreur de navigation: ${e.message}", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -437,7 +478,8 @@ private fun ModernVisitCard(
     onCancel: (String) -> Unit,
     onDelete: (String) -> Unit,
     onValidate: (String) -> Unit,
-    onRate: (VisiteResponse) -> Unit
+    onRate: (VisiteResponse) -> Unit,
+    onChat: (VisiteResponse) -> Unit
 ) {
     val statusStyle = mapStatus(visite.status)
     val isPending = visite.status?.equals("pending", ignoreCase = true) == true || 
@@ -649,8 +691,20 @@ private fun ModernVisitCard(
                             )
                         }
                     }
-                    // Pour les visites "Acceptée": Afficher Annuler (icône) - remplace Modifier
+                    // Pour les visites "Acceptée": Afficher Chat et Annuler
                     else if (canCancel) {
+                        // Chat (icône)
+                        IconButton(
+                            onClick = { onChat(visite) },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Chat,
+                                contentDescription = "Chat",
+                                tint = AppColors.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                         // Annuler (icône)
                         IconButton(
                             onClick = { visite.id?.let(onCancel) },

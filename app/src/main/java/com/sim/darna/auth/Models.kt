@@ -20,3 +20,23 @@ data class UserDto(
     val email: String,
     val role: String
 )
+
+data class ForgotPasswordRequest(
+    val email: String
+)
+
+data class ForgotPasswordResponse(
+    val message: String
+)
+
+data class ResetPasswordRequest(
+    val code: String,
+    @SerializedName("newPassword")
+    val newPassword: String,
+    @SerializedName("confirmPassword")
+    val confirmPassword: String
+)
+
+data class ResetPasswordResponse(
+    val message: String
+)

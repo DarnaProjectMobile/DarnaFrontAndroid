@@ -30,7 +30,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sim.darna.R
 import com.sim.darna.auth.LoginViewModel
 import com.sim.darna.auth.SessionManager
+import com.sim.darna.auth.ForgotPasswordViewModel
+import com.sim.darna.auth.ForgotPasswordStep
 import com.sim.darna.factory.LoginVmFactory
+import com.sim.darna.factory.ForgotPasswordVmFactory
 import com.sim.darna.network.NetworkConfig
 import com.sim.darna.network.NetworkConfigManager
 import com.sim.darna.firebase.FirebaseNotificationManager
@@ -54,6 +57,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
     var passwordVisible by remember { mutableStateOf(false) }
     var showIpConfigDialog by remember { mutableStateOf(false) }
     var ipInput by remember { mutableStateOf("") }
+    var showForgotPasswordDialog by remember { mutableStateOf(false) }
 
     // ✅ ViewModel setup (backend Nest sur la machine hôte, accès depuis téléphone réel)
     // Forcer le rafraîchissement de l'URL à chaque affichage de l'écran
@@ -262,7 +266,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
 
         // Forgot Password
         TextButton(
-            onClick = { /* TODO: Forgot password */ },
+            onClick = { showForgotPasswordDialog = true },
             modifier = Modifier.align(Alignment.End)
         ) {
             Text(
@@ -565,4 +569,286 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
             }
         )
     }
+    
+    // Forgot Password Dialog
+    if (showForgotPasswordDialog) {
+        ForgotPasswordDialog(
+            onDismiss = { showForgotPasswordDialog = false },
+            baseUrl = baseUrl
+        )
+    }
+}
+
+@Composable
+fun ForgotPasswordDialog(
+    onDismiss: () -> Unit,
+    baseUrl: String
+) {
+    val context = LocalContext.current
+    var email by remember { mutableStateOf("") }
+    var resetCode by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var newPasswordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var codeError by remember { mutableStateOf<String?>(null) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
+    var confirmPasswordError by remember { mutableStateOf<String?>(null) }
+
+    val viewModel: ForgotPasswordViewModel = viewModel(
+        factory = ForgotPasswordVmFactory(baseUrl)
+    )
+    val uiState = viewModel.state.collectAsState().value
+    val coroutineScope = rememberCoroutineScope()
+
+    // React to success
+    LaunchedEffect(uiState.success) {
+        if (uiState.success && uiState.step == ForgotPasswordStep.RESET_PASSWORD && resetCode.isNotBlank()) {
+            // Password reset successful
+            Toast.makeText(context, uiState.message ?: "Mot de passe réinitialisé avec succès", Toast.LENGTH_SHORT).show()
+            onDismiss()
+        } else if (uiState.success && uiState.step == ForgotPasswordStep.REQUEST_CODE) {
+            // Code sent successfully
+            Toast.makeText(context, uiState.message ?: "Code envoyé à votre email", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // React to errors
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun validateEmail(emailStr: String): String? {
+        return when {
+            emailStr.isBlank() -> "L'email est requis"
+            !emailStr.matches(Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) -> "Format d'email invalide"
+            else -> null
+        }
+    }
+
+    fun validatePassword(pass: String): String? {
+        return when {
+            pass.isBlank() -> "Le mot de passe est requis"
+            pass.length < 6 -> "Le mot de passe doit contenir au moins 6 caractères"
+            else -> null
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = {
+            if (!uiState.isLoading) {
+                viewModel.reset()
+                onDismiss()
+            }
+        },
+        title = {
+            Text(
+                text = if (uiState.step == ForgotPasswordStep.REQUEST_CODE) "Mot de passe oublié" else "Réinitialiser le mot de passe",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (uiState.step == ForgotPasswordStep.REQUEST_CODE) {
+                    Text(
+                        text = "Entrez votre adresse email pour recevoir un code de réinitialisation",
+                        fontSize = 14.sp,
+                        color = Color(0xFF757575)
+                    )
+                    
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = {
+                            email = it
+                            emailError = validateEmail(it)
+                        },
+                        label = { Text("Email") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Email,
+                                contentDescription = "Email"
+                            )
+                        },
+                        isError = emailError != null,
+                        supportingText = emailError?.let { { Text(it) } },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        enabled = !uiState.isLoading,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF00B8D4),
+                            focusedLabelColor = Color(0xFF00B8D4)
+                        )
+                    )
+                } else {
+                    Text(
+                        text = "Entrez le code reçu par email et votre nouveau mot de passe",
+                        fontSize = 14.sp,
+                        color = Color(0xFF757575)
+                    )
+                    
+                    OutlinedTextField(
+                        value = resetCode,
+                        onValueChange = {
+                            resetCode = it
+                            codeError = if (it.isBlank()) "Le code est requis" else null
+                        },
+                        label = { Text("Code de réinitialisation") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Code"
+                            )
+                        },
+                        isError = codeError != null,
+                        supportingText = codeError?.let { { Text(it) } },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        enabled = !uiState.isLoading,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF00B8D4),
+                            focusedLabelColor = Color(0xFF00B8D4)
+                        )
+                    )
+                    
+                    OutlinedTextField(
+                        value = newPassword,
+                        onValueChange = {
+                            newPassword = it
+                            passwordError = validatePassword(it)
+                            if (confirmPassword.isNotBlank() && it != confirmPassword) {
+                                confirmPasswordError = "Les mots de passe ne correspondent pas"
+                            } else {
+                                confirmPasswordError = null
+                            }
+                        },
+                        label = { Text("Nouveau mot de passe") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Password"
+                            )
+                        },
+                        trailingIcon = {
+                            IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
+                                Icon(
+                                    imageVector = if (newPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = if (newPasswordVisible) "Masquer" else "Afficher"
+                                )
+                            }
+                        },
+                        visualTransformation = if (newPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        isError = passwordError != null,
+                        supportingText = passwordError?.let { { Text(it) } },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        enabled = !uiState.isLoading,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF00B8D4),
+                            focusedLabelColor = Color(0xFF00B8D4)
+                        )
+                    )
+                    
+                    OutlinedTextField(
+                        value = confirmPassword,
+                        onValueChange = {
+                            confirmPassword = it
+                            confirmPasswordError = when {
+                                it.isBlank() -> "La confirmation est requise"
+                                it != newPassword -> "Les mots de passe ne correspondent pas"
+                                else -> null
+                            }
+                        },
+                        label = { Text("Confirmer le mot de passe") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Confirm Password"
+                            )
+                        },
+                        trailingIcon = {
+                            IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                                Icon(
+                                    imageVector = if (confirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = if (confirmPasswordVisible) "Masquer" else "Afficher"
+                                )
+                            }
+                        },
+                        visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        isError = confirmPasswordError != null,
+                        supportingText = confirmPasswordError?.let { { Text(it) } },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        enabled = !uiState.isLoading,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF00B8D4),
+                            focusedLabelColor = Color(0xFF00B8D4)
+                        )
+                    )
+                }
+                
+                if (uiState.isLoading) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+            }
+        },
+        confirmButton = {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                TextButton(
+                    onClick = {
+                        if (uiState.step == ForgotPasswordStep.RESET_PASSWORD) {
+                            viewModel.reset()
+                        } else {
+                            viewModel.reset()
+                            onDismiss()
+                        }
+                    },
+                    enabled = !uiState.isLoading
+                ) {
+                    Text("Annuler")
+                }
+                Button(
+                    onClick = {
+                        if (uiState.step == ForgotPasswordStep.REQUEST_CODE) {
+                            emailError = validateEmail(email)
+                            if (emailError == null) {
+                                coroutineScope.launch {
+                                    viewModel.requestResetCode(email)
+                                }
+                            }
+                        } else {
+                            codeError = if (resetCode.isBlank()) "Le code est requis" else null
+                            passwordError = validatePassword(newPassword)
+                            confirmPasswordError = when {
+                                confirmPassword.isBlank() -> "La confirmation est requise"
+                                confirmPassword != newPassword -> "Les mots de passe ne correspondent pas"
+                                else -> null
+                            }
+                            
+                            if (codeError == null && passwordError == null && confirmPasswordError == null) {
+                                coroutineScope.launch {
+                                    viewModel.resetPassword(resetCode, newPassword, confirmPassword)
+                                }
+                            }
+                        }
+                    },
+                    enabled = !uiState.isLoading,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00B8D4))
+                ) {
+                    Text(
+                        if (uiState.step == ForgotPasswordStep.REQUEST_CODE) "Envoyer le code" else "Réinitialiser"
+                    )
+                }
+            }
+        }
+    )
 }
