@@ -1,11 +1,10 @@
 package com.sim.darna.screens
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,98 +14,44 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.EventBusy
-import androidx.compose.material.icons.filled.EventNote
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Inbox
-import androidx.compose.material.icons.filled.Note
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.TaskAlt
-import androidx.compose.material.icons.filled.WarningAmber
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.sim.darna.ui.components.AppColors
-import com.sim.darna.ui.components.AppRadius
-import com.sim.darna.ui.components.AppSpacing
-import com.sim.darna.ui.components.ElevatedCard
-import com.sim.darna.ui.components.EmptyStateCard
-import com.sim.darna.ui.components.FeedbackBanner
-import com.sim.darna.ui.components.SkeletonBox
-import com.sim.darna.ui.components.AnimatedPageTransition
-import com.sim.darna.ui.components.ConfirmationDialog
-import com.sim.darna.ui.components.defaultSlideAnimationSpec
+import com.sim.darna.ui.components.*
 import com.sim.darna.visite.VisiteResponse
 import com.sim.darna.visite.VisiteViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
-import com.sim.darna.navigation.Routes
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
-import java.util.TimeZone
+import java.util.*
+import kotlin.math.sin
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyVisitsScreen(
     viewModel: VisiteViewModel,
@@ -121,7 +66,6 @@ fun MyVisitsScreen(
     var ratingVisite by remember { mutableStateOf<VisiteResponse?>(null) }
     var selectedStatusFilter by remember { mutableStateOf<String?>(null) }
     
-    // État pour le pull-to-refresh
     val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = uiState.isLoadingList)
 
     LaunchedEffect(Unit) {
@@ -138,7 +82,6 @@ fun MyVisitsScreen(
     LaunchedEffect(uiState.error) {
         uiState.error?.let { error ->
             Toast.makeText(context, error, Toast.LENGTH_LONG).show()
-            // Si l'erreur indique qu'une visite n'existe plus, recharger la liste
             if (error.contains("n'existe plus", ignoreCase = true) || 
                 error.contains("supprimée", ignoreCase = true)) {
                 kotlinx.coroutines.delay(1000)
@@ -151,47 +94,35 @@ fun MyVisitsScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppColors.background)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        AppColors.background,
+                        AppColors.surfaceVariant.copy(alpha = 0.3f)
+                    )
+                )
+            )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = AppSpacing.md)
         ) {
-            // Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = AppSpacing.lg, bottom = AppSpacing.md),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Mes visites",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AppColors.textPrimary
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "${uiState.visites.size} visite${if (uiState.visites.size > 1) "s" else ""}",
-                        fontSize = 13.sp,
-                        color = AppColors.textSecondary
-                    )
-                }
-            }
+            // Header moderne avec animation
+            ModernHeader(visitCount = uiState.visites.size)
 
-            // Progress Indicator
+            Spacer(modifier = Modifier.height(AppSpacing.sm))
+
+            // Progress Indicator avec animation
             AnimatedVisibility(
                 visible = uiState.isSubmitting,
-                enter = slideInVertically() + fadeIn(),
-                exit = slideOutVertically() + fadeOut()
+                enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()
             ) {
                 LinearProgressIndicator(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(AppRadius.md)),
+                        .clip(RoundedCornerShape(AppRadius.round)),
                     color = AppColors.primary,
                     trackColor = AppColors.divider
                 )
@@ -202,8 +133,8 @@ fun MyVisitsScreen(
             // Error Banner
             AnimatedVisibility(
                 visible = uiState.error != null,
-                enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
-                exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()
+                enter = slideInVertically(initialOffsetY = { -it }) + fadeIn() + expandVertically(),
+                exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut() + shrinkVertically()
             ) {
                 uiState.error?.let { error ->
                     FeedbackBanner(
@@ -217,8 +148,8 @@ fun MyVisitsScreen(
 
             Spacer(modifier = Modifier.height(AppSpacing.md))
 
-            // Statut filters avec compteurs
-            StatusFiltersSection(
+            // Filtres de statut avec animation
+            AnimatedStatusFilters(
                 visites = uiState.visites,
                 selectedFilter = selectedStatusFilter,
                 onFilterSelected = { status -> 
@@ -228,7 +159,7 @@ fun MyVisitsScreen(
 
             Spacer(modifier = Modifier.height(AppSpacing.md))
 
-            // Filtrer les visites selon le statut sélectionné
+            // Filtrer les visites
             val filteredVisites = remember(uiState.visites, selectedStatusFilter) {
                 if (selectedStatusFilter == null) {
                     uiState.visites
@@ -249,11 +180,11 @@ fun MyVisitsScreen(
                 }
             }
 
-            // Content
+            // Content avec animations
             when {
                 uiState.isLoadingList && filteredVisites.isEmpty() -> {
                     AnimatedPageTransition(visible = true) {
-                        VisitSkeletonList()
+                        ModernVisitSkeletonList()
                     }
                 }
                 filteredVisites.isEmpty() -> {
@@ -292,49 +223,37 @@ fun MyVisitsScreen(
                             verticalArrangement = Arrangement.spacedBy(AppSpacing.md),
                             contentPadding = PaddingValues(bottom = AppSpacing.xl)
                         ) {
-                            items(
+                            itemsIndexed(
                                 items = filteredVisites,
-                                key = { visite -> visite.id ?: visite.dateVisite ?: "" }
-                            ) { visite ->
-                                AnimatedVisibility(
-                                    visible = true,
-                                    enter = fadeIn() + slideInVertically(
-                                        initialOffsetY = { it / 2 },
-                                        animationSpec = defaultSlideAnimationSpec
-                                    ),
-                                    exit = fadeOut() + slideOutVertically(
-                                        targetOffsetY = { it / 2 },
-                                        animationSpec = defaultSlideAnimationSpec
-                                    )
-                                ) {
-                                    ModernVisitCard(
-                                        visite = visite,
-                                        onEdit = { editingVisite = it },
-                                        onCancel = { id -> showCancelConfirmation = id },
-                                        onDelete = { id -> showDeleteConfirmation = id },
-                                        onValidate = { id -> viewModel.validateVisite(id) },
-                                        onRate = { ratingVisite = it },
-                                        onChat = { visite ->
-                                            val visiteId = visite.id
-                                            if (visiteId == null) {
-                                                Toast.makeText(context, "ID de visite manquant", Toast.LENGTH_SHORT).show()
-                                                return@ModernVisitCard
-                                            }
-                                            val visiteTitle = getLogementTitle(visite)
-                                            val encodedTitle = URLEncoder.encode(visiteTitle, StandardCharsets.UTF_8.name())
-                                            try {
-                                                // Utiliser parentNavController pour naviguer vers Chat dans le NavHost principal
-                                                val targetNavController = parentNavController ?: navController
-                                                targetNavController?.navigate("chat/$visiteId/$encodedTitle") ?: run {
-                                                    Toast.makeText(context, "Navigation non disponible", Toast.LENGTH_SHORT).show()
-                                                }
-                                            } catch (e: Exception) {
-                                                android.util.Log.e("MyVisitsScreen", "Erreur de navigation", e)
-                                                Toast.makeText(context, "Erreur de navigation: ${e.message}", Toast.LENGTH_SHORT).show()
-                                            }
+                                key = { _, visite -> visite.id ?: visite.dateVisite ?: "" }
+                            ) { index, visite ->
+                                AnimatedVisitCard(
+                                    visite = visite,
+                                    index = index,
+                                    onEdit = { editingVisite = it },
+                                    onCancel = { id -> showCancelConfirmation = id },
+                                    onDelete = { id -> showDeleteConfirmation = id },
+                                    onValidate = { id -> viewModel.validateVisite(id) },
+                                    onRate = { ratingVisite = it },
+                                    onChat = { visite ->
+                                        val visiteId = visite.id
+                                        if (visiteId == null) {
+                                            Toast.makeText(context, "ID de visite manquant", Toast.LENGTH_SHORT).show()
+                                            return@AnimatedVisitCard
                                         }
-                                    )
-                                }
+                                        val visiteTitle = getLogementTitle(visite)
+                                        val encodedTitle = URLEncoder.encode(visiteTitle, StandardCharsets.UTF_8.name())
+                                        try {
+                                            val targetNavController = parentNavController ?: navController
+                                            targetNavController?.navigate("chat/$visiteId/$encodedTitle") ?: run {
+                                                Toast.makeText(context, "Navigation non disponible", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("MyVisitsScreen", "Erreur de navigation", e)
+                                            Toast.makeText(context, "Erreur de navigation: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                )
                             }
                         }
                     }
@@ -343,7 +262,7 @@ fun MyVisitsScreen(
         }
     }
 
-    // Cancel Confirmation
+    // Dialogs
     showCancelConfirmation?.let { id ->
         ConfirmationDialog(
             title = "Annuler la visite",
@@ -359,7 +278,6 @@ fun MyVisitsScreen(
         )
     }
 
-    // Delete Confirmation
     showDeleteConfirmation?.let { id ->
         ConfirmationDialog(
             title = "Supprimer la visite",
@@ -375,7 +293,19 @@ fun MyVisitsScreen(
         )
     }
 
-    // Rating Dialog
+    editingVisite?.let { visite ->
+        ModificationDialog(
+            visite = visite,
+            onDismiss = { editingVisite = null },
+            onSubmit = { dateMillis, hour, minute, notes, contactPhone ->
+                visite.id?.let { id ->
+                    viewModel.updateVisite(id, dateMillis, hour, minute, notes, contactPhone)
+                }
+                editingVisite = null
+            }
+        )
+    }
+
     ratingVisite?.let { visite ->
         RatingDialog(
             visiteTitle = getLogementTitle(visite),
@@ -383,7 +313,6 @@ fun MyVisitsScreen(
             onSubmit = { collector, clean, location, conformity, comment ->
                 val visiteId = visite.id
                 if (visiteId != null && visiteId.isNotBlank()) {
-                    // Vérifier que la visite peut être évaluée
                     if (visite.validated == true && 
                         visite.status.equals("completed", ignoreCase = true) &&
                         visite.reviewId == null) {
@@ -405,7 +334,6 @@ fun MyVisitsScreen(
                         ratingVisite = null
                     }
                 } else {
-                    // Afficher une erreur si l'ID est manquant
                     Toast.makeText(
                         context,
                         "Erreur: L'identifiant de la visite est manquant. Veuillez actualiser la liste.",
@@ -419,22 +347,272 @@ fun MyVisitsScreen(
 }
 
 @Composable
-private fun VisitSkeletonList() {
-    Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.lg)) {
-        repeat(3) {
-            ElevatedCard {
-                Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.md)) {
-                    SkeletonBox(modifier = Modifier.fillMaxWidth().height(20.dp))
-                    SkeletonBox(modifier = Modifier.fillMaxWidth().height(16.dp))
+private fun ModernHeader(visitCount: Int) {
+    val infiniteTransition = rememberInfiniteTransition(label = "header_pulse")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha_animation"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = AppSpacing.lg, bottom = AppSpacing.md)
+    ) {
+        // Background gradient avec animation
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(80.dp)
+                .alpha(alpha)
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            AppColors.primary.copy(alpha = 0.1f),
+                            AppColors.secondary.copy(alpha = 0.1f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(AppRadius.lg)
+                )
+        )
+        
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(AppSpacing.md),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "Mes visites",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = AppColors.textPrimary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = AppColors.primary.copy(alpha = 0.2f),
+                        modifier = Modifier.size(6.dp)
+                    ) {}
+                    Text(
+                        text = "$visitCount visite${if (visitCount > 1) "s" else ""}",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = AppColors.textSecondary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AnimatedStatusFilters(
+    visites: List<VisiteResponse>,
+    selectedFilter: String?,
+    onFilterSelected: (String?) -> Unit
+) {
+    val filters = remember(visites) {
+        listOf(
+            FilterItem("pending", "En attente", Icons.Default.Schedule, AppColors.warning),
+            FilterItem("confirmed", "Acceptée", Icons.Default.CheckCircle, AppColors.success),
+            FilterItem("completed", "Terminée", Icons.Default.TaskAlt, AppColors.info),
+            FilterItem("refused", "Refusée", Icons.Default.Cancel, AppColors.danger)
+        )
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
+    ) {
+        filters.forEach { filter ->
+            val count = visites.count { visite ->
+                when (filter.key) {
+                    "pending" -> visite.status?.equals("pending", ignoreCase = true) == true || 
+                                (visite.status == null || visite.status.equals("en attente", ignoreCase = true))
+                    "confirmed" -> visite.status?.equals("confirmed", ignoreCase = true) == true ||
+                                   visite.status?.equals("acceptée", ignoreCase = true) == true
+                    "refused" -> visite.status?.equals("refused", ignoreCase = true) == true ||
+                                 visite.status?.equals("refusée", ignoreCase = true) == true
+                    "completed" -> visite.status?.equals("completed", ignoreCase = true) == true ||
+                                  visite.status?.equals("terminée", ignoreCase = true) == true
+                    else -> false
+                }
+            }
+            
+            AnimatedFilterChip(
+                filter = filter,
+                count = count,
+                isSelected = selectedFilter == filter.key,
+                onClick = { onFilterSelected(filter.key) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun AnimatedFilterChip(
+    filter: FilterItem,
+    count: Int,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.05f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "chip_scale"
+    )
+
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isSelected) filter.color.copy(alpha = 0.2f) else AppColors.surface,
+        animationSpec = tween(300),
+        label = "chip_bg"
+    )
+
+    Surface(
+        modifier = Modifier
+            .scale(scale)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(AppRadius.round),
+        color = backgroundColor,
+        border = BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) filter.color else AppColors.divider
+        ),
+        shadowElevation = if (isSelected) 4.dp else 0.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = filter.icon,
+                contentDescription = null,
+                tint = if (isSelected) filter.color else AppColors.textSecondary,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = filter.label,
+                fontSize = 14.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSelected) filter.color else AppColors.textPrimary
+            )
+            if (count > 0) {
+                Surface(
+                    shape = CircleShape,
+                    color = if (isSelected) filter.color else AppColors.textSecondary
+                ) {
+                    Text(
+                        text = count.toString(),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModernVisitSkeletonList() {
+    Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.md)) {
+        repeat(3) { index ->
+            val infiniteTransition = rememberInfiniteTransition(label = "skeleton_$index")
+            val alpha by infiniteTransition.animateFloat(
+                initialValue = 0.3f,
+                targetValue = 0.7f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1000, delayMillis = index * 200),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "skeleton_alpha"
+            )
+            
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .alpha(alpha),
+                shape = RoundedCornerShape(AppRadius.lg),
+                colors = CardDefaults.cardColors(containerColor = AppColors.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(AppSpacing.md),
+                    verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
+                ) {
+                    SkeletonBox(modifier = Modifier.fillMaxWidth(0.6f).height(24.dp))
+                    SkeletonBox(modifier = Modifier.fillMaxWidth(0.4f).height(16.dp))
                     SkeletonBox(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(120.dp),
+                            .height(100.dp),
                         shape = RoundedCornerShape(AppRadius.md)
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AnimatedVisitCard(
+    visite: VisiteResponse,
+    index: Int,
+    onEdit: (VisiteResponse) -> Unit,
+    onCancel: (String) -> Unit,
+    onDelete: (String) -> Unit,
+    onValidate: (String) -> Unit,
+    onRate: (VisiteResponse) -> Unit,
+    onChat: (VisiteResponse) -> Unit
+) {
+    var isVisible by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay((index * 100).toLong())
+        isVisible = true
+    }
+
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = fadeIn(animationSpec = tween(500)) + 
+                slideInVertically(
+                    initialOffsetY = { it / 2 },
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
+                ) + 
+                scaleIn(initialScale = 0.8f, animationSpec = tween(500)),
+        exit = fadeOut() + slideOutVertically() + scaleOut()
+    ) {
+        ModernVisitCard(
+            visite = visite,
+            onEdit = onEdit,
+            onCancel = onCancel,
+            onDelete = onDelete,
+            onValidate = onValidate,
+            onRate = onRate,
+            onChat = onChat
+        )
     }
 }
 
@@ -462,19 +640,24 @@ private fun ModernVisitCard(
             (visite.validated == true) &&
             visite.reviewId == null &&
             visite.id != null
-    // Permettre l'annulation même après acceptation
     val canCancel = isAccepted && visite.id != null
-    // Permettre la suppression pour les visites en attente uniquement
     val canDelete = isPending && visite.id != null
 
-    // Animation pour la carte
+    var isHovered by remember { mutableStateOf(false) }
+    
     val scale by animateFloatAsState(
-        targetValue = 1f,
+        targetValue = if (isHovered) 1.02f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
+            stiffness = Spring.StiffnessMedium
         ),
         label = "card_scale"
+    )
+
+    val elevation by animateDpAsState(
+        targetValue = if (isHovered) 8.dp else 4.dp,
+        animationSpec = tween(300),
+        label = "card_elevation"
     )
     
     Card(
@@ -482,32 +665,46 @@ private fun ModernVisitCard(
             .fillMaxWidth()
             .scale(scale)
             .shadow(
-                elevation = 4.dp,
+                elevation = elevation,
                 shape = RoundedCornerShape(AppRadius.lg),
-                spotColor = statusStyle.color.copy(alpha = 0.2f)
+                spotColor = statusStyle.color.copy(alpha = 0.3f)
             ),
         shape = RoundedCornerShape(AppRadius.lg),
-        colors = CardDefaults.cardColors(containerColor = AppColors.surface),
+        colors = CardDefaults.cardColors(
+            containerColor = AppColors.surface
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(
             width = 2.dp,
-            color = statusStyle.color.copy(alpha = 0.3f)
+            brush = Brush.horizontalGradient(
+                colors = listOf(
+                    statusStyle.color.copy(alpha = 0.4f),
+                    statusStyle.color.copy(alpha = 0.2f)
+                )
+            )
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(0.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            AppColors.surface,
+                            AppColors.surfaceVariant.copy(alpha = 0.2f)
+                        )
+                    )
+                )
         ) {
-            // Header avec gradient moderne
+            // Header avec effet glassmorphism
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                        Brush.horizontalGradient(
                             colors = listOf(
-                                statusStyle.color.copy(alpha = 0.1f),
-                                statusStyle.color.copy(alpha = 0.05f)
+                                statusStyle.color.copy(alpha = 0.15f),
+                                statusStyle.color.copy(alpha = 0.08f)
                             )
                         )
                     )
@@ -515,7 +712,7 @@ private fun ModernVisitCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = AppSpacing.md, vertical = AppSpacing.md),
+                        .padding(AppSpacing.md),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -524,11 +721,25 @@ private fun ModernVisitCard(
                         horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm),
                         modifier = Modifier.weight(1f)
                     ) {
-                        // Icône de statut avec fond circulaire
+                        // Icône animée
+                        val infiniteTransition = rememberInfiniteTransition(label = "icon_pulse")
+                        val iconScale by infiniteTransition.animateFloat(
+                            initialValue = 1f,
+                            targetValue = 1.1f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(1500),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "icon_scale"
+                        )
+                        
                         Surface(
-                            modifier = Modifier.size(40.dp),
+                            modifier = Modifier
+                                .size(48.dp)
+                                .scale(iconScale),
                             shape = CircleShape,
-                            color = statusStyle.color.copy(alpha = 0.15f)
+                            color = statusStyle.color.copy(alpha = 0.2f),
+                            border = BorderStroke(2.dp, statusStyle.color.copy(alpha = 0.4f))
                         ) {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
@@ -538,241 +749,212 @@ private fun ModernVisitCard(
                                     imageVector = statusStyle.icon,
                                     contentDescription = null,
                                     tint = statusStyle.color,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
+                        
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = getLogementTitle(visite),
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.ExtraBold,
                                 color = AppColors.textPrimary
                             )
                         }
                     }
-                    // Tag de statut moderne
+                    
+                    // Badge de statut avec animation
                     Surface(
                         shape = RoundedCornerShape(AppRadius.round),
-                        color = statusStyle.color.copy(alpha = 0.2f),
-                        border = BorderStroke(1.dp, statusStyle.color.copy(alpha = 0.4f))
+                        color = statusStyle.color.copy(alpha = 0.25f),
+                        border = BorderStroke(1.5.dp, statusStyle.color.copy(alpha = 0.5f))
                     ) {
                         Text(
                             text = statusStyle.label,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
                             color = statusStyle.color
                         )
                     }
                 }
             }
 
-            // Contenu
+            // Contenu avec animations
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(AppSpacing.md),
                 verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)
             ) {
-                // Date / heure
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                // Date / heure avec icône animée
+                Surface(
+                    shape = RoundedCornerShape(AppRadius.md),
+                    color = AppColors.surfaceVariant.copy(alpha = 0.5f)
                 ) {
                     Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(AppSpacing.sm),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(
-                            Icons.Default.Schedule,
-                            contentDescription = null,
-                            tint = AppColors.textSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = AppColors.primary.copy(alpha = 0.15f),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Schedule,
+                                    contentDescription = null,
+                                    tint = AppColors.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                         Column {
                             Text(
                                 text = formatDate(visite.dateVisite),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
                                 color = AppColors.textPrimary
                             )
                             Text(
                                 text = formatTime(visite.dateVisite),
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 color = AppColors.textSecondary
                             )
                         }
                     }
                 }
 
-                // Séparateur
+                // Contact et notes
                 if (!visite.contactPhone.isNullOrBlank() || !visite.notes.isNullOrBlank()) {
                     Divider(
-                        color = AppColors.divider,
+                        color = AppColors.divider.copy(alpha = 0.5f),
                         thickness = 1.dp,
                         modifier = Modifier.padding(vertical = AppSpacing.xs)
                     )
                 }
 
-                // Contact téléphone
                 if (!visite.contactPhone.isNullOrBlank()) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Icon(
                             Icons.Default.Person,
                             contentDescription = null,
                             tint = AppColors.textSecondary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                         Text(
                             text = visite.contactPhone,
                             fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
                             color = AppColors.textPrimary
                         )
                     }
                 }
 
-                // Notes
                 if (!visite.notes.isNullOrBlank()) {
-                    if (!visite.contactPhone.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(AppSpacing.xs))
-                    }
-                    Row(
-                        verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Surface(
+                        shape = RoundedCornerShape(AppRadius.sm),
+                        color = AppColors.info.copy(alpha = 0.08f),
+                        border = BorderStroke(1.dp, AppColors.info.copy(alpha = 0.2f))
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Note,
-                            contentDescription = null,
-                            tint = AppColors.textSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = visite.notes ?: "",
-                            fontSize = 13.sp,
-                            color = AppColors.textSecondary,
-                            lineHeight = 18.sp,
-                            modifier = Modifier.weight(1f)
-                        )
+                        Row(
+                            modifier = Modifier.padding(AppSpacing.sm),
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Note,
+                                contentDescription = null,
+                                tint = AppColors.info,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = visite.notes ?: "",
+                                fontSize = 14.sp,
+                                color = AppColors.textPrimary,
+                                lineHeight = 20.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
             }
 
-            // Actions - Ne pas afficher pour les visites refusées
+            // Actions avec animations
             if (!isRefused && (canValidate || canRate || canCancel || canDelete || visite.id != null)) {
-                Divider(color = AppColors.divider, thickness = 1.dp)
+                Divider(color = AppColors.divider.copy(alpha = 0.5f), thickness = 1.dp)
+                
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(AppSpacing.sm),
                     horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs)
                 ) {
-                    // Pour les visites "En attente": Afficher Modifier et Supprimer (icône poubelle)
                     if (isPending && visite.id != null) {
-                        // Modifier
-                        TextButton(
+                        AnimatedActionButton(
                             onClick = { onEdit(visite) },
+                            icon = Icons.Default.Edit,
+                            label = "Modifier",
+                            color = AppColors.primary,
                             modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                Icons.Default.Edit,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = AppColors.primary
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text("Modifier", fontSize = 13.sp, color = AppColors.primary)
-                        }
+                        )
                         
-                        // Supprimer (icône poubelle)
-                        IconButton(
+                        AnimatedIconButton(
                             onClick = { onDelete(visite.id) },
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Supprimer",
-                                tint = AppColors.danger,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
+                            icon = Icons.Default.Delete,
+                            color = AppColors.danger
+                        )
                     }
-                    // Pour les visites "Acceptée": Afficher Chat et Annuler
                     else if (canCancel) {
-                        // Chat (icône)
-                        IconButton(
+                        AnimatedIconButton(
                             onClick = { onChat(visite) },
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Chat,
-                                contentDescription = "Chat",
-                                tint = AppColors.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        // Annuler (icône)
-                        IconButton(
+                            icon = Icons.Default.Chat,
+                            color = AppColors.primary
+                        )
+                        
+                        AnimatedIconButton(
                             onClick = { visite.id?.let(onCancel) },
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Cancel,
-                                contentDescription = "Annuler",
-                                tint = AppColors.danger,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
+                            icon = Icons.Default.Cancel,
+                            color = AppColors.danger
+                        )
                     }
 
-                    // Visite effectuée
                     if (canValidate && visite.id != null) {
-                        TextButton(
+                        AnimatedActionButton(
                             onClick = { onValidate(visite.id) },
+                            icon = Icons.Default.TaskAlt,
+                            label = "Visite effectuée",
+                            color = AppColors.success,
                             modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                Icons.Default.TaskAlt,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = AppColors.success
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text("Visite effectuée", fontSize = 13.sp, color = AppColors.success)
-                        }
+                        )
                     }
 
-                    // Évaluer - Bouton visible pour les visites terminées
                     if (canRate && visite.id != null) {
-                        Button(
+                        AnimatedActionButton(
                             onClick = { 
-                                // Vérifier toutes les conditions avant d'évaluer
                                 if (visite.validated == true && 
                                     visite.status.equals("completed", ignoreCase = true) &&
                                     visite.reviewId == null) {
                                     onRate(visite)
                                 }
                             },
+                            icon = Icons.Default.Star,
+                            label = "Évaluer",
+                            color = AppColors.primary,
                             modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = AppColors.primary,
-                                contentColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(8.dp),
-                            enabled = visite.id != null && visite.validated == true
-                        ) {
-                            Icon(
-                                Icons.Default.Star,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text("Évaluer", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        }
+                            isPrimary = true
+                        )
                     }
                 }
             }
@@ -780,7 +962,99 @@ private fun ModernVisitCard(
     }
 }
 
-// EditVisiteDialog removed - Modifier button has been removed
+@Composable
+private fun AnimatedActionButton(
+    onClick: () -> Unit,
+    icon: ImageVector,
+    label: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    isPrimary: Boolean = false
+) {
+    var isPressed by remember { mutableStateOf(false) }
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessHigh
+        ),
+        label = "button_scale"
+    )
+
+    Button(
+        onClick = {
+            isPressed = true
+            onClick()
+            isPressed = false
+        },
+        modifier = modifier.scale(scale),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isPrimary) color else color.copy(alpha = 0.1f),
+            contentColor = if (isPrimary) Color.White else color
+        ),
+        shape = RoundedCornerShape(AppRadius.md),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = if (isPrimary) 4.dp else 0.dp
+        )
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            label,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+private fun AnimatedIconButton(
+    onClick: () -> Unit,
+    icon: ImageVector,
+    color: Color
+) {
+    var isPressed by remember { mutableStateOf(false) }
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.9f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessHigh
+        ),
+        label = "icon_button_scale"
+    )
+
+    Surface(
+        modifier = Modifier
+            .size(48.dp)
+            .scale(scale)
+            .clickable {
+                isPressed = true
+                onClick()
+                isPressed = false
+            },
+        shape = CircleShape,
+        color = color.copy(alpha = 0.15f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.3f))
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+    }
+}
 
 @Composable
 private fun RatingRow(label: String, value: Float, onChange: (Float) -> Unit) {
@@ -805,81 +1079,126 @@ private fun RatingDialog(
     onDismiss: () -> Unit,
     onSubmit: (Int, Int, Int, Int, String?) -> Unit
 ) {
-    var collector by remember { mutableStateOf(5f) }
-    var cleanliness by remember { mutableStateOf(5f) }
-    var location by remember { mutableStateOf(5f) }
-    var conformity by remember { mutableStateOf(5f) }
+    var collectorRating by remember { mutableStateOf(3f) }
+    var cleanlinessRating by remember { mutableStateOf(3f) }
+    var locationRating by remember { mutableStateOf(3f) }
+    var conformityRating by remember { mutableStateOf(3f) }
     var comment by remember { mutableStateOf("") }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(AppSpacing.md),
+            shape = RoundedCornerShape(AppRadius.xl),
+            colors = CardDefaults.cardColors(containerColor = AppColors.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(AppSpacing.lg)
             ) {
-                Text(
-                    text = "Évaluer la visite",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = AppColors.textPrimary
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = visiteTitle,
-                    fontSize = 14.sp,
-                    color = AppColors.textSecondary
-                )
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Évaluer la visite",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.textPrimary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = visiteTitle,
+                            fontSize = 14.sp,
+                            color = AppColors.textSecondary
+                        )
+                    }
+                    Surface(
+                        shape = CircleShape,
+                        color = AppColors.primary.copy(alpha = 0.15f),
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = null,
+                                tint = AppColors.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(AppSpacing.lg))
+                Divider(color = AppColors.divider)
+                Spacer(modifier = Modifier.height(AppSpacing.lg))
 
-                RatingRow("Collector", collector) { collector = it }
-                RatingRow("Propreté du logement", cleanliness) { cleanliness = it }
-                RatingRow("Localisation", location) { location = it }
-                RatingRow("Conformité au descriptif", conformity) { conformity = it }
+                // Ratings
+                RatingRow("Colocateur", collectorRating) { collectorRating = it }
+                RatingRow("Propreté", cleanlinessRating) { cleanlinessRating = it }
+                RatingRow("Localisation", locationRating) { locationRating = it }
+                RatingRow("Conformité", conformityRating) { conformityRating = it }
 
+                Spacer(modifier = Modifier.height(AppSpacing.md))
+
+                // Comment
                 OutlinedTextField(
                     value = comment,
                     onValueChange = { comment = it },
                     label = { Text("Commentaire (optionnel)") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp),
-                    maxLines = 4
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3,
+                    maxLines = 5,
+                    shape = RoundedCornerShape(AppRadius.md)
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(AppSpacing.lg))
+
+                // Actions
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
                 ) {
-                    IconButton(
-                        onClick = onDismiss
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(AppRadius.md)
                     ) {
-                        Icon(
-                            Icons.Default.Cancel,
-                            contentDescription = "Annuler",
-                            tint = AppColors.textSecondary
-                        )
+                        Text("Annuler")
                     }
                     Button(
                         onClick = {
                             onSubmit(
-                                collector.toInt(),
-                                cleanliness.toInt(),
-                                location.toInt(),
-                                conformity.toInt(),
-                                comment.ifBlank { null }
+                                collectorRating.toInt(),
+                                cleanlinessRating.toInt(),
+                                locationRating.toInt(),
+                                conformityRating.toInt(),
+                                comment.takeIf { it.isNotBlank() }
                             )
                         },
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.primary)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppColors.primary
+                        ),
+                        shape = RoundedCornerShape(AppRadius.md)
                     ) {
-                        Text("Envoyer")
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text("Soumettre", fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -888,421 +1207,257 @@ private fun RatingDialog(
 }
 
 @Composable
-private fun StatusFiltersSection(
-    visites: List<VisiteResponse>,
-    selectedFilter: String?,
-    onFilterSelected: (String?) -> Unit
+private fun ModificationDialog(
+    visite: VisiteResponse,
+    onDismiss: () -> Unit,
+    onSubmit: (Long, Int, Int, String?, String?) -> Unit
 ) {
-    // Compter les visites par statut
-    val pendingCount = visites.count { 
-        it.status?.equals("pending", ignoreCase = true) == true || 
-        (it.status == null || it.status.equals("en attente", ignoreCase = true))
-    }
-    val confirmedCount = visites.count { 
-        it.status?.equals("confirmed", ignoreCase = true) == true ||
-        it.status?.equals("acceptée", ignoreCase = true) == true
-    }
-    // Annulées par le client (cancelled uniquement)
-    val cancelledCount = visites.count { 
-        it.status?.equals("cancelled", ignoreCase = true) == true
-    }
-    // Refusées par le colocataire (refused uniquement)
-    val refusedCount = visites.count { 
-        it.status?.equals("refused", ignoreCase = true) == true ||
-        it.status?.equals("refusée", ignoreCase = true) == true
-    }
-    val completedCount = visites.count { 
-        it.status?.equals("completed", ignoreCase = true) == true ||
-        it.status?.equals("terminée", ignoreCase = true) == true
+    val context = LocalContext.current
+    val calendar = Calendar.getInstance()
+    
+    // Initialiser avec la date existante
+    val existingMillis = parseIsoToMillis(visite.dateVisite)
+    if (existingMillis > 0) {
+        calendar.timeInMillis = existingMillis
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
-    ) {
-        // En attente
-        StatusFilterCard(
-            label = "En attente",
-            count = pendingCount,
-            color = AppColors.warning,
-            icon = Icons.Default.Schedule,
-            isSelected = selectedFilter == "pending",
-            onClick = { onFilterSelected(if (selectedFilter == "pending") null else "pending") }
-        )
-        
-        // Acceptée
-        StatusFilterCard(
-            label = "Acceptée",
-            count = confirmedCount,
-            color = AppColors.success,
-            icon = Icons.Default.CheckCircle,
-            isSelected = selectedFilter == "confirmed",
-            onClick = { onFilterSelected(if (selectedFilter == "confirmed") null else "confirmed") }
-        )
-        
-        // Refusée (par le colocataire)
-        StatusFilterCard(
-            label = "Refusée",
-            count = refusedCount,
-            color = AppColors.danger.copy(alpha = 0.7f),
-            icon = Icons.Default.EventBusy,
-            isSelected = selectedFilter == "refused",
-            onClick = { onFilterSelected(if (selectedFilter == "refused") null else "refused") }
-        )
-        
-        // Terminée
-        StatusFilterCard(
-            label = "Terminée",
-            count = completedCount,
-            color = AppColors.primary,
-            icon = Icons.Default.TaskAlt,
-            isSelected = selectedFilter == "completed",
-            onClick = { onFilterSelected(if (selectedFilter == "completed") null else "completed") }
-        )
-    }
-}
+    var selectedDate by remember { mutableStateOf(calendar.timeInMillis) }
+    var selectedHour by remember { mutableStateOf(calendar.get(Calendar.HOUR_OF_DAY)) }
+    var selectedMinute by remember { mutableStateOf(calendar.get(Calendar.MINUTE)) }
+    var notes by remember { mutableStateOf(visite.notes ?: "") }
+    var contactPhone by remember { mutableStateOf(visite.contactPhone ?: "") }
 
-@Composable
-private fun StatusFilterCard(
-    label: String,
-    count: Int,
-    color: Color,
-    icon: ImageVector,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .clickable { onClick() }
-            .width(120.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) color.copy(alpha = 0.2f) else color.copy(alpha = 0.1f)
-        ),
-        border = BorderStroke(
-            width = if (isSelected) 2.dp else 1.dp,
-            color = if (isSelected) color else color.copy(alpha = 0.5f)
-        ),
-        shape = RoundedCornerShape(AppRadius.md)
-    ) {
-        Row(
+    val datePickerDialog = DatePickerDialog(
+        context,
+        { _, year, month, day ->
+            calendar.set(Calendar.YEAR, year)
+            calendar.set(Calendar.MONTH, month)
+            calendar.set(Calendar.DAY_OF_MONTH, day)
+            selectedDate = calendar.timeInMillis
+        },
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH),
+        calendar.get(Calendar.DAY_OF_MONTH)
+    )
+    
+    // Limiter la date min à aujourd'hui
+    datePickerDialog.datePicker.minDate = System.currentTimeMillis()
+
+    val timePickerDialog = TimePickerDialog(
+        context,
+        { _, hour, minute ->
+            selectedHour = hour
+            selectedMinute = minute
+        },
+        selectedHour,
+        selectedMinute,
+        true
+    )
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(AppSpacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs)
+                .padding(AppSpacing.md),
+            shape = RoundedCornerShape(AppRadius.xl),
+            colors = CardDefaults.cardColors(containerColor = AppColors.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(20.dp)
-            )
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(AppSpacing.lg),
+                verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
+            ) {
                 Text(
-                    text = label,
-                    fontSize = 13.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    color = color
-                )
-                Text(
-                    text = "$count",
-                    fontSize = 16.sp,
+                    text = "Modifier la visite",
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = color
+                    color = AppColors.textPrimary
                 )
+                
+                Text(
+                    text = getLogementTitle(visite),
+                    fontSize = 14.sp,
+                    color = AppColors.textSecondary
+                )
+                
+                Divider(color = AppColors.divider)
+                
+                // Sélection Date
+                OutlinedButton(
+                    onClick = { datePickerDialog.show() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(AppRadius.md)
+                ) {
+                    Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    val dateParams = Calendar.getInstance().apply { timeInMillis = selectedDate }
+                    val dateFormat = SimpleDateFormat("dd MMMM yyyy", Locale.FRENCH)
+                    Text(dateFormat.format(dateParams.time))
+                }
+                
+                // Sélection Heure
+                OutlinedButton(
+                    onClick = { timePickerDialog.show() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(AppRadius.md)
+                ) {
+                    Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(String.format(Locale.FRENCH, "%02d:%02d", selectedHour, selectedMinute))
+                }
+                
+                // Notes
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Notes (optionnel)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    maxLines = 4,
+                    shape = RoundedCornerShape(AppRadius.md)
+                )
+
+                // Contact Phone
+                OutlinedTextField(
+                    value = contactPhone,
+                    onValueChange = { contactPhone = it },
+                    label = { Text("Téléphone de contact") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(AppRadius.md),
+                    leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) }
+                )
+                
+                Spacer(modifier = Modifier.height(AppSpacing.sm))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(AppRadius.md)
+                    ) {
+                        Text("Annuler")
+                    }
+                    Button(
+                        onClick = { onSubmit(selectedDate, selectedHour, selectedMinute, notes, contactPhone) },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.primary),
+                        shape = RoundedCornerShape(AppRadius.md)
+                    ) {
+                        Text("Enregistrer")
+                    }
+                }
             }
         }
     }
 }
 
-private data class VisitStatusStyle(
+// Data classes
+private data class FilterItem(
+    val key: String,
+    val label: String,
+    val icon: ImageVector,
+    val color: Color
+)
+
+data class VisitStatusStyle(
     val label: String,
     val color: Color,
     val icon: ImageVector
 )
 
-// Logements mock pour résoudre les titres
+// Mock data
 internal val mockLogementsMap = mapOf(
     "mock-1" to "Appartement 3 pièces - Centre Ville",
     "mock-2" to "Studio meublé - Lyon",
     "mock-3" to "Chambre dans T4 - Marseille 8e",
-    "mock-4" to "Studio meublé - Lyon",
-    "appartement-3-pieces-centre-ville" to "Appartement 3 pièces - Centre Ville",
+    "appart-3pieces-centre-ville" to "Appartement 3 pièces - Centre Ville",
     "studio-meuble-lyon-1" to "Studio meublé - Lyon",
     "studio-meuble-lyon" to "Studio meublé - Lyon",
     "studio-meuble-lyon-2" to "Studio meublé - Lyon",
     "chambre-t4-marseille-8e" to "Chambre dans T4 - Marseille 8e"
 )
 
-// Fonction pour obtenir le titre du logement
 private fun getLogementTitle(visite: VisiteResponse): String {
-    // 1. Utiliser logementTitle si disponible
-    if (!visite.logementTitle.isNullOrBlank()) {
-        return visite.logementTitle
-    }
-    
-    // 2. Chercher dans les logements mock par logementId
-    visite.logementId?.let { logementId ->
-        mockLogementsMap[logementId]?.let { return it }
-        
-        // Si le logementId contient "LOGEMENT_ID", essayer de trouver un titre par défaut
-        if (logementId.contains("LOGEMENT_ID", ignoreCase = true)) {
-            // Extraire le numéro si possible
-            val number = logementId.replace(Regex("[^0-9]"), "")
-            if (number.isNotBlank()) {
-                val index = number.toIntOrNull()?.let { 
-                    if (it <= mockLogementsMap.size) it - 1 else null
-                }
-                if (index != null && index >= 0) {
-                    val titles = mockLogementsMap.values.toList()
-                    if (index < titles.size) {
-                        return titles[index]
-                    }
-                }
-            }
-        }
-    }
-    
-    // 3. Fallback par défaut
-    return visite.logementId ?: "Logement inconnu"
+    return visite.logementTitle 
+        ?: visite.logementId?.let { mockLogementsMap[it] }
+        ?: visite.logementId
+        ?: "Logement inconnu"
 }
 
 private fun mapStatus(status: String?): VisitStatusStyle {
     return when (status?.lowercase()) {
-        "confirmed" -> VisitStatusStyle("Acceptée", AppColors.success, Icons.Default.CheckCircle)
-        "cancelled" -> VisitStatusStyle("Annulée", AppColors.danger, Icons.Default.Cancel)
-        "refused" -> VisitStatusStyle("Refusée", AppColors.danger.copy(alpha = 0.7f), Icons.Default.EventBusy)
-        "completed" -> VisitStatusStyle("Terminée", AppColors.primary, Icons.Default.TaskAlt)
-        else -> VisitStatusStyle("En attente", AppColors.warning, Icons.Default.Schedule)
+        "pending", "en attente", null -> VisitStatusStyle("En attente", AppColors.warning, Icons.Default.Schedule)
+        "confirmed", "acceptée" -> VisitStatusStyle("Acceptée", AppColors.success, Icons.Default.CheckCircle)
+        "refused", "refusée" -> VisitStatusStyle("Refusée", AppColors.danger, Icons.Default.Cancel)
+        "completed", "terminée" -> VisitStatusStyle("Terminée", AppColors.info, Icons.Default.TaskAlt)
+        else -> VisitStatusStyle(status ?: "Inconnu", AppColors.textSecondary, Icons.Default.EventNote)
     }
 }
 
-private fun parseIsoToMillis(dateString: String?): Long? {
-    if (dateString.isNullOrBlank()) return null
+private fun parseIsoToMillis(dateString: String?): Long {
+    if (dateString == null) return 0L
     return try {
-        val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }
-        parser.parse(dateString)?.time
-    } catch (_: Exception) {
-        null
+        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        format.timeZone = TimeZone.getTimeZone("UTC")
+        format.parse(dateString)?.time ?: 0L
+    } catch (e: Exception) {
+        0L
     }
 }
 
 private fun formatDate(dateString: String?): String {
-    val date = parseIsoToMillis(dateString) ?: return "-"
-    val formatter = SimpleDateFormat("EEEE d MMMM yyyy", Locale.getDefault())
-    return formatter.format(date).replaceFirstChar { it.uppercase() }
+    if (dateString == null) return "Date inconnue"
+    return try {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        inputFormat.timeZone = TimeZone.getTimeZone("UTC")
+        val date = inputFormat.parse(dateString)
+        val outputFormat = SimpleDateFormat("dd MMMM yyyy", Locale.FRENCH)
+        outputFormat.format(date ?: return dateString)
+    } catch (e: Exception) {
+        dateString
+    }
 }
 
 private fun formatTime(dateString: String?): String {
-    if (dateString.isNullOrBlank()) return "-"
-
-    try {
-        // Parse the UTC date string to get milliseconds
-        val millis = parseIsoToMillis(dateString) ?: return "-"
+    if (dateString == null) return "Heure inconnue"
+    return try {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        inputFormat.timeZone = TimeZone.getTimeZone("UTC")
+        val date = inputFormat.parse(dateString)
         
-        // Create a calendar in LOCAL timezone to display the time correctly
-        val calendar = Calendar.getInstance() // Uses local timezone by default
-        calendar.timeInMillis = millis
+        val calendar = Calendar.getInstance()
+        calendar.time = date ?: return dateString
         
-        // Format in local time
         val hour = calendar.get(Calendar.HOUR_OF_DAY)
         val minute = calendar.get(Calendar.MINUTE)
-        return String.format(Locale.getDefault(), "%02d:%02d", hour, minute)
-    } catch (_: Exception) {
-        return "-"
+        
+        String.format(Locale.FRENCH, "%02d:%02d", hour, minute)
+    } catch (e: Exception) {
+        dateString
     }
 }
 
 private fun extractHourMinute(dateString: String?): Pair<Int, Int> {
-    if (dateString.isNullOrBlank()) {
-        return 14 to 0
-    }
-    try {
-        val timePart = dateString.substringAfter("T").substringBefore(".")
-        val parts = timePart.split(":")
-        if (parts.size >= 2) {
-            val hour = parts[0].toInt()
-            val minute = parts[1].toInt()
-            return hour to minute
-        }
-    } catch (_: Exception) {
-    }
-
-    // Parse UTC date and convert to local time
-    val millis = parseIsoToMillis(dateString)
-    if (millis != null) {
-        val calendar = Calendar.getInstance() // Uses local timezone
-        calendar.timeInMillis = millis
-        return calendar.get(Calendar.HOUR_OF_DAY) to calendar.get(Calendar.MINUTE)
-    }
-    return 14 to 0
-}
-
-// Composant d'alerte amélioré pour les visites terminées
-@Composable
-private fun BeautifulRatingAlert(
-    count: Int,
-    modifier: Modifier = Modifier
-) {
-    // Animation pour l'icône étoile
-    val infiniteTransition = rememberInfiniteTransition(label = "star_animation")
-    val starScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
-        ),
-        label = "star_scale"
-    )
-    
-    // Animation d'entrée
-    AnimatedVisibility(
-        visible = true,
-        enter = slideInVertically(
-            initialOffsetY = { -it },
-            animationSpec = tween(400, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-        ) + fadeIn(
-            animationSpec = tween(400)
-        ) + scaleIn(
-            initialScale = 0.9f,
-            animationSpec = tween(400)
-        ),
-        exit = slideOutVertically(
-            targetOffsetY = { -it },
-            animationSpec = tween(300)
-        ) + fadeOut(
-            animationSpec = tween(300)
-        )
-    ) {
-        Card(
-            modifier = modifier
-                .shadow(
-                    elevation = 8.dp,
-                    shape = RoundedCornerShape(AppRadius.lg),
-                    spotColor = AppColors.primary.copy(alpha = 0.3f)
-                ),
-            colors = CardDefaults.cardColors(
-                containerColor = Color.White
-            ),
-            shape = RoundedCornerShape(AppRadius.lg),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                AppColors.primary.copy(alpha = 0.08f),
-                                AppColors.primary.copy(alpha = 0.12f),
-                                AppColors.primary.copy(alpha = 0.08f)
-                            )
-                        )
-                    )
-            ) {
-                // Bordure gauche colorée
-                Box(
-                    modifier = Modifier
-                        .width(5.dp)
-                        .fillMaxHeight()
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    AppColors.primary,
-                                    AppColors.primaryVariant
-                                )
-                            )
-                        )
-                )
-                
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            start = AppSpacing.lg,
-                            end = AppSpacing.md,
-                            top = AppSpacing.md,
-                            bottom = AppSpacing.md
-                        ),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.md)
-                ) {
-                    // Icône étoile animée avec fond circulaire
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .background(
-                                brush = Brush.radialGradient(
-                                    colors = listOf(
-                                        AppColors.primary.copy(alpha = 0.2f),
-                                        AppColors.primary.copy(alpha = 0.1f)
-                                    )
-                                ),
-                                shape = CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.Star,
-                            contentDescription = null,
-                            tint = AppColors.primary,
-                            modifier = Modifier
-                                .size(32.dp)
-                                .scale(starScale)
-                        )
-                    }
-                    
-                    // Contenu textuel
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs)
-                        ) {
-                            Text(
-                                text = "Visite terminée",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = AppColors.textPrimary
-                            )
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = AppColors.primary,
-                                modifier = Modifier.padding(start = AppSpacing.xs)
-                            ) {
-                                Text(
-                                    text = "$count",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
-                        Text(
-                            text = "Vous avez ${if (count > 1) "$count visites" else "une visite"} terminée${if (count > 1) "s" else ""} à évaluer. Cliquez sur 'Évaluer' dans la carte.",
-                            fontSize = 13.sp,
-                            color = AppColors.textSecondary,
-                            lineHeight = 18.sp
-                        )
-                    }
-                    
-                    // Icône flèche
-                    Icon(
-                        Icons.Default.ArrowForward,
-                        contentDescription = null,
-                        tint = AppColors.primary.copy(alpha = 0.6f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
+    if (dateString == null) return Pair(0, 0)
+    return try {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        inputFormat.timeZone = TimeZone.getTimeZone("UTC")
+        val date = inputFormat.parse(dateString)
+        
+        val calendar = Calendar.getInstance()
+        calendar.time = date ?: return Pair(0, 0)
+        
+        val hour = calendar.get(Calendar.HOUR_OF_DAY)
+        val minute = calendar.get(Calendar.MINUTE)
+        
+        Pair(hour, minute)
+    } catch (e: Exception) {
+        Pair(0, 0)
     }
 }

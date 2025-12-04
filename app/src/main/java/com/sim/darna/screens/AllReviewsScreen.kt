@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -59,6 +60,7 @@ fun AllReviewsScreen(
     var newReviewIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var isLoadingReviews by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
 
     LaunchedEffect(Unit) {
         if (isCollocator) {
@@ -98,19 +100,34 @@ fun AllReviewsScreen(
                     } ?: 0L
                 }
                 
-                // Détecter les nouvelles évaluations
-                val previousIds = allReviews.mapNotNull { it.id }.toSet()
-                val currentIds = sortedReviews.mapNotNull { it.id }.toSet()
-                val newIds = currentIds - previousIds
+                // Détecter les nouvelles évaluations (créées il y a moins de 24h)
+                val now = System.currentTimeMillis()
+                val oneDayMillis = 24 * 60 * 60 * 1000L // 24 heures
+                
+                val newIds = sortedReviews.filter { review ->
+                    val createdAt = review.createdAt
+                    if (createdAt != null) {
+                        try {
+                            val parser = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.getDefault())
+                            parser.timeZone = java.util.TimeZone.getTimeZone("UTC")
+                            val reviewTime = parser.parse(createdAt)?.time ?: 0L
+                            (now - reviewTime) < oneDayMillis
+                        } catch (e: Exception) {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                }.mapNotNull { it.id }.toSet()
                 
                 allReviews = sortedReviews
                 newReviewIds = newIds
                 isLoadingReviews = false
                 
-                // Supprimer le badge après 5 secondes
+                // Scroll automatique vers la première nouvelle évaluation
                 if (newIds.isNotEmpty()) {
-                    delay(5000)
-                    newReviewIds = emptySet()
+                    delay(300) // Petit délai pour laisser la liste se charger
+                    listState.animateScrollToItem(0) // Scroll vers le haut (nouvelles évaluations)
                 }
             }
         }
@@ -158,23 +175,6 @@ fun AllReviewsScreen(
                                 tint = AppColors.textPrimary
                             )
                         }
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            if (isCollocator) {
-                                viewModel.loadLogementsVisites(force = true)
-                            } else {
-                                viewModel.loadVisites(force = true)
-                            }
-                        }
-                    ) {
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = "Actualiser",
-                            tint = AppColors.textPrimary
-                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -251,6 +251,7 @@ fun AllReviewsScreen(
                     }
                     else -> {
                         LazyColumn(
+                            state = listState,
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(AppSpacing.md),
                             contentPadding = PaddingValues(bottom = AppSpacing.xl)
@@ -384,21 +385,36 @@ private fun AnimatedReviewCard(
     LaunchedEffect(isNew) {
         if (isNew) {
             showGreenBorder = true
-            delay(5000) // Disparaître après 5 secondes
+            delay(10000) // Disparaître après 10 secondes (au lieu de 5)
             showGreenBorder = false
         }
     }
     
-    val borderColor = if (showGreenBorder) AppColors.success else Color.Transparent
+    // Animation de pulsation pour le cadre vert
+    val infiniteTransition = rememberInfiniteTransition(label = "border_pulse")
+    val borderPulse by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "border_pulse_animation"
+    )
+    
+    val borderColor = if (showGreenBorder) 
+        AppColors.success.copy(alpha = borderPulse) 
+    else 
+        Color.Transparent
     
     val borderWidth by animateFloatAsState(
-        targetValue = if (showGreenBorder) 3f else 0f,
+        targetValue = if (showGreenBorder) 4f else 0f, // Augmenté de 3f à 4f pour plus de visibilité
         animationSpec = tween(durationMillis = 300),
         label = "border_width"
     )
     
     val cardElevation by animateFloatAsState(
-        targetValue = if (showGreenBorder) 8f else 2f,
+        targetValue = if (showGreenBorder) 12f else 2f, // Augmenté de 8f à 12f pour plus d'effet
         animationSpec = tween(durationMillis = 300),
         label = "elevation"
     )
