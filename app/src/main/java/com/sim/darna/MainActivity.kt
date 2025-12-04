@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,6 +17,11 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import com.sim.darna.navigation.AppNavGraph
 import com.sim.darna.ui.theme.DarnaTheme
 
@@ -33,26 +39,80 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Android 12+ Splash Screen
-        installSplashScreen()
-        super.onCreate(savedInstanceState)
+        var contentSet = false
+        
+        try {
+            // Appeler super.onCreate() EN PREMIER pour initialiser correctement l'activité
+            super.onCreate(savedInstanceState)
+            
+            // Android 12+ Splash Screen - après super.onCreate()
+            try {
+                installSplashScreen()
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Erreur lors de l'installation du splash screen", e)
+                // Continuer même si le splash screen échoue
+            }
 
-        // Créer le canal de notification au démarrage de l'app
-        createNotificationChannel()
+            // Créer le canal de notification au démarrage de l'app
+            try {
+                createNotificationChannel()
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Erreur lors de la création du canal de notification", e)
+            }
 
-        // Demander la permission POST_NOTIFICATIONS pour Android 13+ (API 33+)
-        requestNotificationPermission()
+            // Demander la permission POST_NOTIFICATIONS pour Android 13+ (API 33+)
+            try {
+                requestNotificationPermission()
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Erreur lors de la demande de permission", e)
+            }
 
-        // Allow content to draw edge-to-edge (behind system bars)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+            // Allow content to draw edge-to-edge (behind system bars)
+            try {
+                if (window != null) {
+                    WindowCompat.setDecorFitsSystemWindows(window, false)
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Erreur lors de la configuration de la fenêtre", e)
+            }
 
-        // Hide system bars for immersive fullscreen experience
-        hideSystemBars()
+            // Hide system bars for immersive fullscreen experience
+            try {
+                if (window != null) {
+                    hideSystemBars()
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Erreur lors du masquage des barres système", e)
+            }
 
-        // Launch the full app navigation
-        setContent {
-            DarnaTheme {
-                AppNavGraph() // ⬅️ Handles Splash → Login/Signup → MainScreen
+            // Launch the full app navigation
+            setContent {
+                contentSet = true
+                DarnaTheme {
+                    AppNavGraph() // ⬅️ Handles Splash → Login/Signup → MainScreen
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Erreur critique dans onCreate", e)
+            // Afficher une interface d'erreur simple si le contenu n'a pas encore été défini
+            if (!contentSet) {
+                try {
+                    setContent {
+                        DarnaTheme {
+                            androidx.compose.material3.Surface {
+                                androidx.compose.material3.Text(
+                                    text = "Erreur lors du démarrage de l'application",
+                                    modifier = androidx.compose.ui.Modifier
+                                        .fillMaxSize()
+                                        .wrapContentSize(androidx.compose.ui.Alignment.Center)
+                                )
+                            }
+                        }
+                    }
+                } catch (e2: Exception) {
+                    Log.e("MainActivity", "Impossible d'afficher l'interface d'erreur", e2)
+                    // Ne pas relancer l'exception pour éviter un crash en cascade
+                }
             }
         }
     }
@@ -62,20 +122,25 @@ class MainActivity : ComponentActivity() {
      * Cela évite de le créer à chaque notification
      */
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channelId = getString(R.string.default_notification_channel_id)
-            val channelName = "Notifications Darna"
-            val channelDescription = "Notifications pour les visites et logements"
-            val importance = NotificationManager.IMPORTANCE_HIGH
-            
-            val channel = NotificationChannel(channelId, channelName, importance).apply {
-                description = channelDescription
-                enableVibration(true)
-                enableLights(true)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channelId = getString(R.string.default_notification_channel_id)
+                val channelName = "Notifications Darna"
+                val channelDescription = "Notifications pour les visites et logements"
+                val importance = NotificationManager.IMPORTANCE_HIGH
+                
+                val channel = NotificationChannel(channelId, channelName, importance).apply {
+                    description = channelDescription
+                    enableVibration(true)
+                    enableLights(true)
+                }
+                
+                val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.createNotificationChannel(channel)
             }
-            
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Erreur lors de la création du canal de notification", e)
+            throw e
         }
     }
 
@@ -104,7 +169,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        hideSystemBars()
+        try {
+            hideSystemBars()
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Erreur lors du masquage des barres système dans onResume", e)
+        }
     }
 
     @SuppressLint("WrongConstant", "NewApi")

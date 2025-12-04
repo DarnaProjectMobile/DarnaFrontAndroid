@@ -70,6 +70,8 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.ui.draw.shadow
@@ -176,19 +178,6 @@ fun MyVisitsScreen(
                         text = "${uiState.visites.size} visite${if (uiState.visites.size > 1) "s" else ""}",
                         fontSize = 13.sp,
                         color = AppColors.textSecondary
-                    )
-                }
-                IconButton(
-                    onClick = { viewModel.loadVisites(force = true) },
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(AppColors.primary.copy(alpha = 0.1f))
-                ) {
-                    Icon(
-                        Icons.Default.Refresh,
-                        contentDescription = "Actualiser",
-                        tint = AppColors.primary,
-                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -354,28 +343,6 @@ fun MyVisitsScreen(
         }
     }
 
-    // Edit Dialog
-    editingVisite?.let { visite ->
-        EditVisiteDialog(
-            visite = visite,
-            onDismiss = { editingVisite = null },
-            onValidate = { dateMillis, hour, minute, notes, contact ->
-                val visiteId = visite.id
-                if (visiteId != null) {
-                    viewModel.updateVisite(
-                        visiteId = visiteId,
-                        dateMillis = dateMillis,
-                        hour = hour,
-                        minute = minute,
-                        notes = notes,
-                        contactPhone = contact
-                    )
-                }
-                editingVisite = null
-            }
-        )
-    }
-
     // Cancel Confirmation
     showCancelConfirmation?.let { id ->
         ConfirmationDialog(
@@ -500,14 +467,31 @@ private fun ModernVisitCard(
     // Permettre la suppression pour les visites en attente uniquement
     val canDelete = isPending && visite.id != null
 
-    Surface(
+    // Animation pour la carte
+    val scale by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "card_scale"
+    )
+    
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(0.dp)),
-        color = AppColors.surface,
+            .scale(scale)
+            .shadow(
+                elevation = 4.dp,
+                shape = RoundedCornerShape(AppRadius.lg),
+                spotColor = statusStyle.color.copy(alpha = 0.2f)
+            ),
+        shape = RoundedCornerShape(AppRadius.lg),
+        colors = CardDefaults.cardColors(containerColor = AppColors.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(
-            width = 4.dp,
-            color = statusStyle.color.copy(alpha = 0.6f)
+            width = 2.dp,
+            color = statusStyle.color.copy(alpha = 0.3f)
         )
     ) {
         Column(
@@ -515,46 +499,72 @@ private fun ModernVisitCard(
                 .fillMaxWidth()
                 .padding(0.dp)
         ) {
-            // Header
-            Row(
+            // Header avec gradient moderne
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(statusStyle.color.copy(alpha = 0.08f))
-                    .padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                            colors = listOf(
+                                statusStyle.color.copy(alpha = 0.1f),
+                                statusStyle.color.copy(alpha = 0.05f)
+                            )
+                        )
+                    )
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = AppSpacing.md, vertical = AppSpacing.md),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .width(3.dp)
-                            .height(40.dp)
-                            .background(statusStyle.color)
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        // Icône de statut avec fond circulaire
+                        Surface(
+                            modifier = Modifier.size(40.dp),
+                            shape = CircleShape,
+                            color = statusStyle.color.copy(alpha = 0.15f)
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = statusStyle.icon,
+                                    contentDescription = null,
+                                    tint = statusStyle.color,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = getLogementTitle(visite),
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AppColors.textPrimary
+                            )
+                        }
+                    }
+                    // Tag de statut moderne
+                    Surface(
+                        shape = RoundedCornerShape(AppRadius.round),
+                        color = statusStyle.color.copy(alpha = 0.2f),
+                        border = BorderStroke(1.dp, statusStyle.color.copy(alpha = 0.4f))
+                    ) {
                         Text(
-                            text = getLogementTitle(visite),
-                            fontSize = 16.sp,
+                            text = statusStyle.label,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = AppColors.textPrimary
+                            color = statusStyle.color
                         )
                     }
-                }
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = statusStyle.color.copy(alpha = 0.2f)
-                ) {
-                    Text(
-                        text = statusStyle.label,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = statusStyle.color
-                    )
                 }
             }
 
@@ -718,22 +728,6 @@ private fun ModernVisitCard(
                             )
                         }
                     }
-                    // Pour les autres statuts: Afficher Modifier si disponible (sauf terminée et refusée)
-                    else if (visite.id != null && !isAccepted && !isCompleted && !isRefused) {
-                        TextButton(
-                            onClick = { onEdit(visite) },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                Icons.Default.Edit,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = AppColors.primary
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text("Modifier", fontSize = 13.sp, color = AppColors.primary)
-                        }
-                    }
 
                     // Visite effectuée
                     if (canValidate && visite.id != null) {
@@ -786,330 +780,7 @@ private fun ModernVisitCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun EditVisiteDialog(
-    visite: VisiteResponse,
-    onDismiss: () -> Unit,
-    onValidate: (Long, Int, Int, String?, String?) -> Unit
-) {
-    val initialDateMillis = parseIsoToMillis(visite.dateVisite) ?: System.currentTimeMillis()
-    val initialTime = extractHourMinute(visite.dateVisite)
-
-    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialDateMillis)
-
-    var selectedHour by remember(key1 = visite.id) {
-        mutableStateOf(initialTime.first)
-    }
-    var selectedMinute by remember(key1 = visite.id) {
-        mutableStateOf(initialTime.second)
-    }
-    var timeSelectorExpanded by remember { mutableStateOf(false) }
-    var notes by remember { mutableStateOf(visite.notes.orEmpty()) }
-    var contact by remember { mutableStateOf(visite.contactPhone.orEmpty()) }
-
-    fun buildFinalDateTime(): Long {
-        val dateMillis = datePickerState.selectedDateMillis ?: initialDateMillis
-        // Create calendar in LOCAL timezone with the selected date and time
-        val calendar = Calendar.getInstance().apply { // Uses local timezone
-            timeInMillis = dateMillis
-            set(Calendar.HOUR_OF_DAY, selectedHour)
-            set(Calendar.MINUTE, selectedMinute)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        return calendar.timeInMillis
-    }
-
-    val timeSlots = remember {
-        listOf(
-            9 to 0, 9 to 30, 10 to 0, 10 to 30,
-            11 to 0, 11 to 30, 14 to 0, 14 to 30,
-            15 to 0, 15 to 30, 16 to 0, 16 to 30
-        )
-    }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .heightIn(max = 700.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
-            ) {
-                // Header
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Modifier la visite",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E293B)
-                    )
-                    IconButton(onClick = onDismiss) {
-                        Icon(
-                            Icons.Default.Cancel,
-                            contentDescription = "Fermer",
-                            tint = Color(0xFF64748B)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Divider(color = Color(0xFFE2E8F0), thickness = 1.dp)
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Scrollable Content
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = false)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    // Date Picker
-                    Column(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Schedule,
-                                contentDescription = null,
-                                tint = Color(0xFF0066FF),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text(
-                                text = "Date de la visite",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF1E293B)
-                            )
-                        }
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                        ) {
-                            androidx.compose.material3.DatePicker(
-                                state = datePickerState,
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = androidx.compose.material3.DatePickerDefaults.colors(
-                                    containerColor = Color(0xFFF8FAFC)
-                                )
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // Time Picker
-                    Column(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Schedule,
-                                contentDescription = null,
-                                tint = Color(0xFF0066FF),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text(
-                                text = "Créneau horaire",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF1E293B)
-                            )
-                        }
-                        Box {
-                            OutlinedButton(
-                                onClick = { timeSelectorExpanded = true },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = Color(0xFF1E293B),
-                                    containerColor = Color.White
-                                ),
-                                border = androidx.compose.foundation.BorderStroke(
-                                    1.5.dp,
-                                    Color(0xFFE2E8F0)
-                                )
-                            ) {
-                                Text(
-                                    text = String.format(
-                                        Locale.getDefault(),
-                                        "%02d:%02d",
-                                        selectedHour,
-                                        selectedMinute
-                                    ),
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF1E293B)
-                                )
-                                Spacer(modifier = Modifier.weight(1f))
-                                Icon(
-                                    Icons.Default.Schedule,
-                                    contentDescription = null,
-                                    tint = Color(0xFF0066FF),
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                            androidx.compose.material3.DropdownMenu(
-                                expanded = timeSelectorExpanded,
-                                onDismissRequest = { timeSelectorExpanded = false },
-                                modifier = Modifier.fillMaxWidth(0.9f)
-                            ) {
-                                timeSlots.forEach { (hour, minute) ->
-                                    val isSelected = selectedHour == hour && selectedMinute == minute
-                                    androidx.compose.material3.DropdownMenuItem(
-                                        text = {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    String.format(
-                                                        Locale.getDefault(),
-                                                        "%02d:%02d",
-                                                        hour,
-                                                        minute
-                                                    ),
-                                                    fontSize = 16.sp,
-                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                                    color = if (isSelected) Color(0xFF0066FF) else Color(0xFF1E293B)
-                                                )
-                                                if (isSelected) {
-                                                    Icon(
-                                                        Icons.Default.CheckCircle,
-                                                        contentDescription = null,
-                                                        tint = Color(0xFF0066FF),
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
-                                                }
-                                            }
-                                        },
-                                        onClick = {
-                                            selectedHour = hour
-                                            selectedMinute = minute
-                                            timeSelectorExpanded = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // Contact
-                    OutlinedTextField(
-                        value = contact,
-                        onValueChange = { contact = it },
-                        label = {
-                            Text(
-                                "Téléphone de contact",
-                                fontSize = 14.sp
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true,
-                        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF0066FF),
-                            unfocusedBorderColor = Color(0xFFE2E8F0)
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // Notes
-                    OutlinedTextField(
-                        value = notes,
-                        onValueChange = { notes = it },
-                        label = {
-                            Text(
-                                "Notes (optionnel)",
-                                fontSize = 14.sp
-                            )
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        maxLines = 5,
-                        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF0066FF),
-                            unfocusedBorderColor = Color(0xFFE2E8F0)
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Divider(color = Color(0xFFE2E8F0), thickness = 1.dp)
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Action Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = onDismiss
-                    ) {
-                        Icon(
-                            Icons.Default.Cancel,
-                            contentDescription = "Annuler",
-                            tint = Color(0xFF64748B)
-                        )
-                    }
-                    Button(
-                        onClick = {
-                            val finalDateTime = buildFinalDateTime()
-                            onValidate(
-                                finalDateTime,
-                                selectedHour,
-                                selectedMinute,
-                                notes.ifBlank { null },
-                                contact.ifBlank { null }
-                            )
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0066FF)),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            "Enregistrer",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
+// EditVisiteDialog removed - Modifier button has been removed
 
 @Composable
 private fun RatingRow(label: String, value: Float, onChange: (Float) -> Unit) {

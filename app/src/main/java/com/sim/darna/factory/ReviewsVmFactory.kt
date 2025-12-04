@@ -23,19 +23,34 @@ class ReviewsVmFactory(
             level = HttpLoggingInterceptor.Level.BODY
         }
 
+        // Cache pour éviter les appels répétés au SessionManager dans l'interceptor
+        var cachedToken: String? = null
+        
         val client = OkHttpClient.Builder()
             .addInterceptor { chain ->
                 try {
-                    val token = runBlocking { sessionManager.getToken() }
+                    // Utiliser le token en cache, ou essayer de le récupérer avec timeout
+                    val currentToken = cachedToken ?: try {
+                        kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+                            kotlinx.coroutines.withTimeout(1000) {
+                                sessionManager.getToken()
+                            }
+                        }.also { cachedToken = it }
+                    } catch (e: Exception) {
+                        android.util.Log.e("ReviewsVmFactory", "Erreur lors de la récupération du token", e)
+                        null
+                    }
+                    
                     val requestBuilder = chain.request().newBuilder()
 
-                    if (!token.isNullOrBlank()) {
-                        requestBuilder.addHeader("Authorization", "Bearer $token")
+                    if (!currentToken.isNullOrBlank()) {
+                        requestBuilder.addHeader("Authorization", "Bearer $currentToken")
                     }
                     requestBuilder.addHeader("Accept", "application/json")
 
                     chain.proceed(requestBuilder.build())
                 } catch (e: Exception) {
+                    android.util.Log.e("ReviewsVmFactory", "Erreur dans l'interceptor", e)
                     val request = chain.request().newBuilder()
                         .addHeader("Accept", "application/json")
                         .build()

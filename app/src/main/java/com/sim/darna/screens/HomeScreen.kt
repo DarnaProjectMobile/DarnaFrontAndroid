@@ -138,10 +138,44 @@ data class LogementOption(
 fun MainScreen(parentNavController: NavHostController? = null) {
     val navController = rememberNavController()
     val context = LocalContext.current
+    
+    // Initialisation sécurisée
     val sessionManager = remember { SessionManager(context.applicationContext) }
+    
+    // Attendre que la session soit disponible avant de continuer
     val userSession = sessionManager.sessionFlow.collectAsState(initial = null).value
-    val isCollocator = userSession?.role?.lowercase() == "collocator"
-    val baseUrl = remember { NetworkConfig.getBaseUrl(context.applicationContext) }
+    val isCollocator = remember(userSession) { 
+        userSession?.role?.lowercase() == "collocator" 
+    }
+    
+    val baseUrl = remember { 
+        try {
+            NetworkConfig.getBaseUrl(context.applicationContext)
+        } catch (e: Exception) {
+            android.util.Log.e("MainScreen", "Erreur lors de la récupération de baseUrl", e)
+            "http://localhost:3000"
+        }
+    }
+    
+    // Afficher un écran de chargement si la session n'est pas encore chargée
+    if (userSession == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
+            ) {
+                CircularProgressIndicator(color = AppColors.primary)
+                Text(
+                    text = "Chargement...",
+                    color = AppColors.textSecondary
+                )
+            }
+        }
+        return
+    }
     
     val visiteViewModel: VisiteViewModel = viewModel(
         factory = VisiteVmFactory(baseUrl, sessionManager)
@@ -212,7 +246,11 @@ fun MainScreen(parentNavController: NavHostController? = null) {
                 val notificationViewModel: com.sim.darna.firebase.FirebaseNotificationViewModel = viewModel(
                     factory = com.sim.darna.factory.FirebaseNotificationVmFactory(baseUrl, sessionManager)
                 )
-                NotificationsScreen(navController = navController, viewModel = notificationViewModel)
+                NotificationsScreen(
+                    navController = navController, 
+                    viewModel = notificationViewModel,
+                    parentNavController = parentNavController
+                )
             }
             
             // Écran de détails de notification (accessible depuis les notifications)
@@ -705,17 +743,6 @@ fun ReserveScreen(
                                         fontSize = 11.sp
                                     )
                                     Spacer(modifier = Modifier.height(AppSpacing.xs))
-                                    TextButton(
-                                        onClick = { logementViewModel.loadLogements(force = true) }
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Refresh,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Actualiser", fontSize = 12.sp)
-                                    }
                                 }
                             } else {
                                 // Afficher le nombre de logements disponibles
@@ -1324,139 +1351,159 @@ fun BottomNavBar(navController: NavController) {
 fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context.applicationContext) }
-    val baseUrl = remember { NetworkConfig.getBaseUrl(context.applicationContext) }
+    val baseUrl = remember { 
+        try {
+            NetworkConfig.getBaseUrl(context.applicationContext)
+        } catch (e: Exception) {
+            android.util.Log.e("HomeScreen", "Erreur baseUrl", e)
+            "http://localhost:3000"
+        }
+    }
     val notificationViewModel: com.sim.darna.firebase.FirebaseNotificationViewModel = viewModel(
         factory = com.sim.darna.factory.FirebaseNotificationVmFactory(baseUrl, sessionManager)
     )
+    val visiteViewModel: VisiteViewModel = viewModel(
+        factory = VisiteVmFactory(baseUrl, sessionManager)
+    )
     val unreadCount by notificationViewModel.unreadCount.collectAsState()
+    val uiState = visiteViewModel.state.collectAsState().value
 
-    // Charger les notifications et le compteur au démarrage
+    // Charger les notifications et le compteur au démarrage de manière sécurisée avec délai
     LaunchedEffect(Unit) {
-        android.util.Log.d("HomeScreen", "Chargement initial des notifications...")
-        notificationViewModel.loadUnreadCount()
-        notificationViewModel.loadNotifications()
+        try {
+            // Attendre un peu pour s'assurer que la session est complètement chargée
+            kotlinx.coroutines.delay(500)
+            android.util.Log.d("HomeScreen", "Chargement initial des notifications...")
+            notificationViewModel.loadUnreadCount()
+            notificationViewModel.loadNotifications()
+        } catch (e: Exception) {
+            android.util.Log.e("HomeScreen", "Erreur lors du chargement initial", e)
+        }
     }
     
     // Rafraîchir les notifications périodiquement
     LaunchedEffect(Unit) {
         kotlinx.coroutines.delay(5000) // Attendre 5 secondes avant le premier rafraîchissement
         while (true) {
-            android.util.Log.d("HomeScreen", "Rafraîchissement périodique des notifications...")
-            notificationViewModel.loadUnreadCount()
-            notificationViewModel.loadNotifications()
+            try {
+                android.util.Log.d("HomeScreen", "Rafraîchissement périodique des notifications...")
+                notificationViewModel.loadUnreadCount()
+                notificationViewModel.loadNotifications()
+            } catch (e: Exception) {
+                android.util.Log.e("HomeScreen", "Erreur lors du rafraîchissement", e)
+            }
             kotlinx.coroutines.delay(30000) // Attendre 30 secondes entre chaque rafraîchissement
         }
     }
 
-    Column(
+    // Utiliser LazyColumn comme conteneur principal pour éviter les contraintes infinies
+    androidx.compose.foundation.lazy.LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(AppColors.background),
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Header Section
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White)
-                .padding(20.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        // Header Section - Premier item du LazyColumn
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .padding(20.dp)
             ) {
-                Column {
-                    Text(
-                        text = "Découvrir",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1A1A1A)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Trouvez votre colocation idéale",
-                        fontSize = 14.sp,
-                        color = Color(0xFF757575)
-                    )
-                }
-
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Icône notifications avec badge
-                    Box {
-                        Surface(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clickable { navController.navigate("notifications") },
-                            shape = RoundedCornerShape(24.dp),
-                            color = Color(0xFF0066FF).copy(alpha = 0.1f)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Notifications,
-                                contentDescription = "Notifications",
-                                modifier = Modifier.padding(12.dp),
-                                tint = Color(0xFF0066FF)
-                            )
-                        }
-                        if (unreadCount > 0) {
-                            Badge(
-                                containerColor = Color(0xFFFF3B30),
+                    Column {
+                        Text(
+                            text = "Découvrir",
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1A1A1A)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Trouvez votre colocation idéale",
+                            fontSize = 14.sp,
+                            color = Color(0xFF757575)
+                        )
+                    }
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Icône notifications avec badge
+                        Box {
+                            Surface(
                                 modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .offset(x = 4.dp, y = (-4).dp)
+                                    .size(48.dp)
+                                    .clickable { navController.navigate("notifications") },
+                                shape = RoundedCornerShape(24.dp),
+                                color = Color(0xFF0066FF).copy(alpha = 0.1f)
                             ) {
-                                Text(
-                                    text = if (unreadCount > 9) "9+" else unreadCount.toString(),
-                                    fontSize = 10.sp,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
+                                Icon(
+                                    imageVector = Icons.Default.NotificationsNone,
+                                    contentDescription = "Notifications",
+                                    modifier = Modifier.padding(12.dp),
+                                    tint = Color(0xFF0066FF)
                                 )
+                            }
+                            if (unreadCount > 0) {
+                                Badge(
+                                    containerColor = Color(0xFFFF3B30),
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .offset(x = 4.dp, y = (-4).dp)
+                                ) {
+                                    Text(
+                                        text = if (unreadCount > 9) "9+" else unreadCount.toString(),
+                                        fontSize = 10.sp,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-            // Search Bar
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // Search Bar
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = Color(0xFF9E9E9E)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Rechercher une colocation...",
-                        color = Color(0xFF9E9E9E),
-                        fontSize = 16.sp
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = Color(0xFF9E9E9E)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Rechercher une colocation...",
+                            color = Color(0xFF9E9E9E),
+                            fontSize = 16.sp
+                        )
+                    }
                 }
             }
         }
 
-        // Content Section
-        androidx.compose.foundation.lazy.LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Categories Section
-            item {
+        // Categories Section
+        item {
                 Text(
                     text = "Catégories",
                     fontSize = 20.sp,
@@ -1542,7 +1589,6 @@ fun HomeScreen(navController: NavController) {
             }
         }
     }
-}
 
 @Composable
 fun CategoryCard(icon: ImageVector, label: String, color: Color) {
@@ -1793,85 +1839,136 @@ fun InfoChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String
 fun CollocatorHomeScreen(navController: NavController) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context.applicationContext) }
-    val baseUrl = remember { NetworkConfig.getBaseUrl(context.applicationContext) }
+    val baseUrl = remember { 
+        try {
+            NetworkConfig.getBaseUrl(context.applicationContext)
+        } catch (e: Exception) {
+            android.util.Log.e("CollocatorHomeScreen", "Erreur baseUrl", e)
+            "http://localhost:3000"
+        }
+    }
     val notificationViewModel: com.sim.darna.firebase.FirebaseNotificationViewModel = viewModel(
         factory = com.sim.darna.factory.FirebaseNotificationVmFactory(baseUrl, sessionManager)
     )
-    val unreadCount by notificationViewModel.unreadCount.collectAsState()
-
-    // Charger les notifications et le compteur au démarrage
-    LaunchedEffect(Unit) {
-        android.util.Log.d("CollocatorHomeScreen", "Chargement initial des notifications...")
-        notificationViewModel.loadUnreadCount()
-        notificationViewModel.loadNotifications()
-    }
+    val visiteViewModel: VisiteViewModel = viewModel(
+        factory = VisiteVmFactory(baseUrl, sessionManager)
+    )
     
-    // Rafraîchir les notifications périodiquement pour capturer les nouvelles notifications d'annulation
+    val unreadCount by notificationViewModel.unreadCount.collectAsState()
+    val uiState = visiteViewModel.state.collectAsState().value
+
+    // Charger les données au démarrage de manière sécurisée avec délai
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(5000) // Attendre 5 secondes avant le premier rafraîchissement
-        while (true) {
-            android.util.Log.d("CollocatorHomeScreen", "Rafraîchissement périodique des notifications...")
+        try {
+            // Attendre un peu pour s'assurer que la session est complètement chargée
+            kotlinx.coroutines.delay(500)
+            android.util.Log.d("CollocatorHomeScreen", "Chargement initial des données...")
             notificationViewModel.loadUnreadCount()
             notificationViewModel.loadNotifications()
-            kotlinx.coroutines.delay(30000) // Attendre 30 secondes entre chaque rafraîchissement
+            visiteViewModel.loadLogementsVisites()
+        } catch (e: Exception) {
+            android.util.Log.e("CollocatorHomeScreen", "Erreur lors du chargement initial", e)
         }
+    }
+    
+    // Rafraîchir les notifications périodiquement
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(5000)
+        while (true) {
+            try {
+                android.util.Log.d("CollocatorHomeScreen", "Rafraîchissement périodique...")
+                notificationViewModel.loadUnreadCount()
+                notificationViewModel.loadNotifications()
+                visiteViewModel.loadLogementsVisites(force = true)
+            } catch (e: Exception) {
+                android.util.Log.e("CollocatorHomeScreen", "Erreur lors du rafraîchissement", e)
+            }
+            kotlinx.coroutines.delay(30000)
+        }
+    }
+
+    // Calculer les statistiques
+    val stats = remember(uiState.visites) {
+        val total = uiState.visites.size
+        val pending = uiState.visites.count { 
+            it.status?.equals("pending", ignoreCase = true) == true || 
+            (it.status == null || it.status.equals("en attente", ignoreCase = true))
+        }
+        val accepted = uiState.visites.count { 
+            it.status?.equals("confirmed", ignoreCase = true) == true ||
+            it.status?.equals("acceptée", ignoreCase = true) == true
+        }
+        val completed = uiState.visites.count { 
+            it.status?.equals("completed", ignoreCase = true) == true ||
+            it.status?.equals("terminée", ignoreCase = true) == true
+        }
+        val reviews = uiState.visites.count { it.reviewId != null }
+        
+        CollocatorStats(
+            totalRequests = total,
+            pending = pending,
+            accepted = accepted,
+            completed = completed,
+            reviews = reviews
+        )
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(AppColors.background)
+            .verticalScroll(rememberScrollState())
     ) {
-        // Header Section
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White)
-                .padding(20.dp)
+        // Header moderne
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = Color.White,
+            shadowElevation = 2.dp
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = AppSpacing.lg, vertical = AppSpacing.md)
             ) {
-                Column {
-                    Text(
-                        text = "Tableau de bord",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1A1A1A)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Gérez vos logements et visites",
-                        fontSize = 14.sp,
-                        color = Color(0xFF757575)
-                    )
-                }
-
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Column {
+                        Text(
+                            text = "Tableau de bord",
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.textPrimary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Gérez vos logements et visites",
+                            fontSize = 14.sp,
+                            color = AppColors.textSecondary
+                        )
+                    }
+
                     // Icône notifications avec badge
                     Box {
                         Surface(
                             modifier = Modifier
                                 .size(48.dp)
                                 .clickable { navController.navigate("notifications") },
-                            shape = RoundedCornerShape(24.dp),
-                            color = Color(0xFF0066FF).copy(alpha = 0.1f)
+                            shape = CircleShape,
+                            color = AppColors.primary.copy(alpha = 0.1f)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Notifications,
+                                imageVector = Icons.Default.NotificationsNone,
                                 contentDescription = "Notifications",
                                 modifier = Modifier.padding(12.dp),
-                                tint = Color(0xFF0066FF)
+                                tint = AppColors.primary
                             )
                         }
                         if (unreadCount > 0) {
                             Badge(
-                                containerColor = Color(0xFFFF3B30),
+                                containerColor = AppColors.danger,
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
                                     .offset(x = 4.dp, y = (-4).dp)
@@ -1889,52 +1986,292 @@ fun CollocatorHomeScreen(navController: NavController) {
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Quick Actions
-        Row(
+        // Cartes de statistiques
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = AppSpacing.md, vertical = AppSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
         ) {
-            // Card pour les demandes de visite
-            Card(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { navController.navigate(BottomNavItem.VisitsRequests.route) },
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            // Ligne 1: Demandes reçues et Acceptées
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.md)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                StatCard(
+                    title = "Demandes reçues",
+                    value = stats.totalRequests.toString(),
+                    icon = Icons.Default.Inbox,
+                    color = AppColors.info,
+                    modifier = Modifier.weight(1f)
+                )
+                StatCard(
+                    title = "Acceptées",
+                    value = stats.accepted.toString(),
+                    icon = Icons.Default.CheckCircle,
+                    color = AppColors.success,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            
+            // Ligne 2: En attente et Avis
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.md)
+            ) {
+                StatCard(
+                    title = "En attente",
+                    value = stats.pending.toString(),
+                    icon = Icons.Default.Schedule,
+                    color = AppColors.warning,
+                    modifier = Modifier.weight(1f)
+                )
+                StatCard(
+                    title = "Avis reçus",
+                    value = stats.reviews.toString(),
+                    icon = Icons.Default.Star,
+                    color = AppColors.primary,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        // Graphique simple (barres horizontales)
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = AppSpacing.md),
+            shape = RoundedCornerShape(AppRadius.lg),
+            colors = CardDefaults.cardColors(containerColor = AppColors.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(AppSpacing.md)
+            ) {
+                Text(
+                    text = "Répartition des visites",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AppColors.textPrimary
+                )
+                Spacer(modifier = Modifier.height(AppSpacing.md))
+                
+                // Barres de progression
+                ProgressBarItem("En attente", stats.pending, stats.totalRequests, AppColors.warning)
+                Spacer(modifier = Modifier.height(AppSpacing.sm))
+                ProgressBarItem("Acceptées", stats.accepted, stats.totalRequests, AppColors.success)
+                Spacer(modifier = Modifier.height(AppSpacing.sm))
+                ProgressBarItem("Terminées", stats.completed, stats.totalRequests, AppColors.primary)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(AppSpacing.md))
+
+        // Liste d'avis récents
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = AppSpacing.md),
+            shape = RoundedCornerShape(AppRadius.lg),
+            colors = CardDefaults.cardColors(containerColor = AppColors.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(AppSpacing.md)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        modifier = Modifier.size(48.dp),
-                        shape = CircleShape,
-                        color = Color(0xFF0066FF).copy(alpha = 0.1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.EventNote,
-                            contentDescription = null,
-                            modifier = Modifier.padding(12.dp),
-                            tint = Color(0xFF0066FF)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Demandes",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF1A1A1A)
+                        text = "Avis récents",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.textPrimary
                     )
+                    TextButton(
+                        onClick = { navController.navigate(BottomNavItem.Reviews.route) }
+                    ) {
+                        Text("Voir tout", color = AppColors.primary)
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(AppSpacing.sm))
+                
+                // Afficher les 3 derniers avis
+                val recentReviews = uiState.visites
+                    .filter { it.reviewId != null }
+                    .take(3)
+                
+                if (recentReviews.isEmpty()) {
+                    Text(
+                        text = "Aucun avis pour le moment",
+                        fontSize = 14.sp,
+                        color = AppColors.textSecondary,
+                        modifier = Modifier.padding(vertical = AppSpacing.md)
+                    )
+                } else {
+                    recentReviews.forEach { visite ->
+                        ReviewListItem(visite)
+                        if (visite != recentReviews.last()) {
+                            Divider(
+                                modifier = Modifier.padding(vertical = AppSpacing.sm),
+                                color = AppColors.divider
+                            )
+                        }
+                    }
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(AppSpacing.xl))
+    }
+}
+
+private data class CollocatorStats(
+    val totalRequests: Int,
+    val pending: Int,
+    val accepted: Int,
+    val completed: Int,
+    val reviews: Int
+)
+
+@Composable
+private fun StatCard(
+    title: String,
+    value: String,
+    icon: ImageVector,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(AppRadius.lg),
+        colors = CardDefaults.cardColors(containerColor = AppColors.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(AppSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)
+        ) {
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = CircleShape,
+                color = color.copy(alpha = 0.15f)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = color,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            Text(
+                text = value,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = AppColors.textPrimary
+            )
+            Text(
+                text = title,
+                fontSize = 12.sp,
+                color = AppColors.textSecondary
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProgressBarItem(label: String, value: Int, total: Int, color: Color) {
+    val percentage = if (total > 0) (value.toFloat() / total.toFloat()) * 100f else 0f
+    
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = label,
+                fontSize = 14.sp,
+                color = AppColors.textPrimary
+            )
+            Text(
+                text = "$value ($total)",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        LinearProgressIndicator(
+            progress = { percentage / 100f },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(RoundedCornerShape(4.dp)),
+            color = color,
+            trackColor = color.copy(alpha = 0.2f)
+        )
+    }
+}
+
+@Composable
+private fun ReviewListItem(visite: com.sim.darna.visite.VisiteResponse) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            modifier = Modifier.size(40.dp),
+            shape = CircleShape,
+            color = AppColors.primary.copy(alpha = 0.1f)
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = AppColors.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = visite.logementTitle ?: visite.logementId ?: "Logement",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = AppColors.textPrimary
+            )
+            if (visite.clientUsername != null) {
+                Text(
+                    text = "Par ${visite.clientUsername}",
+                    fontSize = 12.sp,
+                    color = AppColors.textSecondary
+                )
+            }
+        }
+        Icon(
+            imageVector = Icons.Default.ArrowForward,
+            contentDescription = null,
+            tint = AppColors.textTertiary,
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 
@@ -2797,13 +3134,6 @@ private fun CollocatorHeader(onRefresh: () -> Unit) {
                 lineHeight = 22.sp
             )
             Spacer(Modifier.height(AppSpacing.md))
-            SecondaryActionButton(
-                text = "Actualiser",
-                onClick = onRefresh,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.Refresh, contentDescription = null, tint = AppColors.primary)
-            }
         }
     }
 }

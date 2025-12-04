@@ -76,6 +76,11 @@ fun NotificationDetailScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                     val (iconColor, backgroundColor, icon) = when (notification.type?.lowercase()) {
+                        "new_message" -> Triple(
+                            Color(0xFF0066FF),
+                            Color(0xFF0066FF).copy(alpha = 0.1f),
+                            Icons.Default.Message
+                        )
                         "success", "visite_accepted", "visite_completed" -> Triple(
                             Color(0xFF00C853),
                             Color(0xFF00C853).copy(alpha = 0.1f),
@@ -102,11 +107,11 @@ fun NotificationDetailScreen(
                             Color(0xFFFFC107).copy(alpha = 0.1f),
                             Icons.Default.Warning
                         )
-                        else -> Triple(
-                            Color(0xFF0066FF),
-                            Color(0xFF0066FF).copy(alpha = 0.1f),
-                            Icons.Default.Info
-                        )
+        else -> Triple(
+            Color(0xFF0066FF),
+            Color(0xFF0066FF).copy(alpha = 0.1f),
+            Icons.Default.Notifications
+        )
                     }
                         
                         Surface(

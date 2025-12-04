@@ -118,7 +118,16 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
                     val client = OkHttpClient.Builder()
                         .addInterceptor { chain ->
                             try {
-                                val token = runBlocking { sessionManager.getToken() }
+                                // Utiliser withTimeout pour éviter les blocages
+                                val token = try {
+                                    kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+                                        kotlinx.coroutines.withTimeout(1000) {
+                                            sessionManager.getToken()
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    null
+                                }
                                 val requestBuilder = chain.request().newBuilder()
                                 if (!token.isNullOrBlank()) {
                                     requestBuilder.addHeader("Authorization", "Bearer $token")
@@ -126,6 +135,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
                                 requestBuilder.addHeader("Accept", "application/json")
                                 chain.proceed(requestBuilder.build())
                             } catch (e: Exception) {
+                                android.util.Log.e("LoginScreen", "Erreur dans l'interceptor", e)
                                 chain.proceed(chain.request().newBuilder()
                                     .addHeader("Accept", "application/json")
                                     .build())
@@ -153,6 +163,8 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
                 }
             }
             
+            // Attendre un peu pour s'assurer que la session est complètement sauvegardée
+            kotlinx.coroutines.delay(300)
             onLoginSuccess()
         }
     }

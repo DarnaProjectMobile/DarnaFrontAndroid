@@ -43,7 +43,8 @@ import kotlin.math.roundToInt
 @Composable
 fun NotificationsScreen(
     navController: androidx.navigation.NavController,
-    viewModel: FirebaseNotificationViewModel
+    viewModel: FirebaseNotificationViewModel,
+    parentNavController: androidx.navigation.NavController? = null
 ) {
     val uiState by viewModel.state.collectAsState()
     val unreadCount by viewModel.unreadCount.collectAsState()
@@ -121,18 +122,6 @@ fun NotificationsScreen(
                             tint = if (showUnreadOnly) Color(0xFF0066FF) else Color(0xFF9E9E9E)
                         )
                     }
-                    IconButton(
-                        onClick = { 
-                            viewModel.loadNotifications()
-                            viewModel.loadUnreadCount()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Actualiser",
-                            tint = Color(0xFF0066FF)
-                        )
-                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.White
@@ -174,7 +163,7 @@ fun NotificationsScreen(
                     notifications = filteredNotifications,
                     onNotificationClick = { notification ->
                         try {
-                            android.util.Log.d("NotificationsScreen", "Clic sur notification: ${notification.id}, titre: ${notification.title}")
+                            android.util.Log.d("NotificationsScreen", "Clic sur notification: ${notification.id}, titre: ${notification.title}, type: ${notification.type}")
                             
                             // Marquer comme lu si nécessaire
                             if (notification.isRead != true) {
@@ -183,33 +172,60 @@ fun NotificationsScreen(
                                 }
                             }
                             
-                            // Navigation vers les détails de la notification
-                            notification.id?.let { id ->
-                                if (id.isNotEmpty()) {
-                                    try {
-                                        android.util.Log.d("NotificationsScreen", "Navigation vers notification_detail/$id")
-                                        navController.navigate("notification_detail/$id") {
-                                            // Options de navigation pour une meilleure expérience
-                                            launchSingleTop = true
-                                        }
-                                    } catch (e: Exception) {
-                                        android.util.Log.e("NotificationsScreen", "Erreur lors de la navigation", e)
-                                        // Essayer avec un encodage URL si nécessaire
-                                        try {
-                                            val encodedId = java.net.URLEncoder.encode(id, "UTF-8")
-                                            android.util.Log.d("NotificationsScreen", "Tentative avec encodage: notification_detail/$encodedId")
-                                            navController.navigate("notification_detail/$encodedId") {
-                                                launchSingleTop = true
-                                            }
-                                        } catch (e2: Exception) {
-                                            android.util.Log.e("NotificationsScreen", "Erreur lors de la navigation avec encodage", e2)
+                            // Si c'est une notification de message, ouvrir directement le chat, marquer comme lu et supprimer
+                            if (notification.type == "NEW_MESSAGE" && !notification.visitId.isNullOrBlank()) {
+                                try {
+                                    notification.id?.let { id ->
+                                        // Marquer comme lu immédiatement
+                                        viewModel.markAsRead(id)
+                                        // Supprimer la notification après un court délai pour permettre la navigation
+                                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                                            kotlinx.coroutines.delay(500)
+                                            viewModel.deleteNotification(id)
                                         }
                                     }
-                                } else {
-                                    android.util.Log.w("NotificationsScreen", "ID de notification vide, impossible de naviguer")
+                                    val visiteId = notification.visitId
+                                    val visiteTitle = notification.title?.replace("Nouveau message de ", "")?.takeIf { it.isNotBlank() } 
+                                        ?: "Chat"
+                                    val encodedTitle = java.net.URLEncoder.encode(visiteTitle, "UTF-8")
+                                    android.util.Log.d("NotificationsScreen", "Navigation vers chat/$visiteId/$encodedTitle")
+                                    // Utiliser parentNavController si disponible, sinon navController
+                                    val targetNavController = parentNavController ?: navController
+                                    targetNavController.navigate("chat/$visiteId/$encodedTitle") {
+                                        launchSingleTop = true
+                                    }
+                                } catch (e: Exception) {
+                                    android.util.Log.e("NotificationsScreen", "Erreur lors de la navigation vers le chat", e)
                                 }
-                            } ?: run {
-                                android.util.Log.w("NotificationsScreen", "ID de notification null, impossible de naviguer")
+                            } else {
+                                // Navigation vers les détails de la notification pour les autres types
+                                notification.id?.let { id ->
+                                    if (id.isNotEmpty()) {
+                                        try {
+                                            android.util.Log.d("NotificationsScreen", "Navigation vers notification_detail/$id")
+                                            navController.navigate("notification_detail/$id") {
+                                                // Options de navigation pour une meilleure expérience
+                                                launchSingleTop = true
+                                            }
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("NotificationsScreen", "Erreur lors de la navigation", e)
+                                            // Essayer avec un encodage URL si nécessaire
+                                            try {
+                                                val encodedId = java.net.URLEncoder.encode(id, "UTF-8")
+                                                android.util.Log.d("NotificationsScreen", "Tentative avec encodage: notification_detail/$encodedId")
+                                                navController.navigate("notification_detail/$encodedId") {
+                                                    launchSingleTop = true
+                                                }
+                                            } catch (e2: Exception) {
+                                                android.util.Log.e("NotificationsScreen", "Erreur lors de la navigation avec encodage", e2)
+                                            }
+                                        }
+                                    } else {
+                                        android.util.Log.w("NotificationsScreen", "ID de notification vide, impossible de naviguer")
+                                    }
+                                } ?: run {
+                                    android.util.Log.w("NotificationsScreen", "ID de notification null, impossible de naviguer")
+                                }
                             }
                         } catch (e: Exception) {
                             android.util.Log.e("NotificationsScreen", "Erreur lors du clic sur la notification", e)
@@ -423,6 +439,11 @@ fun NotificationItem(
 
     // Couleurs selon le type
     val (iconColor, backgroundColor, icon) = when (type.lowercase()) {
+        "new_message" -> Triple(
+            Color(0xFF0066FF),
+            Color(0xFF0066FF).copy(alpha = 0.1f),
+            Icons.Default.Message
+        )
         "success", "visite_accepted", "visite_completed" -> Triple(
             Color(0xFF00C853),
             Color(0xFF00C853).copy(alpha = 0.1f),
@@ -452,7 +473,7 @@ fun NotificationItem(
         else -> Triple(
             Color(0xFF0066FF),
             Color(0xFF0066FF).copy(alpha = 0.1f),
-            Icons.Default.Info
+            Icons.Default.Notifications
         )
     }
 
@@ -748,28 +769,6 @@ fun EmptyState(modifier: Modifier = Modifier, onRefresh: (() -> Unit)? = null) {
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
-            if (onRefresh != null) {
-                Button(
-                    onClick = onRefresh,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF0066FF)
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.padding(top = 8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "Actualiser",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
         }
     }
 }
@@ -830,12 +829,6 @@ fun ErrorState(
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     "Réessayer",
                     fontSize = 16.sp,

@@ -25,7 +25,7 @@ data class ChatUiState(
 
 class ChatViewModel(
     private val repository: ChatRepository,
-    private val baseUrl: String,
+    val baseUrl: String, // Rendre public pour l'utiliser dans ChatScreen
     private val token: String?,
     private val userId: String?
 ) : ViewModel() {
@@ -175,6 +175,16 @@ class ChatViewModel(
             _state.update { it.copy(isLoading = true, error = null) }
             try {
                 val messages = repository.getMessages(visiteId)
+                
+                // Log pour vérifier les images dans les messages
+                Log.d("ChatViewModel", "📥 Messages chargés: ${messages.size}")
+                messages.forEachIndexed { index, message ->
+                    Log.d("ChatViewModel", "Message $index: id=${message.id}, type=${message.type}, images=${message.images?.size ?: 0}")
+                    message.images?.forEachIndexed { imgIndex, imgUrl ->
+                        Log.d("ChatViewModel", "  Image $imgIndex: $imgUrl")
+                    }
+                }
+                
                 _state.update { 
                     it.copy(
                         messages = messages,
@@ -184,6 +194,7 @@ class ChatViewModel(
                 // Rejoindre la room Socket.IO pour cette visite
                 joinVisite(visiteId)
             } catch (error: Exception) {
+                Log.e("ChatViewModel", "❌ Erreur lors du chargement des messages", error)
                 _state.update { 
                     it.copy(
                         isLoading = false,

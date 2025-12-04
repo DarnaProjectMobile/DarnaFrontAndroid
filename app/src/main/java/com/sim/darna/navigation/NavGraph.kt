@@ -298,7 +298,16 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             )
             
             val currentUserId = remember {
-                kotlinx.coroutines.runBlocking { sessionManager.getUserId() } ?: ""
+                try {
+                    kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+                        kotlinx.coroutines.withTimeout(1000) {
+                            sessionManager.getUserId()
+                        }
+                    } ?: ""
+                } catch (e: Exception) {
+                    android.util.Log.e("NavGraph", "Erreur lors de la récupération du userId", e)
+                    ""
+                }
             }
             
             ChatScreen(

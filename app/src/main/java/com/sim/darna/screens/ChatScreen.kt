@@ -2,6 +2,7 @@ package com.sim.darna.screens
 
 import android.Manifest
 import android.net.Uri
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -10,6 +11,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import coil.compose.AsyncImage
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -30,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
+import coil.compose.AsyncImage
 import com.sim.darna.chat.ChatViewModel
 import com.sim.darna.chat.MessageResponse
 import com.sim.darna.ui.components.AppColors
@@ -43,6 +46,13 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.TimeZone
+
+// État de chargement des images
+sealed class ImageLoadState {
+    object Loading : ImageLoadState()
+    data class Error(val throwable: Throwable?) : ImageLoadState()
+    object Success : ImageLoadState()
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -178,6 +188,7 @@ fun ChatScreen(
                             MessageBubble(
                                 message = message,
                                 isCurrentUser = message.senderId == currentUserId,
+                                baseUrl = viewModel.baseUrl,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -251,6 +262,7 @@ fun ChatScreen(
 private fun MessageBubble(
     message: MessageResponse,
     isCurrentUser: Boolean,
+    baseUrl: String,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -282,24 +294,130 @@ private fun MessageBubble(
             }
             
             // Images
-            message.images?.forEach { imageUrl ->
-                if (imageUrl.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    val imageUrlFull = if (imageUrl.startsWith("http")) {
-                        imageUrl
+            if (message.images != null && message.images.isNotEmpty()) {
+                Log.d("ChatScreen", "📸 Message has ${message.images.size} image(s)")
+                message.images.forEachIndexed { index, imageUrl ->
+                    if (imageUrl.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        // Construire l'URL complète en utilisant le baseUrl passé en paramètre
+                        val imageUrlFull = if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+                            // Nettoyer l'URL pour enlever tous les espaces et caractères invalides
+                            imageUrl.trim()
+                                .replace(" ", "")
+                                .replace(Regex("\\s+"), "")
+                                .replace("\n", "")
+                                .replace("\r", "")
+                        } else {
+                            // Nettoyer l'imageUrl pour enlever tous les espaces
+                            val cleanImageUrl = imageUrl.trim()
+                                .replace(" ", "")
+                                .replace(Regex("\\s+"), "")
+                                .replace("chat /", "chat/")
+                                .replace("chat  /", "chat/")
+                                .replace("\n", "")
+                                .replace("\r", "")
+                            // Utiliser le baseUrl et enlever le trailing slash s'il existe
+                            val normalizedBaseUrl = baseUrl.removeSuffix("/")
+                            // S'assurer que cleanImageUrl commence par /
+                            val path = if (cleanImageUrl.startsWith("/")) cleanImageUrl else "/$cleanImageUrl"
+                            val fullUrl = "$normalizedBaseUrl$path"
+                            Log.d("ChatScreen", "🔗 Constructed URL: $fullUrl")
+                            Log.d("ChatScreen", "   - baseUrl: $baseUrl")
+                            Log.d("ChatScreen", "   - imageUrl original: $imageUrl")
+                            Log.d("ChatScreen", "   - imageUrl cleaned: $cleanImageUrl")
+                            fullUrl
+                        }
+                        
+                        // Debug log
+                        Log.d("ChatScreen", "🖼️ Loading image $index from URL: $imageUrlFull")
+                        
+                        // Utiliser Box pour gérer l'état de chargement avec fallback
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFE5E7EB)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            var imageLoadState by remember { mutableStateOf<ImageLoadState>(ImageLoadState.Loading) }
+                            
+                            LaunchedEffect(imageUrlFull) {
+                                // Reset state when URL changes
+                                imageLoadState = ImageLoadState.Loading
+                            }
+                            
+                            when (imageLoadState) {
+                                is ImageLoadState.Loading -> {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(32.dp),
+                                        color = AppColors.primary,
+                                        strokeWidth = 3.dp
+                                    )
+                                }
+                                is ImageLoadState.Error -> {
+                                    // Afficher un placeholder en cas d'erreur avec possibilité de réessayer
+                                    Column(
+                                        modifier = Modifier.fillMaxSize(),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Image,
+                                            contentDescription = "Image non disponible",
+                                            modifier = Modifier.size(48.dp),
+                                            tint = Color.Gray
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "Image non disponible",
+                                            fontSize = 12.sp,
+                                            color = Color.Gray
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        TextButton(
+                                            onClick = { imageLoadState = ImageLoadState.Loading }
+                                        ) {
+                                            Text(
+                                                text = "Réessayer",
+                                                fontSize = 10.sp
+                                            )
+                                        }
+                                    }
+                                }
+                                is ImageLoadState.Success -> {
+                                    // Image chargée avec succès - sera géré par AsyncImage
+                                }
+                            }
+                            
+                            // Toujours essayer de charger l'image
+                            AsyncImage(
+                                model = imageUrlFull,
+                                contentDescription = "Image du message",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                                onError = { error ->
+                                    imageLoadState = ImageLoadState.Error(error.result.throwable)
+                                    Log.e("ChatScreen", "❌ Error loading image: $imageUrlFull")
+                                    Log.e("ChatScreen", "Error: ${error.result.throwable?.message}")
+                                    Log.e("ChatScreen", "Throwable: ${error.result.throwable}")
+                                },
+                                onSuccess = {
+                                    imageLoadState = ImageLoadState.Success
+                                    Log.d("ChatScreen", "✅ Image loaded successfully: $imageUrlFull")
+                                },
+                                onLoading = {
+                                    imageLoadState = ImageLoadState.Loading
+                                }
+                            )
+                        }
                     } else {
-                        "http://10.0.2.2:3000$imageUrl" // Use 10.0.2.2 for Android emulator
+                        Log.w("ChatScreen", "⚠️ Empty image URL at index $index")
                     }
-                    Image(
-                        painter = rememberAsyncImagePainter(model = imageUrlFull),
-                        contentDescription = "Image",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop
-                    )
                 }
+            } else {
+                Log.d("ChatScreen", "📸 Message has no images (images: ${message.images})")
             }
             
             // Text content
