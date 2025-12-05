@@ -121,7 +121,73 @@ class ChatViewModel(
             }
 
             socket?.on("message_sent") { args ->
-                Log.d("ChatViewModel", "Message envoyé confirmé")
+                try {
+                    if (args.isNotEmpty() && args[0] is JSONObject) {
+                        val messageJson = args[0] as JSONObject
+                        val message = gson.fromJson(messageJson.toString(), MessageResponse::class.java)
+                        
+                        // Si je suis le destinataire, je marque comme livré et potentiellement lu
+                        if (message.receiverId == userId) {
+                            message.id?.let { id ->
+                                updateMessageStatus(id, "delivered")
+                                if (currentVisiteId == message.visiteId) {
+                                    updateMessageStatus(id, "read")
+                                }
+                            }
+                        }
+
+                        // Ajouter le message envoyé à la liste immédiatement
+                        viewModelScope.launch {
+                            _state.update { 
+                                it.copy(
+                                    messages = it.messages + message,
+                                    isSending = false
+                                )
+                            }
+                        }
+                        Log.d("ChatViewModel", "Message envoyé confirmé et ajouté à la liste")
+                    }
+                } catch (e: Exception) {
+                    Log.e("ChatViewModel", "Erreur lors de la réception de message_sent", e)
+                }
+            }
+
+            socket?.on("reaction_updated") { args ->
+                try {
+                    if (args.isNotEmpty() && args[0] is JSONObject) {
+                        val data = args[0] as JSONObject
+                        val messageId = data.getString("messageId")
+                        val reactions = data.optJSONObject("reactions")
+                        
+                        val reactionsMap = mutableMapOf<String, List<String>>()
+                        if (reactions != null) {
+                            val keysIterator = reactions.keys()
+                            while (keysIterator.hasNext()) {
+                                val emoji = keysIterator.next() as String
+                                val userIds = reactions.getJSONArray(emoji)
+                                val userIdsList = mutableListOf<String>()
+                                for (i in 0 until userIds.length()) {
+                                    userIdsList.add(userIds.getString(i))
+                                }
+                                reactionsMap[emoji] = userIdsList
+                            }
+                        }
+                        
+                        viewModelScope.launch {
+                            _state.update { currentState ->
+                                val newMessages = currentState.messages.toMutableList()
+                                val index = newMessages.indexOfFirst { it.id == messageId }
+                                if (index != -1) {
+                                    // Important : créer une NOUVELLE instance du message avec une NOUVELLE map pour déclencher la recomposition
+                                    newMessages[index] = newMessages[index].copy(reactions = HashMap(reactionsMap))
+                                }
+                                currentState.copy(messages = newMessages)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("ChatViewModel", "Erreur reaction_updated", e)
+                }
             }
 
             socket?.on("error") { args ->
@@ -131,6 +197,89 @@ class ChatViewModel(
                     _state.update { 
                         it.copy(error = errorMsg)
                     }
+                }
+            }
+
+            // Nouveaux événements WebSocket pour suppression, modification et statuts
+            
+            // Événement : message supprimé
+            socket?.on("message_deleted") { args ->
+                try {
+                    if (args.isNotEmpty() && args[0] is JSONObject) {
+                        val data = args[0] as JSONObject
+                        val messageId = data.getString("messageId")
+                        
+                        viewModelScope.launch {
+                            _state.update { 
+                                it.copy(
+                                    messages = it.messages.map { msg ->
+                                        if (msg.id == messageId) {
+                                            msg.copy(
+                                                isDeleted = true,
+                                                content = "Message supprimé"
+                                            )
+                                        } else msg
+                                    }
+                                )
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("ChatViewModel", "Erreur lors de la réception de message_deleted", e)
+                }
+            }
+
+            // Événement : message modifié
+            socket?.on("message_updated") { args ->
+                try {
+                    if (args.isNotEmpty() && args[0] is JSONObject) {
+                        val messageJson = args[0] as JSONObject
+                        val updatedMessage = gson.fromJson(messageJson.toString(), MessageResponse::class.java)
+                        
+                        viewModelScope.launch {
+                            _state.update { 
+                                it.copy(
+                                    messages = it.messages.map { msg ->
+                                        if (msg.id == updatedMessage.id) updatedMessage else msg
+                                    }
+                                )
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("ChatViewModel", "Erreur lors de la réception de message_updated", e)
+                }
+            }
+
+            // Événement : statut du message changé
+            socket?.on("message_status_changed") { args ->
+                try {
+                    if (args.isNotEmpty() && args[0] is JSONObject) {
+                        val data = args[0] as JSONObject
+                        val messageId = data.getString("messageId")
+                        val status = data.getString("status")
+                        val deliveredAt = if (data.has("deliveredAt")) data.getString("deliveredAt") else null
+                        val readAt = if (data.has("readAt")) data.getString("readAt") else null
+                        
+                        viewModelScope.launch {
+                            _state.update { 
+                                it.copy(
+                                    messages = it.messages.map { msg ->
+                                        if (msg.id == messageId) {
+                                            msg.copy(
+                                                status = status,
+                                                deliveredAt = deliveredAt,
+                                                readAt = readAt,
+                                                read = status == "read"
+                                            )
+                                        } else msg
+                                    }
+                                )
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("ChatViewModel", "Erreur lors de la réception de message_status_changed", e)
                 }
             }
 
@@ -191,6 +340,17 @@ class ChatViewModel(
                         isLoading = false
                     )
                 }
+
+                // Marquer les messages reçus comme lus
+                // Marquer tous les messages de la visite comme lus si nécessaire
+                if (messages.any { it.receiverId == userId && it.status != "read" }) {
+                    try {
+                        repository.markAllAsRead(visiteId)
+                    } catch (e: Exception) {
+                        Log.e("ChatViewModel", "Erreur lors du marquage des messages comme lus", e)
+                    }
+                }
+
                 // Rejoindre la room Socket.IO pour cette visite
                 joinVisite(visiteId)
             } catch (error: Exception) {
@@ -355,6 +515,176 @@ class ChatViewModel(
 
     fun clearFeedback() {
         _state.update { it.copy(error = null, message = null) }
+    }
+
+    // Nouvelles fonctions pour suppression, modification et statuts
+    
+    /**
+     * Supprimer un message (soft delete)
+     * Le message sera marqué comme supprimé dans la base de données
+     * et affiché comme "Message supprimé" dans l'UI
+     */
+    fun deleteMessage(messageId: String) {
+        viewModelScope.launch {
+            try {
+                // Appeler l'API pour supprimer le message
+                val deletedMessage = repository.deleteMessage(messageId)
+                
+                // Mettre à jour l'état local
+                _state.update { 
+                    it.copy(
+                        messages = it.messages.map { msg ->
+                            if (msg.id == messageId) {
+                                deletedMessage
+                            } else msg
+                        }
+                    )
+                }
+                
+                // Émettre l'événement via Socket.IO pour notifier les autres utilisateurs
+                socket?.emit("delete_message", JSONObject().apply {
+                    put("messageId", messageId)
+                })
+                
+            } catch (error: Exception) {
+                Log.e("ChatViewModel", "Erreur lors de la suppression du message", error)
+                _state.update { 
+                    it.copy(error = error.message ?: "Erreur lors de la suppression du message")
+                }
+            }
+        }
+    }
+
+    /**
+     * Modifier le contenu d'un message
+     * Seuls les messages texte peuvent être modifiés
+     */
+    fun editMessage(messageId: String, newContent: String) {
+        if (newContent.isBlank()) return
+        
+        viewModelScope.launch {
+            try {
+                // Appeler l'API pour modifier le message
+                val updatedMessage = repository.updateMessage(messageId, newContent)
+                
+                // Mettre à jour l'état local
+                _state.update { 
+                    it.copy(
+                        messages = it.messages.map { msg ->
+                            if (msg.id == messageId) {
+                                updatedMessage
+                            } else msg
+                        }
+                    )
+                }
+                
+                // Émettre l'événement via Socket.IO pour notifier les autres utilisateurs
+                socket?.emit("update_message", JSONObject().apply {
+                    put("messageId", messageId)
+                    put("content", newContent)
+                })
+                
+            } catch (error: Exception) {
+                Log.e("ChatViewModel", "Erreur lors de la modification du message", error)
+                _state.update { 
+                    it.copy(error = error.message ?: "Erreur lors de la modification du message")
+                }
+            }
+        }
+    }
+
+    /**
+     * Mettre à jour le statut d'un message
+     * Statuts possibles : "sent", "delivered", "read"
+     */
+    fun updateMessageStatus(messageId: String, status: String) {
+        viewModelScope.launch {
+            try {
+                // Appeler l'API pour mettre à jour le statut
+                val updatedMessage = repository.updateMessageStatus(messageId, status)
+                
+                // Mettre à jour l'état local
+                _state.update { 
+                    it.copy(
+                        messages = it.messages.map { msg ->
+                            if (msg.id == messageId) {
+                                updatedMessage
+                            } else msg
+                        }
+                    )
+                }
+                
+                // Émettre l'événement via Socket.IO pour notifier l'expéditeur
+                socket?.emit("update_message_status", JSONObject().apply {
+                    put("messageId", messageId)
+                    put("status", status)
+                })
+                
+            } catch (error: Exception) {
+                // Ignorer les erreurs silencieusement pour ne pas perturber l'UX
+                Log.e("ChatViewModel", "Erreur lors de la mise à jour du statut", error)
+            }
+        }
+    }
+
+    /**
+     * Ajouter ou retirer une réaction à un message
+     */
+    /**
+     * Ajouter ou retirer une réaction à un message
+     * Implémente une mise à jour optimiste (immédiate) pour l'UX
+     */
+    fun toggleReaction(messageId: String, emoji: String) {
+        val currentUserId = userId ?: return // Si pas connecté, on ne fait rien
+
+        // 1. Mise à jour Optimiste (Immédiate)
+        _state.update { currentState ->
+            val newMessages = currentState.messages.toMutableList()
+            val index = newMessages.indexOfFirst { it.id == messageId }
+            
+            if (index != -1) {
+                val msg = newMessages[index]
+                // Copie mutable des réactions existantes
+                val currentReactions = msg.reactions?.toMutableMap() ?: mutableMapOf()
+                // Liste des users pour cet emoji
+                val users = currentReactions[emoji]?.toMutableList() ?: mutableListOf()
+                
+                // Logique de bascule (Toggle)
+                if (users.contains(currentUserId)) {
+                    users.remove(currentUserId)
+                    if (users.isEmpty()) {
+                        currentReactions.remove(emoji)
+                    } else {
+                        currentReactions[emoji] = users
+                    }
+                } else {
+                    users.add(currentUserId)
+                    currentReactions[emoji] = users
+                }
+                
+                // Mettre à jour le message localement tout de suite
+                newMessages[index] = msg.copy(reactions = HashMap(currentReactions))
+            }
+            
+            currentState.copy(messages = newMessages)
+        }
+
+        // 2. Appel serveur via WebSocket UNIQUEMENT (pour éviter double toggle)
+        viewModelScope.launch {
+            try {
+                // On utilise le socket pour l'action ET la propagation
+                // L'appel REST est supprimé car le Gateway gère déjà la logique métier + notification
+                socket?.emit("toggle_reaction", JSONObject().apply {
+                    put("messageId", messageId)
+                    put("emoji", emoji)
+                })
+                
+                Log.d("ChatViewModel", "Action réaction envoyée via Socket")
+                
+            } catch (error: Exception) {
+                Log.e("ChatViewModel", "Erreur lors de l'envoi de la réaction socket", error)
+            }
+        }
     }
 }
 

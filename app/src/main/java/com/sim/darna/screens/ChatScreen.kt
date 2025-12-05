@@ -4,13 +4,24 @@ import android.Manifest
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+import java.util.Calendar
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import coil.compose.AsyncImage
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,6 +35,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -43,9 +55,6 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
-import java.text.SimpleDateFormat
-import java.util.*
-import java.util.TimeZone
 
 // État de chargement des images
 sealed class ImageLoadState {
@@ -70,6 +79,11 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
+    // États pour la modification de message
+    var messageToEdit by remember { mutableStateOf<Pair<String, String>?>(null) } // (messageId, content)
+    var editDialogText by remember { mutableStateOf("") }
+    var showReactionPicker by remember { mutableStateOf<String?>(null) } // messageId pour lequel on ajoute une réaction
+
     // Launcher pour sélectionner des images depuis la galerie
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 5)
@@ -92,7 +106,23 @@ fun ChatScreen(
 
     LaunchedEffect(visiteId) {
         viewModel.loadMessages(visiteId)
+        
+        // Marquer tous les messages reçus comme "delivered" si ce n'est pas déjà fait
+        uiState.messages.filter { 
+            it.receiverId == currentUserId && it.status == "sent" 
+        }.forEach { message ->
+            message.id?.let { viewModel.updateMessageStatus(it, "delivered") }
+        }
+        
+        // Marquer tous les messages comme lus
         viewModel.markAllAsRead(visiteId)
+        
+        // Mettre à jour le statut à "read" pour tous les messages reçus
+        uiState.messages.filter { 
+            it.receiverId == currentUserId && it.status != "read" 
+        }.forEach { message ->
+            message.id?.let { viewModel.updateMessageStatus(it, "read") }
+        }
     }
 
     // Nettoyer quand on quitte l'écran
@@ -189,7 +219,25 @@ fun ChatScreen(
                                 message = message,
                                 isCurrentUser = message.senderId == currentUserId,
                                 baseUrl = viewModel.baseUrl,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                onEditMessage = { messageId, content ->
+                                    // Ouvrir le dialog de modification
+                                    messageToEdit = Pair(messageId, content)
+                                    editDialogText = content
+                                },
+                                onDeleteMessage = { messageId ->
+                                    // Supprimer le message
+                                    viewModel.deleteMessage(messageId)
+                                },
+                                onReactionClick = { messageId, emoji ->
+                                    // Si l'emoji est vide, c'est qu'on veut ouvrir le picker
+                                    // Sinon c'est un toggle direct (clic sur une réaction existante)
+                                    if (emoji.isEmpty()) {
+                                        showReactionPicker = messageId
+                                    } else {
+                                        viewModel.toggleReaction(messageId, emoji)
+                                    }
+                                }
                             )
                         }
                     }
@@ -256,15 +304,95 @@ fun ChatScreen(
             )
         }
     }
+
+    // Dialog de modification de message
+    messageToEdit?.let { (messageId, _) ->
+        MessageEditDialog(
+            currentText = editDialogText,
+            onTextChange = { editDialogText = it },
+            onDismiss = {
+                messageToEdit = null
+                editDialogText = ""
+            },
+            onConfirm = {
+                if (editDialogText.isNotBlank()) {
+                    viewModel.editMessage(messageId, editDialogText)
+                    messageToEdit = null
+                    editDialogText = ""
+                }
+            }
+        )
+    }
+
+    // Sélecteur de réactions
+    showReactionPicker?.let { messageId ->
+        ReactionPicker(
+            onReactionSelected = { emoji ->
+                viewModel.toggleReaction(messageId, emoji)
+            },
+            onDismiss = { showReactionPicker = null }
+        )
+    }
 }
 
+// Dialog pour modifier un message
+@Composable
+private fun MessageEditDialog(
+    currentText: String,
+    onTextChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Modifier le message",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            OutlinedTextField(
+                value = currentText,
+                onValueChange = onTextChange,
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Tapez votre message...") },
+                maxLines = 5,
+                shape = RoundedCornerShape(12.dp)
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = currentText.isNotBlank()
+            ) {
+                Text("Enregistrer")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Annuler")
+            }
+        }
+    )
+}
+
+
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MessageBubble(
     message: MessageResponse,
     isCurrentUser: Boolean,
     baseUrl: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onEditMessage: ((String, String) -> Unit)? = null,
+    onDeleteMessage: ((String) -> Unit)? = null,
+    onReactionClick: ((String, String) -> Unit)? = null
 ) {
+    // État pour afficher le menu contextuel
+    var showMenu by remember { mutableStateOf(false) }
+    
     Row(
         modifier = modifier,
         horizontalArrangement = if (isCurrentUser) Arrangement.End else Arrangement.Start
@@ -273,189 +401,326 @@ private fun MessageBubble(
             Spacer(modifier = Modifier.width(8.dp))
         }
         
-        Column(
-            modifier = Modifier
-                .widthIn(max = 280.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(
-                    if (isCurrentUser) AppColors.primary else Color(0xFFE5E7EB)
-                )
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalAlignment = if (isCurrentUser) Alignment.End else Alignment.Start
-        ) {
-            if (!isCurrentUser && message.senderName != null) {
-                Text(
-                    text = message.senderName ?: "",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isCurrentUser) Color.White else AppColors.textSecondary,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
-            }
-            
-            // Images
-            if (message.images != null && message.images.isNotEmpty()) {
-                Log.d("ChatScreen", "📸 Message has ${message.images.size} image(s)")
-                message.images.forEachIndexed { index, imageUrl ->
-                    if (imageUrl.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        // Construire l'URL complète en utilisant le baseUrl passé en paramètre
-                        val imageUrlFull = if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
-                            // Nettoyer l'URL pour enlever tous les espaces et caractères invalides
-                            imageUrl.trim()
-                                .replace(" ", "")
-                                .replace(Regex("\\s+"), "")
-                                .replace("\n", "")
-                                .replace("\r", "")
+        Box {
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 280.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(
+                        // Afficher en gris si le message est supprimé
+                        if (message.isDeleted == true) {
+                            Color(0xFFBDBDBD)
+                        } else if (isCurrentUser) {
+                            AppColors.primary
                         } else {
-                            // Nettoyer l'imageUrl pour enlever tous les espaces
-                            val cleanImageUrl = imageUrl.trim()
-                                .replace(" ", "")
-                                .replace(Regex("\\s+"), "")
-                                .replace("chat /", "chat/")
-                                .replace("chat  /", "chat/")
-                                .replace("\n", "")
-                                .replace("\r", "")
-                            // Utiliser le baseUrl et enlever le trailing slash s'il existe
-                            val normalizedBaseUrl = baseUrl.removeSuffix("/")
-                            // S'assurer que cleanImageUrl commence par /
-                            val path = if (cleanImageUrl.startsWith("/")) cleanImageUrl else "/$cleanImageUrl"
-                            val fullUrl = "$normalizedBaseUrl$path"
-                            Log.d("ChatScreen", "🔗 Constructed URL: $fullUrl")
-                            Log.d("ChatScreen", "   - baseUrl: $baseUrl")
-                            Log.d("ChatScreen", "   - imageUrl original: $imageUrl")
-                            Log.d("ChatScreen", "   - imageUrl cleaned: $cleanImageUrl")
-                            fullUrl
+                            Color(0xFFE5E7EB)
                         }
-                        
-                        // Debug log
-                        Log.d("ChatScreen", "🖼️ Loading image $index from URL: $imageUrlFull")
-                        
-                        // Utiliser Box pour gérer l'état de chargement avec fallback
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFE5E7EB)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            var imageLoadState by remember { mutableStateOf<ImageLoadState>(ImageLoadState.Loading) }
+                    )
+                    // Appui long pour afficher le menu contextuel (seulement pour les messages de l'utilisateur)
+                    .then(
+                        // Appui long pour afficher le menu contextuel (pour tous les messages non supprimés)
+                        if (message.isDeleted != true) {
+                            Modifier.combinedClickable(
+                                onClick = { },
+                                onLongClick = { showMenu = true }
+                            )
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalAlignment = if (isCurrentUser) Alignment.End else Alignment.Start
+            ) {
+                if (!isCurrentUser && message.senderName != null) {
+                    Text(
+                        text = message.senderName ?: "",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isCurrentUser) Color.White else AppColors.textSecondary,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                }
+                
+                // Afficher les images seulement si le message n'est pas supprimé
+                if (message.isDeleted != true && message.images != null && message.images.isNotEmpty()) {
+                    Log.d("ChatScreen", "📸 Message has ${message.images.size} image(s)")
+                    message.images.forEachIndexed { index, imageUrl ->
+                        if (imageUrl.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(8.dp))
                             
-                            LaunchedEffect(imageUrlFull) {
-                                // Reset state when URL changes
-                                imageLoadState = ImageLoadState.Loading
+                            // Construire l'URL complète en utilisant le baseUrl passé en paramètre
+                            val imageUrlFull = if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+                                // Nettoyer l'URL pour enlever tous les espaces et caractères invalides
+                                imageUrl.trim()
+                                    .replace(" ", "")
+                                    .replace(Regex("\\s+"), "")
+                                    .replace("\n", "")
+                                    .replace("\r", "")
+                            } else {
+                                // Nettoyer l'imageUrl pour enlever tous les espaces
+                                val cleanImageUrl = imageUrl.trim()
+                                    .replace(" ", "")
+                                    .replace(Regex("\\s+"), "")
+                                    .replace("chat /", "chat/")
+                                    .replace("chat  /", "chat/")
+                                    .replace("\n", "")
+                                    .replace("\r", "")
+                                // Utiliser le baseUrl et enlever le trailing slash s'il existe
+                                val normalizedBaseUrl = baseUrl.removeSuffix("/")
+                                // S'assurer que cleanImageUrl commence par /
+                                val path = if (cleanImageUrl.startsWith("/")) cleanImageUrl else "/$cleanImageUrl"
+                                val fullUrl = "$normalizedBaseUrl$path"
+                                Log.d("ChatScreen", "🔗 Constructed URL: $fullUrl")
+                                Log.d("ChatScreen", "   - baseUrl: $baseUrl")
+                                Log.d("ChatScreen", "   - imageUrl original: $imageUrl")
+                                Log.d("ChatScreen", "   - imageUrl cleaned: $cleanImageUrl")
+                                fullUrl
                             }
                             
-                            when (imageLoadState) {
-                                is ImageLoadState.Loading -> {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(32.dp),
-                                        color = AppColors.primary,
-                                        strokeWidth = 3.dp
-                                    )
-                                }
-                                is ImageLoadState.Error -> {
-                                    // Afficher un placeholder en cas d'erreur avec possibilité de réessayer
-                                    Column(
-                                        modifier = Modifier.fillMaxSize(),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Image,
-                                            contentDescription = "Image non disponible",
-                                            modifier = Modifier.size(48.dp),
-                                            tint = Color.Gray
-                                        )
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text(
-                                            text = "Image non disponible",
-                                            fontSize = 12.sp,
-                                            color = Color.Gray
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        TextButton(
-                                            onClick = { imageLoadState = ImageLoadState.Loading }
-                                        ) {
-                                            Text(
-                                                text = "Réessayer",
-                                                fontSize = 10.sp
-                                            )
-                                        }
-                                    }
-                                }
-                                is ImageLoadState.Success -> {
-                                    // Image chargée avec succès - sera géré par AsyncImage
-                                }
-                            }
+                            // Debug log
+                            Log.d("ChatScreen", "🖼️ Loading image $index from URL: $imageUrlFull")
                             
-                            // Toujours essayer de charger l'image
-                            AsyncImage(
-                                model = imageUrlFull,
-                                contentDescription = "Image du message",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop,
-                                onError = { error ->
-                                    imageLoadState = ImageLoadState.Error(error.result.throwable)
-                                    Log.e("ChatScreen", "❌ Error loading image: $imageUrlFull")
-                                    Log.e("ChatScreen", "Error: ${error.result.throwable?.message}")
-                                    Log.e("ChatScreen", "Throwable: ${error.result.throwable}")
-                                },
-                                onSuccess = {
-                                    imageLoadState = ImageLoadState.Success
-                                    Log.d("ChatScreen", "✅ Image loaded successfully: $imageUrlFull")
-                                },
-                                onLoading = {
+                            // Utiliser Box pour gérer l'état de chargement avec fallback
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFE5E7EB)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                var imageLoadState by remember { mutableStateOf<ImageLoadState>(ImageLoadState.Loading) }
+                                
+                                LaunchedEffect(imageUrlFull) {
+                                    // Reset state when URL changes
                                     imageLoadState = ImageLoadState.Loading
                                 }
+                                
+                                when (imageLoadState) {
+                                    is ImageLoadState.Loading -> {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(32.dp),
+                                            color = AppColors.primary,
+                                            strokeWidth = 3.dp
+                                        )
+                                    }
+                                    is ImageLoadState.Error -> {
+                                        // Afficher un placeholder en cas d'erreur avec possibilité de réessayer
+                                        Column(
+                                            modifier = Modifier.fillMaxSize(),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Image,
+                                                contentDescription = "Image non disponible",
+                                                modifier = Modifier.size(48.dp),
+                                                tint = Color.Gray
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text(
+                                                text = "Image non disponible",
+                                                fontSize = 12.sp,
+                                                color = Color.Gray
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            TextButton(
+                                                onClick = { imageLoadState = ImageLoadState.Loading }
+                                            ) {
+                                                Text(
+                                                    text = "Réessayer",
+                                                    fontSize = 10.sp
+                                                )
+                                            }
+                                        }
+                                    }
+                                    is ImageLoadState.Success -> {
+                                        // Image chargée avec succès - sera géré par AsyncImage
+                                    }
+                                }
+                                
+                                // Toujours essayer de charger l'image
+                                AsyncImage(
+                                    model = imageUrlFull,
+                                    contentDescription = "Image du message",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop,
+                                    onError = { error ->
+                                        imageLoadState = ImageLoadState.Error(error.result.throwable)
+                                        Log.e("ChatScreen", "❌ Error loading image: $imageUrlFull")
+                                        Log.e("ChatScreen", "Error: ${error.result.throwable?.message}")
+                                        Log.e("ChatScreen", "Throwable: ${error.result.throwable}")
+                                    },
+                                    onSuccess = {
+                                        imageLoadState = ImageLoadState.Success
+                                        Log.d("ChatScreen", "✅ Image loaded successfully: $imageUrlFull")
+                                    },
+                                    onLoading = {
+                                        imageLoadState = ImageLoadState.Loading
+                                    }
+                                )
+                            }
+                        } else {
+                            Log.w("ChatScreen", "⚠️ Empty image URL at index $index")
+                        }
+                    }
+                } else if (message.isDeleted != true) {
+                    Log.d("ChatScreen", "📸 Message has no images (images: ${message.images})")
+                }
+                
+                // Text content
+                if (!message.content.isNullOrBlank()) {
+                    if (message.images?.isNotEmpty() == true && message.isDeleted != true) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = message.content,
+                            fontSize = 15.sp,
+                            color = if (message.isDeleted == true) {
+                                Color.White.copy(alpha = 0.8f)
+                            } else if (isCurrentUser) {
+                                Color.White
+                            } else {
+                                AppColors.textPrimary
+                            },
+                            lineHeight = 20.sp,
+                            fontStyle = if (message.isDeleted == true) androidx.compose.ui.text.font.FontStyle.Italic else androidx.compose.ui.text.font.FontStyle.Normal
+                        )
+                        
+                        // Afficher l'indicateur "(modifié)" si le message a été édité
+                        if (message.isEdited == true && message.isDeleted != true) {
+                            Text(
+                                text = "(modifié)",
+                                fontSize = 10.sp,
+                                color = if (isCurrentUser) Color.White.copy(alpha = 0.6f) else AppColors.textSecondary,
+                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                             )
                         }
-                    } else {
-                        Log.w("ChatScreen", "⚠️ Empty image URL at index $index")
                     }
                 }
-            } else {
-                Log.d("ChatScreen", "📸 Message has no images (images: ${message.images})")
-            }
-            
-            // Text content
-            if (!message.content.isNullOrBlank()) {
-                if (message.images?.isNotEmpty() == true) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                // Heure et indicateurs de statut
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = formatMessageTime(message.createdAt).toString(),
+                        fontSize = 11.sp,
+                        color = if (message.isDeleted == true) {
+                            Color.White.copy(alpha = 0.6f)
+                        } else if (isCurrentUser) {
+                            Color.White.copy(alpha = 0.7f)
+                        } else {
+                            AppColors.textSecondary
+                        }
+                    )
+                    
+                    // Indicateurs de statut pour les messages de l'utilisateur
+                    if (isCurrentUser && message.isDeleted != true) {
+                        when (message.status ?: "sent") {
+                            "read" -> {
+                                // Message lu - double coche bleue
+                                Text(
+                                    text = "✓✓",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF4FC3F7) // Bleu clair
+                                )
+                            }
+                            "delivered" -> {
+                                // Message reçu - double coche grise
+                                Text(
+                                    text = "✓✓",
+                                    fontSize = 12.sp,
+                                    color = Color.White.copy(alpha = 0.7f)
+                                )
+                            }
+                            else -> {
+                                // Message envoyé - simple coche
+                                Text(
+                                    text = "✓",
+                                    fontSize = 12.sp,
+                                    color = Color.White.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
                 }
-                Text(
-                    text = message.content,
-                    fontSize = 15.sp,
-                    color = if (isCurrentUser) Color.White else AppColors.textPrimary,
-                    lineHeight = 20.sp
+                
+
+            }
+
+            // Afficher les réactions Style Messenger (en dehors de la bulle, chevauchement en bas)
+            if (!message.reactions.isNullOrEmpty()) {
+                MessageReactions(
+                    reactions = message.reactions,
+                    currentUserId = if (isCurrentUser) message.senderId ?: "" else message.receiverId ?: "",
+                    onReactionClick = { emoji ->
+                        onReactionClick?.invoke(message.id ?: "", emoji)
+                    },
+                    modifier = Modifier
+                        .align(if (isCurrentUser) Alignment.BottomEnd else Alignment.BottomStart)
+                        .offset(y = 10.dp, x = if (isCurrentUser) (-10).dp else 10.dp) // Chevauchement
+                        .zIndex(1f) // Au premier plan
                 )
             }
             
-            Spacer(modifier = Modifier.height(4.dp))
-            
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = formatMessageTime(message.createdAt),
-                    fontSize = 11.sp,
-                    color = if (isCurrentUser) Color.White.copy(alpha = 0.7f) else AppColors.textSecondary
-                )
-                if (isCurrentUser) {
-                    if (message.read == true) {
-                        Text(
-                            text = "✓✓",
-                            fontSize = 12.sp,
-                            color = Color.White.copy(alpha = 0.7f)
+            // Menu contextuel (autorisé pour tous les messages non supprimés)
+            if (showMenu && message.isDeleted != true) {
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    // Option "Réagir"
+                    if (onReactionClick != null) {
+                        DropdownMenuItem(
+                            text = { Text("Réagir") },
+                            onClick = {
+                                showMenu = false
+                                message.id?.let { onReactionClick(it, "") }
+                            },
+                            leadingIcon = {
+                                Text("😀", fontSize = 18.sp)
+                            }
                         )
-                    } else {
-                        Text(
-                            text = "✓",
-                            fontSize = 12.sp,
-                            color = Color.White.copy(alpha = 0.7f)
+                    }
+
+                    // Option "Modifier" seulement pour les messages texte sans images de l'utilisateur courant
+                    if (isCurrentUser && message.type == "text" && message.images.isNullOrEmpty() && onEditMessage != null) {
+                        DropdownMenuItem(
+                            text = { Text("Modifier") },
+                            onClick = {
+                                showMenu = false
+                                message.id?.let { id ->
+                                    message.content?.let { content ->
+                                        onEditMessage(id, content)
+                                    }
+                                }
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Edit, contentDescription = "Modifier")
+                            }
+                        )
+                    }
+                    
+                    // Option "Supprimer" seulement pour l'utilisateur courant
+                    if (isCurrentUser && onDeleteMessage != null) {
+                        DropdownMenuItem(
+                            text = { Text("Supprimer") },
+                            onClick = {
+                                showMenu = false
+                                message.id?.let { onDeleteMessage(it) }
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Delete, contentDescription = "Supprimer")
+                            }
                         )
                     }
                 }
@@ -467,6 +732,7 @@ private fun MessageBubble(
         }
     }
 }
+
 
 @Composable
 private fun MessageInputArea(
@@ -663,4 +929,115 @@ private fun formatMessageTime(dateString: String?): String {
         dateString
     }
 }
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MessageReactions(
+    reactions: Map<String, List<String>>?,
+    currentUserId: String,
+    onReactionClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (reactions.isNullOrEmpty()) return
+    
+    FlowRow(
+        modifier = modifier.padding(top = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        reactions.forEach { (emoji, userIds) ->
+            val hasReacted = userIds.contains(currentUserId)
+            val count = userIds.size
+            
+            Surface(
+                onClick = { onReactionClick(emoji) },
+                shape = RoundedCornerShape(12.dp),
+                // Couleurs plus visibles
+                color = if (hasReacted) AppColors.primary.copy(alpha = 0.2f) else Color.DarkGray.copy(alpha = 0.1f),
+                border = BorderStroke(1.dp, if (hasReacted) AppColors.primary else Color.Gray.copy(alpha = 0.3f)),
+                modifier = Modifier.height(28.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = emoji,
+                        fontSize = 14.sp,
+                        color = Color.Black // Force la couleur noire pour l'emoji (parfois transparent par défaut)
+                    )
+                    if (count > 1) {
+                        Text(
+                            text = count.toString(),
+                            fontSize = 11.sp,
+                            color = if (hasReacted) AppColors.primary else Color.Gray,
+                            fontWeight = if (hasReacted) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReactionPicker(
+    onReactionSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val commonEmojis = listOf(
+        "👍", "❤️", "😂", "😮", "😢", "🙏",
+        "🎉", "🔥", "👏", "✨", "💯", "🚀"
+    )
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Ajouter une réaction",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(6),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.height(200.dp)
+            ) {
+                items(commonEmojis) { emoji ->
+                    Surface(
+                        onClick = {
+                            onReactionSelected(emoji)
+                            onDismiss()
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color.Gray.copy(alpha = 0.1f),
+                        modifier = Modifier
+                            .size(48.dp)
+                            .padding(4.dp)
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Text(
+                                text = emoji,
+                                fontSize = 24.sp
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Annuler")
+            }
+        }
+    )
+}
+
 

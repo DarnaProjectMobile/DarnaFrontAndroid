@@ -33,6 +33,33 @@ interface ChatApi {
     suspend fun uploadImages(
         @Part images: List<MultipartBody.Part>
     ): UploadImagesResponse
+
+    // Nouveaux endpoints pour suppression, modification et statuts
+    
+    // Supprimer un message (soft delete - marqué comme supprimé)
+    @DELETE("chat/message/{messageId}")
+    suspend fun deleteMessage(@Path("messageId") messageId: String): MessageResponse
+
+    // Modifier le contenu d'un message
+    @PATCH("chat/message/{messageId}")
+    suspend fun updateMessage(
+        @Path("messageId") messageId: String,
+        @Body request: UpdateMessageRequest
+    ): MessageResponse
+
+    // Mettre à jour le statut d'un message (sent, delivered, read)
+    @PATCH("chat/message/{messageId}/status")
+    suspend fun updateMessageStatus(
+        @Path("messageId") messageId: String,
+        @Body request: UpdateStatusRequest
+    ): MessageResponse
+
+    // Ajouter ou retirer une réaction à un message
+    @POST("chat/message/{messageId}/reaction")
+    suspend fun toggleReaction(
+        @Path("messageId") messageId: String,
+        @Body request: ReactionRequest
+    ): MessageResponse
 }
 
 data class SendMessageRequest(
@@ -41,6 +68,13 @@ data class SendMessageRequest(
     val images: List<String>? = null
 )
 
+// Modèle de réponse pour un message
+// Nouveaux champs ajoutés pour les fonctionnalités avancées :
+// - isDeleted : indique si le message a été supprimé
+// - isEdited : indique si le message a été modifié
+// - editedAt : date de dernière modification
+// - status : statut du message ("sent", "delivered", "read")
+// - deliveredAt : date de réception par le destinataire
 data class MessageResponse(
     @SerializedName("_id")
     val id: String?,
@@ -55,7 +89,15 @@ data class MessageResponse(
     val createdAt: String?,
     val updatedAt: String?,
     val senderName: String? = null,
-    val receiverName: String? = null
+    val receiverName: String? = null,
+    // Nouveaux champs pour suppression/modification/statuts
+    val isDeleted: Boolean? = false,
+    val isEdited: Boolean? = false,
+    val editedAt: String? = null,
+    val status: String? = "sent", // "sent", "delivered", "read"
+    val deliveredAt: String? = null,
+    // Réactions aux messages (emoji -> liste d'IDs utilisateurs)
+    val reactions: Map<String, List<String>>? = null
 )
 
 data class MarkReadResponse(
@@ -70,6 +112,22 @@ data class UnreadCountResponse(
 data class UploadImagesResponse(
     val images: List<String>?
 )
+
+// Requête pour modifier un message
+data class UpdateMessageRequest(
+    val content: String
+)
+
+// Requête pour mettre à jour le statut d'un message
+data class UpdateStatusRequest(
+    val status: String // "sent", "delivered", "read"
+)
+
+// Requête pour ajouter/retirer une réaction
+data class ReactionRequest(
+    val emoji: String // L'emoji de la réaction (ex: "👍", "❤️", "😂")
+)
+
 
 
 

@@ -105,53 +105,54 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Mes visites Card
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { 
-                    navController.navigate("calendar")
-                },
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Row(
+        // Mes visites Card - Uniquement pour les clients (pas les colocataires)
+        if (userSession?.role?.lowercase() != "collocator") {
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .clickable { 
+                        navController.navigate("calendar")
+                    },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Surface(
-                    modifier = Modifier.size(48.dp),
-                    shape = CircleShape,
-                    color = Color(0xFF0066FF).copy(alpha = 0.1f)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.EventNote,
-                        contentDescription = "Mes visites",
-                        modifier = Modifier.padding(12.dp),
-                        tint = Color(0xFF0066FF)
-                    )
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(
-                        text = "Mes visites",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF1E293B)
-                    )
-                    Text(
-                        text = "Gérez vos visites",
-                        fontSize = 12.sp,
-                        color = Color(0xFF64748B)
-                    )
+                    Surface(
+                        modifier = Modifier.size(48.dp),
+                        shape = CircleShape,
+                        color = Color(0xFF0066FF).copy(alpha = 0.1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.EventNote,
+                            contentDescription = "Mes visites",
+                            modifier = Modifier.padding(12.dp),
+                            tint = Color(0xFF0066FF)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
+                        Text(
+                            text = "Mes visites",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1E293B)
+                        )
+                        Text(
+                            text = "Gérez vos visites",
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    }
                 }
             }
+            Spacer(modifier = Modifier.height(12.dp))
         }
-
-        Spacer(modifier = Modifier.height(12.dp))
 
         // Reviews Card
         Card(
