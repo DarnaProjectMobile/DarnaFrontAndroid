@@ -33,7 +33,7 @@ fun ResetPasswordScreen(navController: NavController) {
     var confirmPassword by remember { mutableStateOf(TextFieldValue("")) }
 
     val context = LocalContext.current
-    val baseUrl = "http://172.16.14.253:3000/"
+    val baseUrl = "http://172.16.11.61:3000/"
 
     // ✅ ViewModel
     val sharedPreferences = LocalContext.current.getSharedPreferences("DarnaPrefs", Context.MODE_PRIVATE)

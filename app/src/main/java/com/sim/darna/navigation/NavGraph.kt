@@ -30,6 +30,7 @@ object Routes {
     const val BookProperty = "book_property/{propertyId}"
     const val PropertyBookings = "property_books/{propertyId}"
     const val Notifications = "notifications"
+    const val Map = "map"
 }
 
 @Composable
@@ -141,6 +142,9 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                 navController = navController,
                 onBack = { navController.popBackStack() },
             )
+        }
+        composable(Routes.Map) {
+            MapScreen(navController)
         }
         composable(
             route = Routes.BookProperty,
