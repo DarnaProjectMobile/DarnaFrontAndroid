@@ -3,5 +3,7 @@
     <domain-config cleartextTrafficPermitted="true">
         <!-- Replace with your backend IP or domain -->
         <domain includeSubdomains="true">172.18.12.144</domain>
+        <domain includeSubdomains="true">192.168.100.3</domain>
+        <domain includeSubdomains="true">192.168.1.11</domain>
     </domain-config>
 </network-security-config>
