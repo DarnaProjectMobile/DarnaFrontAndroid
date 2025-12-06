@@ -21,13 +21,14 @@ object Routes {
     const val PropertyDetailWithId = "property_detail/{propertyId}"
     const val ResetPassword = "reset_password"
     const val Reviews = "reviews"
+    const val ReviewsWithParams = "reviews/{propertyId}/{propertyName}/{userName}"
     const val UpdateProfile = "update_profile"
     const val Favorites = "favorites"
     const val Reservations = "reservations"
     const val AcceptedClients = "accepted_clients"
     const val ConfirmedClients = "confirmed_clients/{propertyId}"
     const val BookProperty = "book_property/{propertyId}"
-    const val PropertyBookings = "property_bookings/{propertyId}"
+    const val PropertyBookings = "property_books/{propertyId}"
     const val Notifications = "notifications"
     const val Map = "map"
 }
@@ -107,7 +108,30 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
             PropertyDetailScreen(navController, propertyId)
         }
-        composable(Routes.Reviews) { ReviewsScreen() }
+        composable(Routes.Reviews) { 
+            ReviewsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            ) 
+        }
+        
+        composable(
+            route = Routes.ReviewsWithParams,
+            arguments = listOf(
+                navArgument("propertyId") { type = androidx.navigation.NavType.StringType },
+                navArgument("propertyName") { type = androidx.navigation.NavType.StringType },
+                navArgument("userName") { type = androidx.navigation.NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
+            val propertyName = backStackEntry.arguments?.getString("propertyName") ?: ""
+            val userName = backStackEntry.arguments?.getString("userName") ?: ""
+            ReviewsScreen(
+                propertyId = propertyId,
+                propertyName = propertyName,
+                userName = userName,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
         composable(Routes.ForgotPassword) { ForgotPasswordScreen(navController) }
         composable(Routes.ResetPassword) { ResetPasswordScreen(navController) }
         composable(Routes.Favorites) { FavoritesScreen(navController) }

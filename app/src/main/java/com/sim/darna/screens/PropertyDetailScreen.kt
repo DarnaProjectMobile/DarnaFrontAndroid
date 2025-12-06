@@ -82,22 +82,25 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
         }
     }
     
-    // Initialize ViewModel and load reviews
-    LaunchedEffect(Unit) {
-        reviewViewModel.init(context)
-        reviewViewModel.loadReviews()
+    // Initialize ViewModel and load reviews for this property
+    LaunchedEffect(propertyId) {
+        if (propertyId != null) {
+            reviewViewModel.init(context)
+            reviewViewModel.loadReviewsForProperty(propertyId)
+        }
     }
     
-    // Take only first 3 reviews
-    val recentReviews = allReviews.take(3)
+    // Take only first 3 reviews for this property
+    val recentReviews = allReviews.filter { it.propertyId == propertyId }.take(3)
     
-    // Calculate average rating and total reviews
-    val averageRating = if (allReviews.isNotEmpty()) {
-        allReviews.map { it.rating }.average().toFloat()
+    // Calculate average rating and total reviews for this property
+    val propertyReviews = allReviews.filter { it.propertyId == propertyId }
+    val averageRating = if (propertyReviews.isNotEmpty()) {
+        propertyReviews.map { it.rating }.average().toFloat()
     } else {
         0f
     }
-    val totalReviews = allReviews.size
+    val totalReviews = propertyReviews.size
     
     if (isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -385,7 +388,16 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                     }
 
                     Button(
-                        onClick = { navController.navigate(Routes.Reviews) },
+                        onClick = { 
+                            // Get current user's username
+                            val currentUser = context.getSharedPreferences("APP_PREFS", android.content.Context.MODE_PRIVATE)
+                            val currentUsername = currentUser.getString("username", "Anonymous")
+                            
+                            // Navigate to reviews screen with property and user information
+                            val encodedTitle = android.net.Uri.encode(prop.title)
+                            val encodedUsername = android.net.Uri.encode(currentUsername)
+                            navController.navigate("${Routes.ReviewsWithParams.replace("{propertyId}", prop.id).replace("{propertyName}", encodedTitle).replace("{userName}", encodedUsername)}")
+                        },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0066FF)),
                         shape = RoundedCornerShape(10.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
@@ -402,7 +414,7 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                RatingBreakdown(allReviews)
+                RatingBreakdown(propertyReviews)
             }
         }
 
@@ -624,7 +636,7 @@ fun RatingBreakdown(reviews: List<DatabaseReview>) {
 
 @Composable
 fun ReviewCard(review: DatabaseReview) {
-    val username = review.user?.username ?: "Anonymous"
+    val username = review.userName
     val userInitial = username.firstOrNull()?.uppercase() ?: "?"
     
     Card(
