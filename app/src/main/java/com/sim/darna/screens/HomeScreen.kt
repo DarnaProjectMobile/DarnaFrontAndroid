@@ -99,21 +99,9 @@ fun MainScreen(parentNavController: NavHostController) {
             // Liste des publicités
             composable(BottomNavItem.Publicite.route) {
                 PublicitesListScreen(
-                    onAddClick = { bottomNavController.navigate("add_publicite") },
-                    onEdit = { id -> bottomNavController.navigate("add_publicite/$id") }
-                )
-            }
-
-            // Ajouter / Modifier une publicité
-            composable(
-                route = "add_publicite/{id?}", // id est optionnel
-                arguments = listOf(navArgument("id") { defaultValue = "" })
-            ) { backStackEntry ->
-                val id = backStackEntry.arguments?.getString("id")
-                AddPubliciteScreen(
-                    publiciteId = id.takeIf { it?.isNotEmpty() == true },
-                    onFinish = { bottomNavController.popBackStack() },
-                    onCancel = { bottomNavController.popBackStack() }
+                    onAddClick = { parentNavController.navigate(Routes.AddPublicite) },
+                    onEdit = { id -> parentNavController.navigate(Routes.EditPublicite.replace("{publiciteId}", id)) },
+                    onDetailClick = { id -> parentNavController.navigate(Routes.PubliciteDetail.replace("{publiciteId}", id)) }
                 )
             }
 

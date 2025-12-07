@@ -48,7 +48,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
     var passwordVisible by remember { mutableStateOf(false) }
 
     // ✅ ViewModel setup (your base URL here)
-    val baseUrl = "http://10.0.2.2:3000/"
+    val baseUrl = "http://172.27.32.1:3000/"
     val viewModel: LoginViewModel = viewModel(factory = LoginVmFactory(baseUrl, context.getSharedPreferences("APP_PREFS", Context.MODE_PRIVATE)))
     val uiState = viewModel.state.collectAsState().value
 
