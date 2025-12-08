@@ -3,6 +3,8 @@ package com.sim.darna.di
 import com.sim.darna.auth.UserSessionManager
 import com.sim.darna.data.adapter.DateAdapter
 import com.sim.darna.data.remote.PubliciteApi
+import com.sim.darna.data.remote.PubliciteUploadService
+import com.sim.darna.data.remote.StripeService
 import com.squareup.moshi.Moshi
 import dagger.Module
 import dagger.Provides
@@ -20,7 +22,10 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val BASE_URL = "http://192.168.1.11:3000/"
+    // Pour l'émulateur Android, utilisez: "http://10.0.2.2:3000/"
+    // Pour un appareil physique sur le même réseau WiFi, utilisez: "http://192.168.1.11:3000/"
+    // Remplacez 192.168.1.11 par l'adresse IP locale de votre ordinateur
+    private const val BASE_URL = "http://10.0.2.2:3000/"
 
     @Provides
     @Singleton
@@ -59,4 +64,14 @@ object NetworkModule {
     @Singleton
     fun providePubliciteApi(retrofit: Retrofit): PubliciteApi =
         retrofit.create(PubliciteApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideStripeService(retrofit: Retrofit): StripeService =
+        retrofit.create(StripeService::class.java)
+
+    @Provides
+    @Singleton
+    fun providePubliciteUploadService(retrofit: Retrofit): PubliciteUploadService =
+        retrofit.create(PubliciteUploadService::class.java)
 }

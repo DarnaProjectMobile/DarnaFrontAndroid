@@ -167,5 +167,39 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
             ConfirmedClientsScreen(navController, propertyId)
         }
+        
+        // Routes pour les publicités
+        composable(
+            route = Routes.PubliciteDetail,
+            arguments = listOf(navArgument("publiciteId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val publiciteId = backStackEntry.arguments?.getString("publiciteId") ?: ""
+            PubliciteDetailScreen(
+                publiciteId = publiciteId,
+                onNavigateBack = { navController.popBackStack() },
+                onEdit = { id ->
+                    navController.navigate(Routes.EditPublicite.replace("{publiciteId}", id))
+                }
+            )
+        }
+        
+        composable(Routes.AddPublicite) {
+            AddPubliciteScreen(
+                onFinish = { navController.popBackStack() },
+                onCancel = { navController.popBackStack() }
+            )
+        }
+        
+        composable(
+            route = Routes.EditPublicite,
+            arguments = listOf(navArgument("publiciteId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val publiciteId = backStackEntry.arguments?.getString("publiciteId") ?: ""
+            AddPubliciteScreen(
+                publiciteId = publiciteId,
+                onFinish = { navController.popBackStack() },
+                onCancel = { navController.popBackStack() }
+            )
+        }
     }
 }
