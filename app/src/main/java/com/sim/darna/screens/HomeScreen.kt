@@ -353,6 +353,38 @@ fun HomeScreen(navController: NavController) {
                 )
             }
         }
+
+        // Bottom-centered Map pill button (always visible)
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 12.dp),
+            shape = RoundedCornerShape(999.dp),
+            color = AppTheme.primary,
+            tonalElevation = 4.dp,
+            shadowElevation = 4.dp,
+        ) {
+            Row(
+                modifier = Modifier
+                    .clickable { navController.navigate(Routes.Map) }
+                    .padding(horizontal = 18.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Explore,
+                    contentDescription = "Carte",
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = "Carte",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
     }
 
     // Filter Sheet
