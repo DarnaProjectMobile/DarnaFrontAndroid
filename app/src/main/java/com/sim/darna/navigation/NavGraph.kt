@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.sim.darna.screens.*
+import com.sim.darna.screens.AddPubliciteScreen
 
 object Routes {
     const val Login = "login"
@@ -30,6 +31,10 @@ object Routes {
     const val BookProperty = "book_property/{propertyId}"
     const val PropertyBookings = "property_books/{propertyId}"
     const val Notifications = "notifications"
+    const val PubliciteDetail = "publicite_detail/{publiciteId}"
+    const val AddPublicite = "add_publicite"
+    const val EditPublicite = "edit_publicite/{publiciteId}"
+    const val QRCodeScanner = "qr_code_scanner"
 }
 
 @Composable
@@ -162,6 +167,49 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         ) { backStackEntry ->
             val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
             ConfirmedClientsScreen(navController, propertyId)
+        }
+        
+        // Routes pour les publicités
+        composable(
+            route = Routes.PubliciteDetail,
+            arguments = listOf(navArgument("publiciteId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val publiciteId = backStackEntry.arguments?.getString("publiciteId") ?: ""
+            PubliciteDetailScreen(
+                publiciteId = publiciteId,
+                onNavigateBack = { navController.popBackStack() },
+                onEdit = { id ->
+                    navController.navigate(Routes.EditPublicite.replace("{publiciteId}", id))
+                },
+                onScanQRCode = {
+                    navController.navigate(Routes.QRCodeScanner)
+                }
+            )
+        }
+        
+        composable(Routes.AddPublicite) {
+            AddPubliciteScreen(
+                onFinish = { navController.popBackStack() },
+                onCancel = { navController.popBackStack() }
+            )
+        }
+        
+        composable(
+            route = Routes.EditPublicite,
+            arguments = listOf(navArgument("publiciteId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val publiciteId = backStackEntry.arguments?.getString("publiciteId") ?: ""
+            AddPubliciteScreen(
+                publiciteId = publiciteId,
+                onFinish = { navController.popBackStack() },
+                onCancel = { navController.popBackStack() }
+            )
+        }
+        
+        composable(Routes.QRCodeScanner) {
+            QRCodeScanResultScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }

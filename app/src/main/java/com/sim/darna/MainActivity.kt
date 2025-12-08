@@ -12,9 +12,11 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.sim.darna.components.PaymentSheetManager
 import com.sim.darna.navigation.AppNavGraph
 import com.sim.darna.notifications.FirebaseTokenRegistrar
 import com.sim.darna.ui.theme.DarnaTheme
+import com.stripe.android.paymentsheet.PaymentSheetResult
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -37,11 +39,20 @@ class MainActivity : ComponentActivity() {
         requestNotificationPermissionIfNeeded()
         FirebaseTokenRegistrar.syncCurrentToken(this)
 
+        // Initialiser PaymentSheetManager (doit être fait dans onCreate, avant STARTED)
+        // Le callback sera défini dans le composable qui utilise le PaymentSheet
+        PaymentSheetManager.initialize(this)
+
         setContent {
             DarnaTheme {
                 AppNavGraph()
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        PaymentSheetManager.clear()
     }
 
     override fun onResume() {
