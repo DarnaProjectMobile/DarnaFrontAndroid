@@ -9,7 +9,7 @@ import retrofit2.http.*
 interface ReviewApi {
 
     @GET("reviews")
-    suspend fun getReviews(): Response<List<Review>>
+    suspend fun getReviews(@Query("property") propertyId: String? = null): Response<List<Review>>
 
     @POST("reviews")
     suspend fun createReview(@Body body: ReviewRequest): Response<Review>

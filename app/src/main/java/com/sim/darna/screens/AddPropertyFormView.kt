@@ -602,7 +602,10 @@ fun AddPropertyFormView(
                                         },
                                         modifier = Modifier.weight(1f)
                                     ) {
-                                        Text("Annuler")
+                                        Text(
+                                            text = "Annuler",
+                                            maxLines = 1
+                                        )
                                     }
                                     Button(
                                         onClick = {
@@ -618,7 +621,10 @@ fun AddPropertyFormView(
                                             contentColor = Color.White
                                         )
                                     ) {
-                                        Text("Confirmer")
+                                        Text(
+                                            text = "Confirmer",
+                                            maxLines = 1
+                                        )
                                     }
                                 }
                             }
