@@ -2,8 +2,8 @@
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
         <!-- Replace with your backend IP or domain -->
-        <domain includeSubdomains="true">172.18.12.144</domain>
+        <domain includeSubdomains="true">192.168.1.142</domain>
         <domain includeSubdomains="true">192.168.100.3</domain>
-        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">172.20.10.9</domain>
     </domain-config>
 </network-security-config>

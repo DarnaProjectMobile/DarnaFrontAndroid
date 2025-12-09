@@ -211,7 +211,6 @@ fun AcceptedClientsScreen(navController: NavController) {
 @Composable
 private fun PropertySelectionCard(property: Property, onClick: () -> Unit) {
     val imageUrl = property.getFirstImage()
-    val baseUrl = "http://192.168.100.3:3000/"
     
     Card(
         modifier = Modifier
@@ -265,7 +264,7 @@ private fun PropertySelectionCard(property: Property, onClick: () -> Unit) {
                         }
                     } else {
                         // URL image - using Coil
-                        val fullUrl = if (imageUrl.startsWith("http")) imageUrl else "$baseUrl$imageUrl"
+                        val fullUrl = if (imageUrl.startsWith("http")) imageUrl else "${com.sim.darna.utils.ApiConfig.BASE_URL}$imageUrl"
                         AsyncImage(
                             model = fullUrl,
                             contentDescription = "Property image",

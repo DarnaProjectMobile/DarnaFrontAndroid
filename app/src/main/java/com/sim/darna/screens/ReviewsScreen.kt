@@ -1,598 +1,516 @@
 package com.sim.darna.screens
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.*
-import androidx.compose.ui.graphics.*
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import com.sim.darna.model.Review
+import com.sim.darna.model.Review as DatabaseReview
 import com.sim.darna.viewmodel.ReviewViewModel
-import kotlinx.coroutines.delay
 
-// Simple Color Palette
-private val PrimaryColor = Color(0xFF6366F1)
-private val BackgroundColor = Color(0xFFF9FAFB)
-private val CardColor = Color(0xFFFFFFFF)
-private val TextPrimary = Color(0xFF1F2937)
-private val TextSecondary = Color(0xFF6B7280)
-private val BorderColor = Color(0xFFE5E7EB)
-private val AccentOrange = Color(0xFFFBBF24)
-private val ErrorRed = Color(0xFFEF4444)
+//------------------------------------------------------
+// COLOR SCHEME
+//------------------------------------------------------
+private val PrimaryColor = Color(0xFFFF4B6E)
+private val SecondaryColor = Color(0xFF4C6FFF)
+private val AccentColor = Color(0xFFFFC857)
+private val BackgroundColor = Color(0xFFF7F7F7)
+private val SurfaceColor = Color.White
+private val TextPrimary = Color(0xFF1A1A1A)
+private val TextSecondary = Color(0xFF6B6B6B)
+private val TextTertiary = Color(0xFF9E9E9E)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReviewsScreen(
-    propertyId: String? = null,
-    propertyName: String? = null,
-    userName: String? = null,
-    onNavigateBack: () -> Unit = { /* Default: do nothing */ }
+    propertyId: String = "",
+    propertyName: String = "",
+    userName: String = "",
+    onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
-    BackHandler { onNavigateBack() }
-
-    val vm: ReviewViewModel = viewModel()
-    val reviews by vm.reviews.collectAsState()
+    val reviewViewModel: ReviewViewModel = viewModel()
+    val allReviews by reviewViewModel.reviews.collectAsState()
     
-    // Get current user ID for ownership checking
-    val currentUserId = com.sim.darna.auth.TokenStorage.getUserId(context)
-
-    var showEditDialog by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var selectedReview by remember { mutableStateOf<com.sim.darna.model.Review?>(null) }
-
-    var rating by remember { mutableStateOf(5) }
-    var comment by remember { mutableStateOf("") }
-
+    var showAddReviewDialog by remember { mutableStateOf(false) }
+    var selectedRating by remember { mutableStateOf(0) }
+    var reviewComment by remember { mutableStateOf("") }
+    
+    // Initialize ViewModel
     LaunchedEffect(Unit) {
-        vm.init(context)
-        if (propertyId != null) {
-            // Load reviews for specific property
-            vm.loadReviewsForProperty(propertyId)
+        reviewViewModel.init(context)
+        if (propertyId.isNotEmpty()) {
+            reviewViewModel.loadReviewsForProperty(propertyId)
         } else {
-            // Load all reviews
-            vm.loadReviews()
+            reviewViewModel.loadReviews()
         }
     }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundColor)
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Header
-            SimpleHeader(
-                reviewCount = reviews.size,
-                onNavigateBack = onNavigateBack
-            )
-
-            // Reviews List
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
-                    top = 16.dp,
-                    bottom = 200.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(reviews) { review ->
-                    SimpleReviewCard(
-                        review = review,
-                        currentUserId = currentUserId,
-                        onEdit = {
-                            selectedReview = review
-                            showEditDialog = true
-                        },
-                        onDelete = {
-                            selectedReview = review
-                            showDeleteDialog = true
+    
+    // Backend already filters by propertyId, use reviews directly
+    val reviews = allReviews
+    
+    val averageRating = if (reviews.isNotEmpty()) {
+        reviews.map { it.rating }.average().toFloat()
+    } else {
+        0f
+    }
+    val totalReviews = reviews.size
+    
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            text = if (propertyName.isNotEmpty()) propertyName else "Tous les avis",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        if (totalReviews > 0) {
+                            Text(
+                                text = "$totalReviews avis • ${String.format("%.1f", averageRating)} ⭐",
+                                fontSize = 14.sp,
+                                color = TextSecondary
+                            )
                         }
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Retour",
+                            tint = TextPrimary
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = SurfaceColor
+                )
+            )
+        },
+        floatingActionButton = {
+            if (propertyId.isNotEmpty()) {
+                FloatingActionButton(
+                    onClick = { showAddReviewDialog = true },
+                    containerColor = PrimaryColor
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "Ajouter un avis",
+                        tint = Color.White
                     )
                 }
             }
         }
-
-        // Bottom Input Panel
-        SimpleInputPanel(
-            rating = rating,
-            onRatingChange = { rating = it },
-            comment = comment,
-            onCommentChange = { comment = it },
-            onSubmit = {
-                if (comment.isNotBlank()) {
-                    // Pass property and user information when creating review
-                    vm.addReview(
-                        rating = rating,
-                        comment = comment,
-                        propertyId = propertyId,
-                        userName = userName,
-                        propertyName = propertyName
-                    )
-                    comment = ""
-                    rating = 5
-                }
-            },
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
-    }
-
-    // Dialogs
-    if (showEditDialog && selectedReview != null) {
-        SimpleEditDialog(
-            review = selectedReview!!,
-            onDismiss = { showEditDialog = false },
-            onSave = { edited -> 
-                vm.updateReview(
-                    id = edited.id,
-                    rating = edited.rating,
-                    comment = edited.comment,
-                    userName = userName,
-                    propertyName = propertyName
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BackgroundColor)
+                .padding(paddingValues)
+        ) {
+            if (reviews.isEmpty()) {
+                EmptyReviewsState(
+                    propertyName = propertyName,
+                    onAddReview = { showAddReviewDialog = true }
                 )
-                showEditDialog = false
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Rating Summary Card
+                    item {
+                        RatingSummaryCard(
+                            reviews = reviews,
+                            averageRating = averageRating,
+                            totalReviews = totalReviews
+                        )
+                    }
+                    
+                    // Rating Breakdown
+                    item {
+                        RatingBreakdownCard(reviews = reviews)
+                    }
+                    
+                    // Reviews List Header
+                    item {
+                        Text(
+                            text = "Avis ($totalReviews)",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                    
+                    // Reviews
+                    items(reviews) { review ->
+                        FullReviewCard(review = review)
+                    }
+                    
+                    item {
+                        Spacer(modifier = Modifier.height(80.dp))
+                    }
+                }
             }
-        )
+        }
     }
-
-    if (showDeleteDialog && selectedReview != null) {
-        SimpleDeleteDialog(
-            onDismiss = { showDeleteDialog = false },
-            onConfirm = {
-                vm.deleteReview(selectedReview!!.id)
-                showDeleteDialog = false
+    
+    // Add Review Dialog
+    if (showAddReviewDialog && propertyId.isNotEmpty()) {
+        AddReviewDialog(
+            propertyName = propertyName,
+            userName = userName,
+            rating = selectedRating,
+            comment = reviewComment,
+            onRatingChange = { selectedRating = it },
+            onCommentChange = { reviewComment = it },
+            onDismiss = {
+                showAddReviewDialog = false
+                selectedRating = 0
+                reviewComment = ""
+            },
+            onSubmit = {
+                reviewViewModel.addReview(
+                    rating = selectedRating,
+                    comment = reviewComment,
+                    propertyId = propertyId,
+                    userName = userName.ifEmpty { null },
+                    propertyName = propertyName.ifEmpty { null }
+                )
+                showAddReviewDialog = false
+                selectedRating = 0
+                reviewComment = ""
             }
         )
     }
 }
 
 @Composable
-fun SimpleHeader(reviewCount: Int, onNavigateBack: () -> Unit) {
-    Surface(
+fun EmptyReviewsState(
+    propertyName: String,
+    onAddReview: () -> Unit
+) {
+    Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = PrimaryColor,
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            Icons.Default.StarOutline,
+            contentDescription = null,
+            modifier = Modifier.size(80.dp),
+            tint = TextTertiary
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            text = "Aucun avis",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = if (propertyName.isNotEmpty()) {
+                "Soyez le premier à laisser un avis pour $propertyName"
+            } else {
+                "Aucun avis disponible pour le moment"
+            },
+            fontSize = 16.sp,
+            color = TextSecondary,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        if (propertyName.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = onAddReview,
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Ajouter un avis", fontSize = 16.sp)
+            }
+        }
+    }
+}
+
+@Composable
+fun RatingSummaryCard(
+    reviews: List<Review>,
+    averageRating: Float,
+    totalReviews: Int
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = SurfaceColor,
         shadowElevation = 2.dp
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.padding(24.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Back button
-            Surface(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clickable { onNavigateBack() },
-                shape = CircleShape,
-                color = Color.White.copy(alpha = 0.2f)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "←",
-                        fontSize = 20.sp,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
+                        text = String.format("%.1f", averageRating),
+                        fontSize = 48.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            repeat(5) { index ->
+                                Icon(
+                                    Icons.Default.Star,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = if (index < averageRating.toInt()) AccentColor else Color(0xFFE0E0E0)
+                                )
+                            }
+                        }
+                        Text(
+                            text = "$totalReviews avis",
+                            fontSize = 14.sp,
+                            color = TextSecondary,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                 }
-            }
-
-            Spacer(Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Reviews",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = "$reviewCount reviews",
-                    fontSize = 13.sp,
-                    color = Color.White.copy(alpha = 0.9f)
-                )
             }
         }
     }
 }
 
 @Composable
-fun SimpleRatingBar(
-    rating: Int,
-    onRatingChange: (Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+fun RatingBreakdownCard(reviews: List<Review>) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = SurfaceColor,
+        shadowElevation = 1.dp
     ) {
-        (1..5).forEach { star ->
-            Surface(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clickable { onRatingChange(star) },
-                shape = CircleShape,
-                color = if (star <= rating) AccentOrange.copy(0.15f) else BorderColor,
-                border = BorderStroke(
-                    1.dp,
-                    if (star <= rating) AccentOrange else BorderColor
-                )
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = if (star <= rating) "★" else "☆",
-                        fontSize = 18.sp,
-                        color = if (star <= rating) AccentOrange else TextSecondary
-                    )
-                }
-            }
+        Column(modifier = Modifier.padding(24.dp)) {
+            Text(
+                text = "Répartition des notes",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+            // Use the RatingBreakdown function from PropertyDetailScreen.kt
+            // DatabaseReview is a type alias for Review
+            RatingBreakdown(reviews = reviews as List<DatabaseReview>)
         }
     }
 }
 
-private fun isReviewOwner(review: com.sim.darna.model.Review, currentUserId: String?): Boolean {
-    return currentUserId != null && review.userId == currentUserId
-}
-
 @Composable
-fun SimpleReviewCard(
-    review: com.sim.darna.model.Review,
-    currentUserId: String?,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
+fun FullReviewCard(review: Review) {
     val username = review.userName
-    
-    // Check if the current user owns this review
-    val isOwner = isReviewOwner(review, currentUserId)
+    val userInitial = username.firstOrNull()?.uppercase() ?: "?"
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { expanded = !expanded },
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CardColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        color = SurfaceColor,
+        shadowElevation = 1.dp
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                // Avatar
-                Surface(
-                    modifier = Modifier.size(44.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = PrimaryColor
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        modifier = Modifier.size(44.dp),
+                        shape = CircleShape,
+                        color = SecondaryColor.copy(alpha = 0.15f)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                userInitial,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = SecondaryColor
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
                         Text(
-                            text = username.take(1).uppercase(),
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
+                            username,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            review.date ?: review.createdAt ?: "Récemment",
+                            fontSize = 12.sp,
+                            color = TextTertiary
                         )
                     }
                 }
 
-                Spacer(Modifier.width(12.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = username,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp,
-                        color = TextPrimary
-                    )
-                    Spacer(Modifier.height(6.dp))
-
-                    // Rating display
-                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        repeat(5) { idx ->
-                            Text(
-                                text = if (idx < review.rating) "★" else "☆",
-                                fontSize = 14.sp,
-                                color = if (idx < review.rating) AccentOrange else BorderColor
-                            )
-                        }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = AccentColor.copy(alpha = 0.15f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = null,
+                            tint = AccentColor,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = review.rating.toString(),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
                     }
                 }
-
-                // Expand indicator
-                Text(
-                    text = if (expanded) "▲" else "▼",
-                    fontSize = 12.sp,
-                    color = TextSecondary,
-                    modifier = Modifier.padding(8.dp)
-                )
             }
 
-            Spacer(Modifier.height(12.dp))
-
-            Divider(color = BorderColor, thickness = 1.dp)
-
-            Spacer(Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 text = review.comment,
                 fontSize = 14.sp,
                 color = TextSecondary,
-                lineHeight = 20.sp
+                lineHeight = 22.sp
             )
-
-            // Action buttons - only show for owners
-            if (isOwner) {
-                AnimatedVisibility(visible = expanded) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 12.dp),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        SimpleActionButton(
-                            text = "Edit",
-                            color = PrimaryColor,
-                            onClick = onEdit
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        SimpleActionButton(
-                            text = "Delete",
-                            color = ErrorRed,
-                            onClick = onDelete
-                        )
-                    }
-                }
+            
+            if (review.propertyName.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Pour: ${review.propertyName}",
+                    fontSize = 12.sp,
+                    color = TextTertiary,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                )
             }
         }
     }
 }
 
 @Composable
-fun SimpleActionButton(
-    text: String,
-    color: Color,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.clickable { onClick() },
-        shape = RoundedCornerShape(8.dp),
-        color = color.copy(alpha = 0.1f)
-    ) {
-        Text(
-            text = text,
-            color = color,
-            fontWeight = FontWeight.Medium,
-            fontSize = 13.sp,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-        )
-    }
-}
-
-@Composable
-fun SimpleInputPanel(
+fun AddReviewDialog(
+    propertyName: String,
+    userName: String,
     rating: Int,
-    onRatingChange: (Int) -> Unit,
     comment: String,
+    onRatingChange: (Int) -> Unit,
     onCommentChange: (String) -> Unit,
-    onSubmit: () -> Unit,
-    modifier: Modifier = Modifier
+    onDismiss: () -> Unit,
+    onSubmit: () -> Unit
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        color = CardColor,
-        shadowElevation = 8.dp
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-        ) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
             Text(
-                text = "Rate your experience",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
+                text = "Ajouter un avis",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
             )
-
-            Spacer(Modifier.height(12.dp))
-
-            SimpleRatingBar(
-                rating = rating,
-                onRatingChange = onRatingChange,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            Row(
+        },
+        text = {
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                if (propertyName.isNotEmpty()) {
+                    Text(
+                        text = "Propriété: $propertyName",
+                        fontSize = 14.sp,
+                        color = TextSecondary
+                    )
+                }
+                
+                Text(
+                    text = "Note",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary
+                )
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    repeat(5) { index ->
+                        IconButton(
+                            onClick = { onRatingChange(index + 1) }
+                        ) {
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = "${index + 1} étoiles",
+                                modifier = Modifier.size(40.dp),
+                                tint = if (index < rating) AccentColor else Color(0xFFE0E0E0)
+                            )
+                        }
+                    }
+                }
+                
                 OutlinedTextField(
                     value = comment,
                     onValueChange = onCommentChange,
-                    modifier = Modifier.weight(1f),
-                    placeholder = {
-                        Text("Write your review...", color = TextSecondary)
-                    },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryColor,
-                        unfocusedBorderColor = BorderColor
-                    ),
-                    maxLines = 3
-                )
-
-                Surface(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clickable(enabled = comment.isNotBlank()) { onSubmit() },
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (comment.isNotBlank()) PrimaryColor else BorderColor
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "↑",
-                            fontSize = 24.sp,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun SimpleEditDialog(
-    review: Review,
-    onDismiss: () -> Unit,
-    onSave: (Review) -> Unit
-) {
-    var rating by remember { mutableStateOf(review.rating) }
-    var comment by remember { mutableStateOf(review.comment) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(20.dp),
-        containerColor = CardColor,
-        title = {
-            Text(
-                "Edit Review",
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
-                color = TextPrimary
-            )
-        },
-        text = {
-            Column {
-                Text(
-                    "Rating",
-                    fontSize = 14.sp,
-                    color = TextSecondary,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(Modifier.height(8.dp))
-
-                SimpleRatingBar(
-                    rating = rating,
-                    onRatingChange = { rating = it }
-                )
-
-                Spacer(Modifier.height(16.dp))
-
-                Text(
-                    "Review",
-                    fontSize = 14.sp,
-                    color = TextSecondary,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = comment,
-                    onValueChange = { comment = it },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryColor,
-                        unfocusedBorderColor = BorderColor
-                    ),
-                    minLines = 3,
-                    maxLines = 5
+                    label = { Text("Commentaire") },
+                    placeholder = { Text("Partagez votre expérience...") },
+                    minLines = 4,
+                    maxLines = 6
                 )
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = { onSave(review.copy(rating = rating, comment = comment)) }
+            Button(
+                onClick = onSubmit,
+                enabled = rating > 0 && comment.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor)
             ) {
-                Text(
-                    "Save",
-                    color = PrimaryColor,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Text("Publier")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = TextSecondary)
+                Text("Annuler")
             }
-        }
+        },
+        shape = RoundedCornerShape(20.dp)
     )
 }
 
-@Composable
-fun SimpleDeleteDialog(
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(20.dp),
-        containerColor = CardColor,
-        title = {
-            Text(
-                "Delete Review",
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
-                color = TextPrimary
-            )
-        },
-        text = {
-            Text(
-                "Are you sure you want to delete this review? This action cannot be undone.",
-                color = TextSecondary,
-                fontSize = 14.sp,
-                lineHeight = 20.sp
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(
-                    "Delete",
-                    color = ErrorRed,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = TextSecondary)
-            }
-        }
-    )
-}

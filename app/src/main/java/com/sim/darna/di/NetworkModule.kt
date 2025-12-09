@@ -3,6 +3,7 @@ package com.sim.darna.di
 import com.sim.darna.auth.UserSessionManager
 import com.sim.darna.data.adapter.DateAdapter
 import com.sim.darna.data.remote.PubliciteApi
+import com.sim.darna.utils.ApiConfig
 import com.squareup.moshi.Moshi
 import dagger.Module
 import dagger.Provides
@@ -19,8 +20,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
-
-    private const val BASE_URL = "http://192.168.1.11:3000/"
 
     @Provides
     @Singleton
@@ -48,7 +47,7 @@ object NetworkModule {
             .build()
 
         return Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(ApiConfig.BASE_URL)
             .client(client)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()

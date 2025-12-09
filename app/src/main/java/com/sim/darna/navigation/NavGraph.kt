@@ -31,6 +31,7 @@ object Routes {
     const val PropertyBookings = "property_books/{propertyId}"
     const val Notifications = "notifications"
     const val Map = "map"
+    const val ReviewSummary = "reviewSummary/{propertyId}/{propertyName}"
 }
 
 @Composable
@@ -80,11 +81,13 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         }
 
         composable(Routes.Fingerprint) {
-            FingerprintScreen {
-                navController.navigate(Routes.Main) {
-                    popUpTo(Routes.Fingerprint) { inclusive = true }
+            FingerprintScreen(
+                onNext = {
+                    navController.navigate(Routes.Main) {
+                        popUpTo(Routes.Fingerprint) { inclusive = true }
+                    }
                 }
-            }
+            )
         }
         composable("feedback") {
             FeedbackScreen(onNavigateBack = { navController.popBackStack() })
@@ -166,6 +169,23 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         ) { backStackEntry ->
             val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
             ConfirmedClientsScreen(navController, propertyId)
+        }
+        
+        // Review Summary (AI-Powered)
+        composable(
+            route = Routes.ReviewSummary,
+            arguments = listOf(
+                navArgument("propertyId") { type = NavType.StringType },
+                navArgument("propertyName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
+            val propertyName = backStackEntry.arguments?.getString("propertyName") ?: ""
+            ReviewSummaryScreen(
+                propertyId = propertyId,
+                propertyName = propertyName,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }
