@@ -64,7 +64,8 @@ class LoginViewModel(
             }
 
             override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
-                _state.value = LoginUiState(error = "Erreur réseau")
+                val msg = t.message ?: "Erreur réseau"
+                _state.value = LoginUiState(error = "Erreur: $msg")
             }
         })
     }

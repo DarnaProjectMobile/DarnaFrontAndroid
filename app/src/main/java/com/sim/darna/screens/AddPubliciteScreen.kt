@@ -1,67 +1,149 @@
 package com.sim.darna.screens
 
 import android.app.DatePickerDialog
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.sim.darna.auth.TokenStorage
 import com.sim.darna.auth.UserSessionManager
+import com.sim.darna.components.StripePaymentBottomSheet
 import com.sim.darna.data.model.Publicite
+import com.sim.darna.data.repository.PubliciteUploadRepository
 import com.sim.darna.viewmodel.PubliciteViewModel
+import com.sim.darna.viewmodel.StripeViewModel
 import com.sim.darna.viewmodel.UiState
 import java.text.SimpleDateFormat
 import java.util.*
+import javax.inject.Inject
 
-/**
- * Écran pour ajouter ou modifier une publicité
- */
+enum class PubliciteTypeOption {
+    REDUCTION,
+    PROMOTION,
+    JEU
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddPubliciteScreen(
-    publiciteId: String? = null,             // ID si édition
-    onFinish: () -> Unit = {},               // Callback après enregistrement
-    onCancel: () -> Unit = {},               // Callback pour annuler
-    viewModel: PubliciteViewModel = hiltViewModel()
+    publiciteId: String? = null,
+    onFinish: () -> Unit = {},
+    onCancel: () -> Unit = {},
+    publiciteViewModel: PubliciteViewModel = hiltViewModel(),
+    stripeViewModel: StripeViewModel = hiltViewModel()
 ) {
-    // Vérifie si l'utilisateur est sponsor
-    val isSponsor = UserSessionManager.isSponsor()
-
-    // Si l'utilisateur n'est pas sponsor, afficher message et bouton retour
+    val context = LocalContext.current
+    
+    // Récupérer le rôle depuis SharedPreferences
+    val prefs = remember { context.getSharedPreferences("APP_PREFS", Context.MODE_PRIVATE) }
+    val userRole = remember(prefs) { prefs.getString("role", "user") ?: "user" }
+    val isSponsor = remember(userRole) { 
+        userRole.lowercase() == "sponsor" || UserSessionManager.isSponsor()
+    }
+    
     if (!isSponsor) {
         NonSponsorContent(onCancel = onCancel)
         return
     }
 
-    val formState by viewModel.formState.collectAsState()
-    val context = LocalContext.current
+    var showPaymentDialog by rememberSaveable { mutableStateOf(false) }
+    var showPaymentSheet by rememberSaveable { mutableStateOf(false) }
+    var hasPaid by rememberSaveable { mutableStateOf(false) }
+    var paymentClientSecret by rememberSaveable { mutableStateOf<String?>(null) }
+    var isUploadingImage by rememberSaveable { mutableStateOf(false) }
+    var pendingFormSubmission by rememberSaveable { mutableStateOf(false) }
+    
+    val formState by publiciteViewModel.formState.collectAsState()
+    val paymentState by stripeViewModel.paymentState.collectAsState()
 
-    // États des champs du formulaire
+    // États du formulaire
     var titre by rememberSaveable { mutableStateOf("") }
     var description by rememberSaveable { mutableStateOf("") }
-    var type by rememberSaveable { mutableStateOf("Promotion") }
-    var pourcentage by rememberSaveable { mutableStateOf("") }
+    var selectedType by rememberSaveable { mutableStateOf<PubliciteTypeOption?>(null) }
+    var selectedCategorie by rememberSaveable { mutableStateOf("") }
+    var autreCategorie by rememberSaveable { mutableStateOf("") }
+    var imageUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var imageUrl by rememberSaveable { mutableStateOf("") }
-    var codePromo by rememberSaveable { mutableStateOf("") }
     var dateDebut by rememberSaveable { mutableStateOf<Date?>(null) }
     var dateFin by rememberSaveable { mutableStateOf<Date?>(null) }
+    
+    // Champs spécifiques pour REDUCTION
+    var pourcentageReduction by rememberSaveable { mutableStateOf("") }
+    var conditionsUtilisation by rememberSaveable { mutableStateOf("") }
+    
+    // Champs spécifiques pour PROMOTION
+    var offrePromotion by rememberSaveable { mutableStateOf("") }
+    
+    // Champs spécifiques pour JEU
+    var nombreCases by rememberSaveable { mutableStateOf(3) }
+    var gainsJeu by rememberSaveable { mutableStateOf(listOf("", "", "")) }
+    
+    // Liste des catégories
+    val categories = listOf("Nourriture", "Tech", "Loisirs", "Mode", "Santé", "Autre")
+    
     var isSubmitting by rememberSaveable { mutableStateOf(false) }
-
-    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     val isEditing = !publiciteId.isNullOrBlank()
+    
+    // Launcher pour sélectionner une image
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            imageUri = it
+            // Upload l'image immédiatement
+            isUploadingImage = true
+            publiciteViewModel.uploadImage(context, it) { success, url ->
+                isUploadingImage = false
+                if (success && url != null) {
+                    imageUrl = url
+                    Toast.makeText(context, "Image uploadée avec succès", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Erreur lors de l'upload de l'image", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     // Charger la publicité si édition
     LaunchedEffect(publiciteId) {
-        if (isEditing) viewModel.loadPublicite(publiciteId!!)
+        if (isEditing) {
+            publiciteViewModel.loadPublicite(publiciteId!!)
+            hasPaid = true
+        } else {
+            // Si c'est une nouvelle publicité, ouvrir directement le dialog de paiement
+            showPaymentDialog = true
+        }
     }
 
     // Remplir les champs avec la publicité existante
@@ -70,174 +152,883 @@ fun AddPubliciteScreen(
         pub?.let {
             titre = it.titre
             description = it.description
-            type = it.type ?: "Promotion"
-            pourcentage = it.pourcentageReduction?.toString().orEmpty()
-            imageUrl = it.imageUrl.orEmpty()
-            codePromo = it.codePromo.orEmpty()
-            dateDebut = it.dateDebut
-            dateFin = it.dateFin
+            selectedType = when (it.type?.uppercase()) {
+                "REDUCTION" -> PubliciteTypeOption.REDUCTION
+                "PROMOTION" -> PubliciteTypeOption.PROMOTION
+                "JEU" -> PubliciteTypeOption.JEU
+                else -> null
+            }
+            imageUrl = it.image ?: it.imageUrl.orEmpty()
+            
+            // Charger la catégorie si elle existe
+            it.categorie?.let { categorie ->
+                if (categories.contains(categorie)) {
+                    selectedCategorie = categorie
+                } else {
+                    selectedCategorie = "Autre"
+                    autreCategorie = categorie
+                }
+            }
+            
+            // Charger dateExpiration (dateDebut n'existe pas dans le modèle Publicite)
+            it.dateExpiration?.let { dateStr ->
+                try {
+                    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                    dateFin = dateFormat.parse(dateStr)
+                } catch (e: Exception) {
+                    try {
+                        val isoFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                        dateFin = isoFormat.parse(dateStr)
+                    } catch (e2: Exception) {}
+                }
+            }
+            
+            it.detailReduction?.let { detail ->
+                pourcentageReduction = detail.pourcentage?.toString().orEmpty()
+                conditionsUtilisation = detail.conditionsUtilisation.orEmpty()
+            }
+            
+            it.detailPromotion?.let { detail ->
+                offrePromotion = detail.offre.orEmpty()
+            }
+            
+            it.detailJeu?.let { detail ->
+                val gains = detail.gains ?: listOf()
+                nombreCases = gains.size.coerceAtLeast(3)
+                gainsJeu = gains.ifEmpty { List(nombreCases) { "" } }
+            }
         }
     }
-
-    // Contenu du formulaire
+    
+    // Observer le résultat du paiement
+    LaunchedEffect(paymentState.paymentUrl) {
+        if (paymentState.paymentUrl != null && showPaymentSheet) {
+            paymentClientSecret = paymentState.paymentUrl
+        }
+    }
+    
+    // Afficher le formulaire seulement si on a payé ou si c'est une édition
+    if (!hasPaid && !isEditing) {
+        // Afficher un écran vide avec juste le dialog de paiement
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            // Le dialog sera affiché ci-dessous
+        }
+    } else {
+        Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { 
+                    Text(
+                        "Ajouter une publicité",
+                        color = Color(0xFF2196F3),
+                        fontWeight = FontWeight.Medium
+                    ) 
+                },
+                navigationIcon = {
+                    IconButton(onClick = onCancel) {
+                        Icon(
+                            Icons.Default.ArrowBack, 
+                            contentDescription = "Retour",
+                            tint = Color(0xFF2196F3)
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.White
+                )
+            )
+        },
+        containerColor = Color(0xFFF5F5F5)
+    ) { padding ->
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+                .padding(padding)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Card pour les champs de base
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                shape = RoundedCornerShape(12.dp)
     ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Titre
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            text = if (isEditing) "Modifier la publicité" else "Ajouter une publicité",
-            style = MaterialTheme.typography.titleLarge
-        )
-
-        // Affichage loading ou erreur
-        when (formState) {
-            is UiState.Loading -> if (isEditing) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            is UiState.Error -> Text(
-                (formState as UiState.Error).message,
-                color = MaterialTheme.colorScheme.error
-            )
-            else -> Unit
-        }
-
-        // Champs texte
+                            "Titre",
+                            fontSize = 14.sp,
+                            color = Color(0xFF333333),
+                            fontWeight = FontWeight.Medium
+                        )
         OutlinedTextField(
             value = titre,
             onValueChange = { titre = it },
-            label = { Text("Titre") },
+                            placeholder = { Text("Entrez le titre de la publicité", fontSize = 14.sp) },
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true
-        )
-
+                            singleLine = true,
+                            shape = RoundedCornerShape(8.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF2196F3),
+                                unfocusedBorderColor = Color(0xFFE0E0E0),
+                                unfocusedContainerColor = Color(0xFFFAFAFA),
+                                focusedContainerColor = Color.White
+                            )
+                        )
+                    }
+                    
+                    // Description
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            "Description",
+                            fontSize = 14.sp,
+                            color = Color(0xFF333333),
+                            fontWeight = FontWeight.Medium
+                        )
         OutlinedTextField(
             value = description,
             onValueChange = { description = it },
-            label = { Text("Description") },
+                            placeholder = { Text("Écrire une description", fontSize = 14.sp) },
             modifier = Modifier.fillMaxWidth(),
-            minLines = 3
-        )
-
-        OutlinedTextField(
-            value = type,
-            onValueChange = { type = it },
-            label = { Text("Type") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
-        )
-
-        OutlinedTextField(
-            value = pourcentage,
-            onValueChange = { pourcentage = it.filter { ch -> ch.isDigit() } },
-            label = { Text("Pourcentage de réduction (%)") },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true
-        )
-
-        OutlinedTextField(
-            value = imageUrl,
-            onValueChange = { imageUrl = it },
-            label = { Text("Image URL") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            placeholder = { Text("https://...") }
-        )
-
-        // Sélecteur de dates
-        DatePickersRow(
-            labelStart = "Date de début",
-            dateStart = dateDebut,
-            labelEnd = "Date de fin",
-            dateEnd = dateFin,
-            onDateStartChange = { dateDebut = it },
-            onDateEndChange = { dateFin = it },
-            formatter = dateFormat
-        )
-
-        OutlinedTextField(
-            value = codePromo,
-            onValueChange = { codePromo = it },
-            label = { Text("Code promo") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Boutons Annuler / Enregistrer
-        Row(
-            modifier = Modifier.align(Alignment.End),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            OutlinedButton(onClick = onCancel, enabled = !isSubmitting) {
-                Text("Annuler")
-            }
-            Button(
-                onClick = {
-                    // Préparer payload pour API
-                    val payload = buildMap<String, Any> {
-                        put("titre", titre)
-                        put("description", description)
-                        put("type", type)
-                        pourcentage.toIntOrNull()?.let { put("pourcentageReduction", it) }
-                        if (imageUrl.isNotBlank()) put("imageUrl", imageUrl)
-                        dateDebut?.let { put("dateDebut", it) }
-                        dateFin?.let { put("dateFin", it) }
-                        if (codePromo.isNotBlank()) put("codePromo", codePromo)
+                            minLines = 3,
+                            shape = RoundedCornerShape(8.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF2196F3),
+                                unfocusedBorderColor = Color(0xFFE0E0E0),
+                                unfocusedContainerColor = Color(0xFFFAFAFA),
+                                focusedContainerColor = Color.White
+                            )
+                        )
                     }
-
-                    isSubmitting = true
-                    val callback: (Boolean, String?) -> Unit = { success, message ->
-                        isSubmitting = false
-                        if (success) {
-                            onFinish() // retour à la liste
-                        } else {
-                            Toast.makeText(context, message ?: "Erreur lors de l'enregistrement", Toast.LENGTH_SHORT).show()
+                    
+                    // Type de publicité
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            "Type de publicité",
+                            fontSize = 14.sp,
+                            color = Color(0xFF333333),
+                            fontWeight = FontWeight.Medium
+                        )
+                        Row(
+            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Réduction
+                            TypeButton(
+                                icon = Icons.Outlined.Percent,
+                                label = "Réduction",
+                                isSelected = selectedType == PubliciteTypeOption.REDUCTION,
+                                onClick = { selectedType = PubliciteTypeOption.REDUCTION },
+                                modifier = Modifier.weight(1f)
+                            )
+                            // Promotion
+                            TypeButton(
+                                icon = Icons.Outlined.LocalOffer,
+                                label = "Promotion",
+                                isSelected = selectedType == PubliciteTypeOption.PROMOTION,
+                                onClick = { selectedType = PubliciteTypeOption.PROMOTION },
+                                modifier = Modifier.weight(1f)
+                            )
+                            // Jeu
+                            TypeButton(
+                                icon = Icons.Outlined.Casino,
+                                label = "Jeu",
+                                isSelected = selectedType == PubliciteTypeOption.JEU,
+                                onClick = { selectedType = PubliciteTypeOption.JEU },
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                     }
-
-                    // Création ou modification selon le mode
-                    if (isEditing && publiciteId != null) {
-                        viewModel.updatePublicite(publiciteId, payload, callback)
-                    } else {
-                        viewModel.createPublicite(payload, callback)
+                    
+                    // Champ Offre pour PROMOTION (au-dessus de la catégorie)
+                    if (selectedType == PubliciteTypeOption.PROMOTION) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                "Offre",
+                                fontSize = 14.sp,
+                                color = Color(0xFF333333),
+                                fontWeight = FontWeight.Medium
+                            )
+                            OutlinedTextField(
+                                value = offrePromotion,
+                                onValueChange = { offrePromotion = it },
+                                placeholder = { Text("Décrivez votre offre promotionnelle", fontSize = 14.sp) },
+                                modifier = Modifier.fillMaxWidth(),
+                                minLines = 2,
+                                shape = RoundedCornerShape(8.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFF2196F3),
+                                    unfocusedBorderColor = Color(0xFFE0E0E0),
+                                    unfocusedContainerColor = Color(0xFFFAFAFA),
+                                    focusedContainerColor = Color.White
+                                )
+                            )
+                        }
                     }
-                },
-                enabled = !isSubmitting && titre.isNotBlank() && description.isNotBlank()
+                    
+                    // Catégorie de publicité
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            "Catégorie de publicité",
+                            fontSize = 14.sp,
+                            color = Color(0xFF333333),
+                            fontWeight = FontWeight.Medium
+                        )
+                        
+                        // Grille de catégories
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CategorieChip(
+                                    label = "Nourriture",
+                                    isSelected = selectedCategorie == "Nourriture",
+                                    onClick = { selectedCategorie = "Nourriture" },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                CategorieChip(
+                                    label = "Tech",
+                                    isSelected = selectedCategorie == "Tech",
+                                    onClick = { selectedCategorie = "Tech" },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                CategorieChip(
+                                    label = "Loisirs",
+                                    isSelected = selectedCategorie == "Loisirs",
+                                    onClick = { selectedCategorie = "Loisirs" },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            Row(
+            modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CategorieChip(
+                                    label = "Mode",
+                                    isSelected = selectedCategorie == "Mode",
+                                    onClick = { selectedCategorie = "Mode" },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                CategorieChip(
+                                    label = "Santé",
+                                    isSelected = selectedCategorie == "Santé",
+                                    onClick = { selectedCategorie = "Santé" },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                CategorieChip(
+                                    label = "Autre",
+                                    isSelected = selectedCategorie == "Autre",
+                                    onClick = { selectedCategorie = "Autre" },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                        
+                        // Champ "Autre catégorie" si "Autre" est sélectionné
+                        if (selectedCategorie == "Autre") {
+        OutlinedTextField(
+                                value = autreCategorie,
+                                onValueChange = { autreCategorie = it },
+                                placeholder = { Text("Précisez la catégorie", fontSize = 14.sp) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+                                shape = RoundedCornerShape(8.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFF2196F3),
+                                    unfocusedBorderColor = Color(0xFFE0E0E0),
+                                    unfocusedContainerColor = Color(0xFFFAFAFA),
+                                    focusedContainerColor = Color.White
+                                )
+                            )
+                        }
+                    }
+                    
+                    // Champs spécifiques selon le type
+                    when (selectedType) {
+                        PubliciteTypeOption.REDUCTION -> {
+                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(
+                                        "Pourcentage de réduction (%)",
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF333333),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    OutlinedTextField(
+                                        value = pourcentageReduction,
+                                        onValueChange = { pourcentageReduction = it.filter { ch -> ch.isDigit() } },
+                                        placeholder = { Text("Ex: 25", fontSize = 14.sp) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = Color(0xFF2196F3),
+                                            unfocusedBorderColor = Color(0xFFE0E0E0),
+                                            unfocusedContainerColor = Color(0xFFFAFAFA),
+                                            focusedContainerColor = Color.White
+                                        )
+                                    )
+                                }
+                                
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(
+                                        "Conditions d'utilisation",
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF333333),
+                                        fontWeight = FontWeight.Medium
+                                    )
+        OutlinedTextField(
+                                        value = conditionsUtilisation,
+                                        onValueChange = { conditionsUtilisation = it },
+                                        placeholder = { Text("Ex: Valable sur tous les produits", fontSize = 14.sp) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        minLines = 2,
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = Color(0xFF2196F3),
+                                            unfocusedBorderColor = Color(0xFFE0E0E0),
+                                            unfocusedContainerColor = Color(0xFFFAFAFA),
+                                            focusedContainerColor = Color.White
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                        PubliciteTypeOption.JEU -> {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Row(
+            modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        "Configurer la roulette",
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF333333),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        "$nombreCases cases",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF666666)
+                                    )
+                                }
+                                
+        Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        "Nombre de cases",
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF666666)
+                                    )
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        IconButton(
+                                            onClick = {
+                                                if (nombreCases > 1) {
+                                                    nombreCases--
+                                                    gainsJeu = gainsJeu.take(nombreCases)
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .border(1.dp, Color(0xFF2196F3), RoundedCornerShape(8.dp))
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Remove,
+                                                contentDescription = "Diminuer",
+                                                tint = Color(0xFF2196F3),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        Text(
+                                            nombreCases.toString(),
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF333333)
+                                        )
+                                        IconButton(
+                onClick = {
+                                                nombreCases++
+                                                gainsJeu = gainsJeu + ""
+                                            },
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .background(Color(0xFF2196F3), RoundedCornerShape(8.dp))
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Add,
+                                                contentDescription = "Augmenter",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                                
+                                gainsJeu.forEachIndexed { index, gain ->
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text(
+                                            "Gain ${index + 1}",
+                                            fontSize = 14.sp,
+                                            color = Color(0xFF666666)
+                                        )
+                                        OutlinedTextField(
+                                            value = gain,
+                                            onValueChange = { newValue ->
+                                                gainsJeu = gainsJeu.toMutableList().apply {
+                                                    this[index] = newValue
+                                                }
+                                            },
+                                            placeholder = { Text("Nom du gain ${index + 1}", fontSize = 14.sp) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedBorderColor = Color(0xFF2196F3),
+                                                unfocusedBorderColor = Color(0xFFE0E0E0),
+                                                unfocusedContainerColor = Color(0xFFFAFAFA),
+                                                focusedContainerColor = Color.White
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        else -> {}
+                    }
+                }
+            }
+            
+            // Card pour l'image
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        "Image de la publicité",
+                        fontSize = 14.sp,
+                        color = Color(0xFF333333),
+                        fontWeight = FontWeight.Medium
+                    )
+                    
+                    if (imageUri != null || imageUrl.isNotBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(8.dp))
+                        ) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(imageUri ?: imageUrl)
+                                    .build(),
+                                contentDescription = "Image sélectionnée",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                        } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp)
+                                .border(
+                                    width = 2.dp,
+                                    color = Color(0xFF2196F3),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFF8F9FA)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Image,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(48.dp),
+                                    tint = Color(0xFF2196F3)
+                                )
+                            }
+                        }
+                    }
+                    
+                    OutlinedButton(
+                        onClick = { imagePickerLauncher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color(0xFF2196F3)
+                        ),
+                        border = ButtonDefaults.outlinedButtonBorder.copy(
+                            brush = androidx.compose.ui.graphics.SolidColor(Color(0xFF2196F3))
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Outlined.CloudUpload,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Télécharger une image")
+                    }
+                    
+                    if (isUploadingImage) {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color(0xFF2196F3)
+                        )
+                    }
+                }
+            }
+            
+            // Card pour les dates
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        "Période de diffusion",
+                        fontSize = 14.sp,
+                        color = Color(0xFF333333),
+                        fontWeight = FontWeight.Medium
+                    )
+                    
+                    // Date de début
+                    DatePickerFieldNew(
+                        label = "Date de début",
+                        date = dateDebut,
+                        onDateSelected = { dateDebut = it }
+                    )
+                    
+                    // Date de fin
+                    DatePickerFieldNew(
+                        label = "Date de fin",
+                        date = dateFin,
+                        onDateSelected = { dateFin = it }
+                    )
+                }
+            }
+            
+            // Boutons
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Button(
+                    onClick = {
+                        // Vérifier les champs requis
+                        if (titre.isBlank() || description.isBlank() || selectedType == null || 
+                            selectedCategorie.isBlank() || imageUrl.isBlank() || dateDebut == null || dateFin == null) {
+                            Toast.makeText(context, "Veuillez remplir tous les champs obligatoires", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+
+                        // Vérifier si "Autre" est sélectionné et que le champ est rempli
+                        if (selectedCategorie == "Autre" && autreCategorie.isBlank()) {
+                            Toast.makeText(context, "Veuillez préciser la catégorie", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        
+                        // Vérifier le champ "offre" pour PROMOTION
+                        if (selectedType == PubliciteTypeOption.PROMOTION && offrePromotion.isBlank()) {
+                            Toast.makeText(context, "Veuillez remplir le champ 'Offre'", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        
+                        if (dateDebut!! > dateFin!!) {
+                            Toast.makeText(context, "La date de début doit être avant la date de fin", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        
+                        // Fonction pour soumettre le formulaire
+                        fun doSubmitForm() {
+                            submitForm(
+                                context = context,
+                                publiciteViewModel = publiciteViewModel,
+                                titre = titre,
+                                description = description,
+                                selectedType = selectedType,
+                                selectedCategorie = if (selectedCategorie == "Autre") autreCategorie else selectedCategorie,
+                                imageUrl = imageUrl,
+                                dateDebut = dateDebut,
+                                dateFin = dateFin,
+                                pourcentageReduction = pourcentageReduction,
+                                conditionsUtilisation = conditionsUtilisation,
+                                offrePromotion = offrePromotion,
+                                gainsJeu = gainsJeu,
+                                isEditing = isEditing,
+                                publiciteId = publiciteId,
+                                isSubmitting = { isSubmitting = it },
+                                onSuccess = {
+                                    Toast.makeText(context, "Publicité publiée avec succès!", Toast.LENGTH_SHORT).show()
+                                    onFinish()
+                                },
+                                onError = { message ->
+                                    val errorMsg = message ?: "Erreur lors de l'enregistrement"
+                                    android.util.Log.e("AddPubliciteScreen", "Error submitting form: $errorMsg")
+                                    Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+                                }
+                            )
+                        }
+                        
+                        // Si c'est une édition ou si on a déjà payé, soumettre directement
+                        if (isEditing || hasPaid) {
+                            doSubmitForm()
+                        } else {
+                            // Sinon, marquer qu'on veut soumettre après le paiement et ouvrir le dialog
+                            pendingFormSubmission = true
+                            showPaymentDialog = true
+                        }
+                    },
+                    enabled = !isSubmitting,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF2196F3)
+                    ),
+                    shape = RoundedCornerShape(8.dp)
             ) {
                 if (isSubmitting) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(16.dp),
                         strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text("Ajouter", color = Color.White)
                 }
-                Text(if (isSubmitting) "Enregistrement..." else "Enregistrer")
+                
+                OutlinedButton(
+                    onClick = onCancel,
+                    enabled = !isSubmitting,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp),
+                    border = ButtonDefaults.outlinedButtonBorder.copy(
+                        brush = androidx.compose.ui.graphics.SolidColor(Color(0xFFE0E0E0))
+                    ),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color(0xFF666666)
+                    )
+                ) {
+                    Text("Annuler")
+                }
             }
+        }
+        }
+    }
+    
+    // Dialog de paiement (s'affiche en premier pour les nouvelles publicités)
+    if (showPaymentDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showPaymentDialog = false
+                // Si l'utilisateur ferme le dialog, retourner en arrière
+                onCancel()
+            },
+            title = { Text("Paiement requis") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Pour publier une publicité, vous devez payer 10€.")
+                    Text("Voulez-vous procéder au paiement ?")
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showPaymentDialog = false
+                        stripeViewModel.createPaymentIntent(context, 10.0) { success, paymentUrl ->
+                            if (success && paymentUrl != null) {
+                                paymentClientSecret = paymentUrl
+                                showPaymentSheet = true
+                            } else {
+                                val errorMsg = stripeViewModel.paymentState.value.error 
+                                    ?: "Erreur lors de la création du paiement"
+                                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+                                // En cas d'erreur, retourner en arrière
+                                onCancel()
+                            }
+                        }
+                    }
+                ) {
+                    Text("Payer")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { 
+                    showPaymentDialog = false
+                    onCancel()
+                }) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
+    
+    // Bottom Sheet Stripe
+    if (showPaymentSheet) {
+        StripePaymentBottomSheet(
+            clientSecret = paymentClientSecret,
+            publishableKey = "pk_test_51SWhKDHzDVVYaCTRXPPjTHX3wP0Qsz5aFDkOfK2ji9vd26xwucYJsFFKx271d767HVHN3f6hVC07wb6a0cnEcR5Y00UqB3vKCH",
+            onPaymentResult = { success ->
+                showPaymentSheet = false
+                if (success) {
+                    hasPaid = true
+                    Toast.makeText(context, "Paiement réussi! Vous pouvez maintenant remplir le formulaire.", Toast.LENGTH_SHORT).show()
+                    // Le formulaire s'affichera automatiquement car hasPaid = true
+                } else {
+                    pendingFormSubmission = false
+                    Toast.makeText(context, "Paiement annulé", Toast.LENGTH_SHORT).show()
+                    // Si le paiement est annulé, retourner en arrière
+                    onCancel()
+                }
+            },
+            onDismiss = { 
+                showPaymentSheet = false
+                pendingFormSubmission = false
+            }
+        )
+    }
+}
+
+@Composable
+fun CategorieChip(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier.height(44.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) Color(0xFF2196F3) else Color(0xFFFAFAFA)
+        ),
+        border = if (isSelected) {
+            null
+        } else {
+            androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0E0E0))
+        },
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                label,
+                fontSize = 13.sp,
+                color = if (isSelected) Color.White else Color(0xFF666666),
+                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
+            )
         }
     }
 }
 
-/**
- * Ligne avec deux DatePickers (début / fin)
- */
 @Composable
-private fun DatePickersRow(
-    labelStart: String,
-    dateStart: Date?,
-    labelEnd: String,
-    dateEnd: Date?,
-    onDateStartChange: (Date) -> Unit,
-    onDateEndChange: (Date) -> Unit,
-    formatter: SimpleDateFormat
+fun TypeButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier.height(90.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) Color(0xFFE3F2FD) else Color.White
+        ),
+        border = if (isSelected) {
+            androidx.compose.foundation.BorderStroke(2.dp, Color(0xFF2196F3))
+        } else {
+            androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0E0E0))
+        },
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
+                tint = if (isSelected) Color(0xFF2196F3) else Color(0xFF666666)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                label,
+                fontSize = 12.sp,
+                color = if (isSelected) Color(0xFF2196F3) else Color(0xFF666666),
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+fun DatePickerFieldNew(
+    label: String,
+    date: Date?,
+    onDateSelected: (Date) -> Unit
 ) {
     val context = LocalContext.current
-
-    fun openPicker(initial: Date?, onDateSelected: (Date) -> Unit) {
-        val calendar = Calendar.getInstance().apply { time = initial ?: Date() }
+    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            label,
+            fontSize = 14.sp,
+            color = Color(0xFF666666)
+        )
+        OutlinedButton(
+            onClick = {
+                val calendar = Calendar.getInstance().apply { time = date ?: Date() }
         DatePickerDialog(
             context,
             { _, year, month, dayOfMonth ->
@@ -251,35 +1042,120 @@ private fun DatePickersRow(
             calendar.get(Calendar.MONTH),
             calendar.get(Calendar.DAY_OF_MONTH)
         ).show()
-    }
-
-    Row(
+            },
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = Color(0xFF2196F3),
+                containerColor = Color(0xFFFAFAFA)
+            ),
+            border = ButtonDefaults.outlinedButtonBorder.copy(
+                brush = androidx.compose.ui.graphics.SolidColor(Color(0xFFE0E0E0))
+            ),
+            shape = RoundedCornerShape(8.dp)
     ) {
-        OutlinedTextField(
-            value = dateStart?.let(formatter::format) ?: "",
-            onValueChange = {},
-            label = { Text(labelStart) },
-            modifier = Modifier.weight(1f),
-            enabled = false
-        )
-        Button(onClick = { openPicker(dateStart, onDateStartChange) }) { Text("Choisir") }
-
-        OutlinedTextField(
-            value = dateEnd?.let(formatter::format) ?: "",
-            onValueChange = {},
-            label = { Text(labelEnd) },
-            modifier = Modifier.weight(1f),
-            enabled = false
-        )
-        Button(onClick = { openPicker(dateEnd, onDateEndChange) }) { Text("Choisir") }
+            Icon(
+                Icons.Outlined.CalendarToday,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = Color(0xFF2196F3)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                date?.let { dateFormat.format(it) } ?: "Sélectionner",
+                fontSize = 14.sp,
+                color = Color(0xFF666666)
+            )
+        }
     }
 }
 
-/**
- * Contenu affiché si l'utilisateur n'est pas sponsor
- */
+fun submitForm(
+    context: Context,
+    publiciteViewModel: PubliciteViewModel,
+    titre: String,
+    description: String,
+    selectedType: PubliciteTypeOption?,
+    selectedCategorie: String,
+    imageUrl: String,
+    dateDebut: Date?,
+    dateFin: Date?,
+    pourcentageReduction: String,
+    conditionsUtilisation: String,
+    offrePromotion: String,
+    gainsJeu: List<String>,
+    isEditing: Boolean,
+    publiciteId: String?,
+    isSubmitting: (Boolean) -> Unit,
+    onSuccess: () -> Unit,
+    onError: (String?) -> Unit
+) {
+    // Utiliser le format ISO (yyyy-MM-dd) pour les dates, comme attendu par la plupart des backends
+    val dateFormatISO = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    
+    val payload = buildMap<String, Any> {
+        put("titre", titre)
+        put("description", description)
+        put("type", selectedType?.name?.lowercase() ?: "promotion")
+        put("categorie", selectedCategorie)
+        put("image", imageUrl)
+        
+        // Envoyer les dates au format ISO
+        dateDebut?.let { put("dateDebut", dateFormatISO.format(it)) }
+        dateFin?.let { put("dateExpiration", dateFormatISO.format(it)) }
+        
+        when (selectedType) {
+            PubliciteTypeOption.REDUCTION -> {
+                put("detailReduction", mapOf(
+                    "pourcentage" to (pourcentageReduction.toIntOrNull() ?: 0),
+                    "conditionsUtilisation" to conditionsUtilisation.ifBlank { "Aucune condition particulière" }
+                ))
+            }
+            PubliciteTypeOption.PROMOTION -> {
+                // S'assurer que l'offre n'est jamais vide
+                val offreValue = if (offrePromotion.isNotBlank()) {
+                    offrePromotion
+                } else if (description.isNotBlank()) {
+                    description
+                } else {
+                    "Offre promotionnelle" // Valeur par défaut si tout est vide
+                }
+                put("detailPromotion", mapOf(
+                    "offre" to offreValue,
+                    "conditions" to "Aucune condition particulière" // Le backend exige ce champ et qu'il ne soit pas vide
+                ))
+            }
+            PubliciteTypeOption.JEU -> {
+                val filteredGains = gainsJeu.filter { it.isNotBlank() }
+                android.util.Log.d("AddPubliciteScreen", "Gains à envoyer: $filteredGains")
+                android.util.Log.d("AddPubliciteScreen", "Nombre de gains: ${filteredGains.size}")
+                put("detailJeu", mapOf(
+                    "description" to description,
+                    "gains" to filteredGains
+                ))
+            }
+            null -> {}
+        }
+    }
+    
+    android.util.Log.d("AddPubliciteScreen", "Payload to send: $payload")
+    
+    isSubmitting(true)
+    val callback: (Boolean, String?) -> Unit = { success, message ->
+        isSubmitting(false)
+        if (success) {
+            onSuccess()
+        } else {
+            onError(message)
+        }
+    }
+
+    if (isEditing && publiciteId != null) {
+        publiciteViewModel.updatePublicite(context, publiciteId, payload, callback)
+    } else {
+        publiciteViewModel.createPublicite(context, payload, callback)
+    }
+}
+
 @Composable
 private fun NonSponsorContent(onCancel: () -> Unit) {
     Column(

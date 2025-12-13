@@ -215,7 +215,7 @@ fun AddPropertyFormView(
         }
     }
     
-    val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+    val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
     dateFormat.timeZone = TimeZone.getTimeZone("UTC")
     
     var startDate by remember { mutableStateOf(propertyToEdit?.startDate?.let { 
@@ -1042,8 +1042,26 @@ fun AddPropertyFormView(
                         isLoading = true
                         errorMessage = null
                         
-                        val startDateStr = dateFormat.format(startDate)
-                        val endDateStr = dateFormat.format(endDate)
+                        // Format dates to ISO 8601 manually to guarantee standard format with no locale issues
+                        val formatToIso8601 = { date: Date ->
+                            val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.US)
+                            cal.time = date
+                            val y = cal.get(Calendar.YEAR)
+                            val m = cal.get(Calendar.MONTH) + 1
+                            val d = cal.get(Calendar.DAY_OF_MONTH)
+                            val h = cal.get(Calendar.HOUR_OF_DAY)
+                            val min = cal.get(Calendar.MINUTE)
+                            val s = cal.get(Calendar.SECOND)
+                            // Try +00:00 instead of Z
+                            String.format(Locale.US, "%04d-%02d-%02dT%02d:%02d:%02d+00:00", y, m, d, h, min, s)
+                        }
+
+                        val startDateStr = formatToIso8601(startDate)
+                        val endDateStr = formatToIso8601(endDate)
+                        
+                        // Debug log and TOAST visible to user
+                        android.util.Log.e("DEBUG_DATE", "Sent dates: Start=$startDateStr, End=$endDateStr")
+                        android.widget.Toast.makeText(context, "Date: $startDateStr", android.widget.Toast.LENGTH_SHORT).show()
                         
                         if (propertyToEdit == null) {
                             // Create

@@ -32,7 +32,7 @@ fun ForgotPasswordScreen(navController: NavController) {
     val context = LocalContext.current
 
     // 🧠 ViewModel setup
-    val baseUrl = "http://172.16.14.253:3000/"
+    val baseUrl = "http://192.168.1.101:3009/"
     val sharedPreferences = LocalContext.current.getSharedPreferences("DarnaPrefs", Context.MODE_PRIVATE)
     val viewModel: ForgotPasswordViewModel = viewModel(
         factory = ForgotPasswordVmFactory(baseUrl, sharedPreferences)
