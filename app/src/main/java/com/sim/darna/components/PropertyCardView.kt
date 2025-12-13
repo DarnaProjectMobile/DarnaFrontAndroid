@@ -1,21 +1,43 @@
 package com.sim.darna.components
 
 import android.graphics.BitmapFactory
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -49,16 +71,16 @@ fun PropertyCardView(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = AppTheme.card),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isGridMode) 3.dp else 6.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // Image section
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (isGridMode) 120.dp else 160.dp)
+                    .height(if (isGridMode) 140.dp else 220.dp)
                     .background(AppTheme.primaryLight)
             ) {
                 PropertyImageView(
@@ -74,16 +96,18 @@ fun PropertyCardView(
                     },
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(if (isGridMode) 4.dp else 8.dp)
+                        .padding(if (isGridMode) 8.dp else 12.dp)
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = Color.White.copy(alpha = 0.9f)
+                        color = Color.White,
+                        shadowElevation = 4.dp,
+                        border = BorderStroke(1.dp, Color(0xFFE6E6E6))
                     ) {
                         Icon(
                             imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Favorite",
-                            modifier = Modifier.padding(if (isGridMode) 6.dp else 8.dp),
+                            modifier = Modifier.padding(if (isGridMode) 8.dp else 10.dp),
                             tint = if (isFavorite) Color(0xFFFF6B6B) else AppTheme.textSecondary
                         )
                     }
@@ -96,7 +120,7 @@ fun PropertyCardView(
                 Column {
                     Text(
                         text = property.title,
-                        fontSize = if (isGridMode) 14.sp else 18.sp,
+                        fontSize = if (isGridMode) 15.sp else 18.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = AppTheme.textPrimary,
                         maxLines = if (isGridMode) 1 else Int.MAX_VALUE
@@ -106,7 +130,7 @@ fun PropertyCardView(
                         text = "${property.price.toInt()} DT/mois",
                         fontSize = if (isGridMode) 14.sp else 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = AppTheme.primary
+                        color = Color(0xFF0066FF)
                     )
                 }
                 
@@ -117,13 +141,13 @@ fun PropertyCardView(
                         text = property.description,
                         fontSize = 14.sp,
                         color = AppTheme.textSecondary,
-                        maxLines = 3
+                        maxLines = 2
                     )
                 }
                 
                 // Start date
                 property.startDate?.let { dateStr ->
-                    Spacer(modifier = Modifier.height(if (isGridMode) 4.dp else 8.dp))
+                    Spacer(modifier = Modifier.height(if (isGridMode) 4.dp else 10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.CalendarToday,
@@ -140,8 +164,7 @@ fun PropertyCardView(
                     }
                 }
                 
-                // Owner name
-                Spacer(modifier = Modifier.height(if (isGridMode) 4.dp else 12.dp))
+                Spacer(modifier = Modifier.height(if (isGridMode) 6.dp else 12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -149,33 +172,68 @@ fun PropertyCardView(
                 ) {
                     Text(
                         text = property.ownerName ?: property.ownerUsername ?: property.user ?: "Non spécifié",
-                        fontSize = if (isGridMode) 10.sp else 12.sp,
+                        fontSize = if (isGridMode) 11.sp else 12.sp,
                         color = AppTheme.textSecondary,
                         maxLines = 1
                     )
                     
-                    if (!isGridMode && canManage) {
-                        Row {
-                            IconButton(onClick = { onEdit?.invoke() }) {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = "Edit",
-                                    modifier = Modifier.size(18.dp),
-                                    tint = AppTheme.primary
-                                )
-                            }
-                            IconButton(onClick = { onDelete?.invoke() }) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Delete",
-                                    modifier = Modifier.size(18.dp),
-                                    tint = Color.Red
-                                )
-                            }
+                    if (isGridMode) {
+                        Spacer(modifier = Modifier.width(1.dp))
+                    } else if (canManage) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ManageActionChip(
+                                text = "Modifier",
+                                icon = Icons.Default.Edit,
+                                background = AppTheme.primary.copy(alpha = 0.12f),
+                                contentColor = AppTheme.primary,
+                                onClick = { onEdit?.invoke() }
+                            )
+                            ManageActionChip(
+                                text = "Supprimer",
+                                icon = Icons.Default.Delete,
+                                background = Color(0xFFFFEBEE),
+                                contentColor = Color(0xFFD32F2F),
+                                onClick = { onDelete?.invoke() }
+                            )
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ManageActionChip(
+    text: String,
+    icon: ImageVector,
+    background: Color,
+    contentColor: Color,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = background,
+        border = BorderStroke(1.dp, background.copy(alpha = 0.5f))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = text,
+                tint = contentColor,
+                modifier = Modifier.size(14.dp)
+            )
+            Text(
+                text = text,
+                color = contentColor,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }

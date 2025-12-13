@@ -28,5 +28,20 @@ data class Review(
     val createdAt: String?,
     
     @SerializedName("updatedAt")
-    val updatedAt: String?
+    val updatedAt: String?,
+
+    @SerializedName("visiteId")
+    val visiteId: String?,
+
+    @SerializedName("collectorRating")
+    val collectorRating: Int?,
+
+    @SerializedName("cleanlinessRating")
+    val cleanlinessRating: Int?,
+
+    @SerializedName("locationRating")
+    val locationRating: Int?,
+
+    @SerializedName("conformityRating")
+    val conformityRating: Int?
 )

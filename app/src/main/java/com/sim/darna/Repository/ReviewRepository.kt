@@ -35,6 +35,20 @@ class ReviewRepository(
     }
 
     // -------------------------
+    // GET REVIEWS BY USER
+    // -------------------------
+    suspend fun getReviewsByUser(userId: String): List<Review> {
+        if (userId.isBlank()) return emptyList()
+        
+        val res = api.getReviews(userId = userId)
+        return if (res.isSuccessful) {
+            res.body() ?: emptyList()
+        } else {
+            emptyList()
+        }
+    }
+
+    // -------------------------
     // CREATE REVIEW
     // -------------------------
     suspend fun createReview(rating: Int, comment: String, propertyId: String? = null, userName: String? = null, propertyName: String? = null): Review? {

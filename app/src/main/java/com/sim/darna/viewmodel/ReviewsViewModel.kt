@@ -61,6 +61,23 @@ class ReviewViewModel : ViewModel() {
     }
 
     // ------------------------------------------------------
+    // LOAD REVIEWS BY USER
+    // ------------------------------------------------------
+    fun loadReviewsByUser(userId: String) {
+        if (userId.isBlank()) {
+            _reviews.value = emptyList()
+            return
+        }
+        viewModelScope.launch {
+            try {
+                _reviews.value = getRepo().getReviewsByUser(userId)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    // ------------------------------------------------------
     // ADD REVIEW
     // ------------------------------------------------------
     fun addReview(rating: Int, comment: String, propertyId: String? = null, userName: String? = null, propertyName: String? = null) {

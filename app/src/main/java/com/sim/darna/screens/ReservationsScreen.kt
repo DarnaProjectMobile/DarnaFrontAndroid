@@ -228,7 +228,7 @@ fun PropertyReservationCard(
 ) {
     val pendingCount = property.attendingListBookings?.size ?: 0
     val imageUrl = property.getFirstImage()
-    val baseUrl = "http://192.168.100.3:3000/"
+    val baseUrl = "http://192.168.1.101:3009/"
     
     Card(
         modifier = Modifier

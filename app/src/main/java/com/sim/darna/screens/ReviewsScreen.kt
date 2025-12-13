@@ -43,6 +43,7 @@ fun ReviewsScreen(
     propertyId: String? = null,
     propertyName: String? = null,
     userName: String? = null,
+    userId: String? = null,
     onNavigateBack: () -> Unit = { /* Default: do nothing */ }
 ) {
     val context = LocalContext.current
@@ -66,6 +67,11 @@ fun ReviewsScreen(
         if (propertyId != null) {
             // Load reviews for specific property
             vm.loadReviewsForProperty(propertyId)
+        } else if (userId != null) {
+            // Load ALL reviews as requested ("afficher les autres avis d'autres clients aussi")
+            // The userId param acts as a context that we are in "Mes Evaluations" mode (for UI tweaks),
+            // but we fetch everything. Ownership highlighting uses TokenStorage.getUserId separately.
+            vm.loadReviews()
         } else {
             // Load all reviews
             vm.loadReviews()
@@ -115,27 +121,33 @@ fun ReviewsScreen(
         }
 
         // Bottom Input Panel
-        SimpleInputPanel(
-            rating = rating,
-            onRatingChange = { rating = it },
-            comment = comment,
-            onCommentChange = { comment = it },
-            onSubmit = {
-                if (comment.isNotBlank()) {
-                    // Pass property and user information when creating review
-                    vm.addReview(
-                        rating = rating,
-                        comment = comment,
-                        propertyId = propertyId,
-                        userName = userName,
-                        propertyName = propertyName
-                    )
-                    comment = ""
-                    rating = 5
-                }
-            },
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
+        // Bottom Input Panel - Only show if we are NOT viewing a specific user's reviews (My Evaluations mode)
+        // If userId is null, it means we are either viewing all reviews or property reviews, where adding a review might be relevant.
+        // Actually, if we are viewing ALL reviews (userId=null, propertyId=null), it might be weird to add a review without context, 
+        // but let's stick to the request: remove "rate your experience" for the "My evaluations" case (userId != null).
+        if (userId == null) {
+            SimpleInputPanel(
+                rating = rating,
+                onRatingChange = { rating = it },
+                comment = comment,
+                onCommentChange = { comment = it },
+                onSubmit = {
+                    if (comment.isNotBlank()) {
+                        // Pass property and user information when creating review
+                        vm.addReview(
+                            rating = rating,
+                            comment = comment,
+                            propertyId = propertyId,
+                            userName = userName,
+                            propertyName = propertyName
+                        )
+                        comment = ""
+                        rating = 5
+                    }
+                },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
     }
 
     // Dialogs
@@ -290,15 +302,20 @@ fun SimpleReviewCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top
             ) {
+                // Determine display content based on ownership (context)
+                val displayTitle = if (isOwner && review.propertyName.isNotBlank()) review.propertyName else username
+                val avatarChar = displayTitle.take(1).uppercase()
+                val avatarColor = if (isOwner) Color(0xFFEF5350) else PrimaryColor // Red for property, Blue for user
+
                 // Avatar
                 Surface(
                     modifier = Modifier.size(44.dp),
                     shape = RoundedCornerShape(12.dp),
-                    color = PrimaryColor
+                    color = avatarColor
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
-                            text = username.take(1).uppercase(),
+                            text = avatarChar,
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
@@ -310,11 +327,21 @@ fun SimpleReviewCard(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = username,
+                        text = displayTitle,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp,
                         color = TextPrimary
                     )
+                    
+                    // If it's the owner's review (Mes Evaluations) and showing property name, show "My Review" subtitle
+                    if (isOwner && review.propertyName.isNotBlank()) {
+                         Text(
+                            text = "Mon évaluation",
+                            fontSize = 12.sp,
+                            color = TextSecondary
+                        )
+                    }
+
                     Spacer(Modifier.height(6.dp))
 
                     // Rating display
@@ -350,6 +377,21 @@ fun SimpleReviewCard(
                 color = TextSecondary,
                 lineHeight = 20.sp
             )
+
+            // Display details (sub-ratings) if available, regardless of ownership
+            // This responds to "donne evalution par detet" (give evaluation by detail)
+            if (expanded && (review.cleanlinessRating != null || review.locationRating != null || review.conformityRating != null)) {
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider(color = BorderColor.copy(alpha = 0.5f), thickness = 0.5.dp)
+                Spacer(Modifier.height(12.dp))
+                
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    review.cleanlinessRating?.let { SubRatingRow("Propreté", it) }
+                    review.locationRating?.let { SubRatingRow("Emplacement", it) }
+                    review.conformityRating?.let { SubRatingRow("Conformité", it) }
+                    review.collectorRating?.let { SubRatingRow("Accueil", it) }
+                }
+            }
 
             // Action buttons - only show for owners
             if (isOwner) {
@@ -595,4 +637,26 @@ fun SimpleDeleteDialog(
             }
         }
     )
+}
+
+@Composable
+fun SubRatingRow(label: String, rating: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, fontSize = 12.sp, color = TextSecondary)
+        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            repeat(5) { idx ->
+                val size = 6.dp
+                val color = if (idx < rating) AccentOrange else BorderColor
+                Box(
+                    modifier = Modifier
+                        .size(size)
+                        .background(color, CircleShape)
+                )
+            }
+        }
+    }
 }
