@@ -9,8 +9,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
 
-    private const val BASE_URL = "http://10.0.2.2:3000/"
-    //private const val BASE_URL = "http://192.168.1.14:3000/"
+    private const val BASE_URL = NetworkConfig.BASE_URL
 
 
 
@@ -33,6 +32,9 @@ object RetrofitClient {
 
         val client = OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
+            .connectTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
             .build()
         
         // Gson that excludes null values from JSON (default behavior)
@@ -42,7 +44,7 @@ object RetrofitClient {
                 com.sim.darna.model.Property::class.java,
                 com.sim.darna.model.PropertyTypeAdapter()
             )
-            .registerTypeAdapter(String::class.java, com.sim.darna.model.UserDeserializer()) // For Property.user
+
             .registerTypeAdapter(com.sim.darna.model.BookingUser::class.java, com.sim.darna.model.BookingUserDeserializer()) // For Booking.user
             .create()
 
@@ -70,6 +72,10 @@ object RetrofitClient {
     
     fun propertyApi(context: Context): PropertyApi {
         return getInstance(context).create(PropertyApi::class.java)
+    }
+
+    fun chatApi(context: Context): com.sim.darna.chat.ChatApi {
+        return getInstance(context).create(com.sim.darna.chat.ChatApi::class.java)
     }
 
 }

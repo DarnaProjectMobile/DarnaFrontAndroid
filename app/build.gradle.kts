@@ -168,6 +168,15 @@ dependencies {
     // --- Material Icons ---
     implementation("androidx.compose.material:material-icons-extended")
 
+    // --- Accompanist (SwipeRefresh pour MyVisitsScreen) ---
+    implementation("com.google.accompanist:accompanist-swiperefresh:0.32.0")
+
+    // --- DataStore (pour SessionManager) ---
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+
+    // --- Socket.IO (pour chat en temps réel) ---
+    implementation("io.socket:socket.io-client:2.1.0")
+
     implementation("androidx.compose.ui:ui-text")
 
     // --- Tests ---

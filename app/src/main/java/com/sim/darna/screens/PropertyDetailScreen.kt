@@ -57,6 +57,14 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
     // ViewModel for reviews
     val reviewViewModel: ReviewViewModel = viewModel()
     val allReviews by reviewViewModel.reviews.collectAsState()
+
+    // Visite ViewModel
+    val baseUrl = com.sim.darna.auth.NetworkConfig.BASE_URL
+    val visiteViewModel: com.sim.darna.visite.VisiteViewModel = viewModel(
+        factory = com.sim.darna.factory.VisiteVmFactory(baseUrl, context)
+    )
+    val visiteState by visiteViewModel.state.collectAsState()
+    var showVisiteDialog by remember { mutableStateOf(false) }
     
     // Load property from API
     LaunchedEffect(propertyId) {
@@ -515,6 +523,27 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                 }
             }
                 } else {
+                    // Visite Button
+                    Button(
+                        onClick = { showVisiteDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFFF9800) // Orange for visits
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(
+                            text = "Réserver une visite",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(vertical = 16.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     // Contact Button
                     Button(
                         onClick = {
@@ -541,6 +570,30 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
             }
             Spacer(modifier = Modifier.height(20.dp))
         }
+    }
+    
+    // Handle Visite State Feedback
+    LaunchedEffect(visiteState) {
+        if (visiteState.message != null) {
+            android.widget.Toast.makeText(context, visiteState.message, android.widget.Toast.LENGTH_LONG).show()
+            showVisiteDialog = false
+            visiteViewModel.clearFeedback()
+        }
+        if (visiteState.error != null) {
+            android.widget.Toast.makeText(context, visiteState.error, android.widget.Toast.LENGTH_LONG).show()
+            visiteViewModel.clearFeedback()
+        }
+    }
+
+    // Visite Dialog
+    if (showVisiteDialog) {
+        com.sim.darna.components.CreateVisiteDialog(
+            onDismiss = { showVisiteDialog = false },
+            onSubmit = { date, hour, min, notes, phone ->
+                visiteViewModel.createVisite(prop.id, date, hour, min, notes, phone)
+            },
+            isLoading = visiteState.isSubmitting
+        )
     }
 }
 

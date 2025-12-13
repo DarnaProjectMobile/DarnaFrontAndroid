@@ -26,7 +26,7 @@ object NetworkModule {
     // Pour un appareil physique sur le même réseau WiFi, utilisez: "http://192.168.1.14:3000/"
     // Remplacez 192.168.1.14 par l'adresse IP locale de votre ordinateur
     //private const val BASE_URL = "http://192.168.1.14:3000/"
-    val BASE_URL = "http://10.0.2.2:3000/"
+    val BASE_URL = "http://192.168.1.101:3009/"
 
     @Provides
     @Singleton
@@ -41,6 +41,9 @@ object NetworkModule {
                 }
                 chain.proceed(builder.build())
             }
+            .connectTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
             .addInterceptor(logging)
             .build()
     }

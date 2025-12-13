@@ -9,6 +9,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.sim.darna.screens.*
 import com.sim.darna.screens.AddPubliciteScreen
+import com.sim.darna.screens.MapScreen
 
 object Routes {
     const val Login = "login"
@@ -35,6 +36,13 @@ object Routes {
     const val AddPublicite = "add_publicite"
     const val EditPublicite = "edit_publicite/{publiciteId}"
     const val QRCodeScanner = "qr_code_scanner"
+    const val Map = "map"
+    const val Dashboard = "dashboard"
+    const val MyVisits = "my_visits"
+    const val Chat = "chat/{visiteId}/{visiteTitle}"
+    const val AllReviews = "all_reviews/{visiteId}"
+    const val VisitRequests = "visit_requests"
+    const val ReceivedReviews = "received_reviews"
 }
 
 @Composable
@@ -147,6 +155,7 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                 onBack = { navController.popBackStack() },
             )
         }
+        composable(Routes.Map) { MapScreen(navController) }
         composable(
             route = Routes.BookProperty,
             arguments = listOf(navArgument("propertyId") { type = androidx.navigation.NavType.StringType })
@@ -210,6 +219,69 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             QRCodeScanResultScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
+        }
+        
+        composable(Routes.Dashboard) {
+            DashboardScreen(navController)
+        }
+        
+        // Routes pour les Visites
+        composable(Routes.MyVisits) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val prefs = context.getSharedPreferences("APP_PREFS", android.content.Context.MODE_PRIVATE)
+            val baseUrl = "http://192.168.1.101:3009/"
+            val viewModel: com.sim.darna.visite.VisiteViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                factory = com.sim.darna.factory.VisiteVmFactory(baseUrl, context)
+            )
+            MyVisitsScreen(viewModel, navController, navController)
+        }
+        
+        composable(
+            route = Routes.Chat,
+            arguments = listOf(
+                navArgument("visiteId") { type = NavType.StringType },
+                navArgument("visiteTitle") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val visiteId = backStackEntry.arguments?.getString("visiteId") ?: ""
+            val visiteTitle = backStackEntry.arguments?.getString("visiteTitle") ?: ""
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val sessionManager = com.sim.darna.auth.SessionManager(context)
+            val currentUserId = context.getSharedPreferences("APP_PREFS", android.content.Context.MODE_PRIVATE)
+                .getString("user_id", "") ?: ""
+            val baseUrl = "http://192.168.1.101:3009/"
+            val viewModel: com.sim.darna.chat.ChatViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                factory = com.sim.darna.factory.ChatVmFactory(baseUrl, context)
+            )
+            ChatScreen(
+                visiteId = visiteId,
+                visiteTitle = visiteTitle,
+                currentUserId = currentUserId,
+                viewModel = viewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        
+        composable(
+            route = Routes.AllReviews,
+            arguments = listOf(navArgument("visiteId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val prefs = context.getSharedPreferences("APP_PREFS", android.content.Context.MODE_PRIVATE)
+            val baseUrl = "http://192.168.1.101:3009/"
+            val viewModel: com.sim.darna.visite.VisiteViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                factory = com.sim.darna.factory.VisiteVmFactory(baseUrl, context)
+            )
+            AllReviewsScreen(viewModel, navController)
+        }
+        
+        // Routes pour les COLLOCATORS
+        composable(Routes.VisitRequests) {
+            VisitRequestsScreen(navController)
+        }
+        
+        composable(Routes.ReceivedReviews) {
+            ReceivedReviewsScreen(navController)
         }
     }
 }

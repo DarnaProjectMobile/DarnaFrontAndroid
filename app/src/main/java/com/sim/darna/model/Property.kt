@@ -151,6 +151,7 @@ data class Property(
     val endDate: String?, // ISO date string
     
     @SerializedName("user")
+    @JsonAdapter(UserDeserializer::class)
     val user: String?, // User ID (can be populated as object, but we extract ID via PropertyTypeAdapter)
     
     // Owner username (extracted from populated user object)
