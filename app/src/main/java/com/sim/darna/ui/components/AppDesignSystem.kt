@@ -416,7 +416,9 @@ fun EmptyStateCard(
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
     icon: ImageVector = Icons.Default.Inbox,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    titleColor: Color = AppColors.textPrimary,
+    descriptionColor: Color = AppColors.textSecondary
 ) {
     ElevatedCard(modifier = modifier) {
         Column(
@@ -434,13 +436,13 @@ fun EmptyStateCard(
                 text = title,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = AppColors.textPrimary,
+                color = titleColor,
                 textAlign = TextAlign.Center
             )
             Text(
                 text = description,
                 fontSize = 14.sp,
-                color = AppColors.textSecondary,
+                color = descriptionColor,
                 textAlign = TextAlign.Center
             )
             actionLabel?.let { label ->

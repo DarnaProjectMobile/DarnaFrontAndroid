@@ -105,7 +105,7 @@ fun DashboardScreen(
                 }
                 
                 IconButton(
-                    onClick = { /* Notifications */ },
+                    onClick = { navController.navigate(com.sim.darna.navigation.Routes.Notifications) },
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)

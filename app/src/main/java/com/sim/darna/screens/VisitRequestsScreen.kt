@@ -51,7 +51,7 @@ fun VisitRequestsScreen(navController: NavController) {
     val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = uiState.isLoadingList)
     
     LaunchedEffect(Unit) {
-        viewModel.loadLogementsVisites()
+        viewModel.loadLogementsVisites(force = true)
     }
     
     LaunchedEffect(uiState.message) {
@@ -79,18 +79,18 @@ fun VisitRequestsScreen(navController: NavController) {
                         Icon(
                             imageVector = Icons.Default.EventAvailable,
                             contentDescription = null,
-                            tint = Color.White
+                            tint = Color.Black // Changed to Black
                         )
                         Text(
                             "Demandes de visite",
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = Color.Black // Changed to Black
                         )
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, null, tint = Color.White)
+                        Icon(Icons.Default.ArrowBack, null, tint = Color.Black) // Changed to Black
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -143,11 +143,11 @@ fun VisitRequestsScreen(navController: NavController) {
                 TabRow(
                     selectedTabIndex = selectedTabIndex,
                     containerColor = Color.Transparent,
-                    contentColor = Color.White,
+                    contentColor = Color.Black, // Changed from White to Black for visibility
                     indicator = { tabPositions ->
                         TabRowDefaults.Indicator(
                             Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                            color = Color.White,
+                            color = Color.Black, // Changed from White to Black
                             height = 3.dp
                         )
                     }
@@ -163,8 +163,8 @@ fun VisitRequestsScreen(navController: NavController) {
                                     fontSize = 14.sp
                                 ) 
                             },
-                            selectedContentColor = Color.White,
-                            unselectedContentColor = Color.White.copy(alpha = 0.7f)
+                            selectedContentColor = Color.Black, // Changed from White to Black
+                            unselectedContentColor = Color.Black.copy(alpha = 0.6f) // Changed from White to Black with alpha
                         )
                     }
                 }
@@ -178,8 +178,8 @@ fun VisitRequestsScreen(navController: NavController) {
                         when (selectedTabIndex) {
                             0 -> true // Tous
                             1 -> status == "pending" || status == "en attente" || visite.status == null
-                            2 -> status == "accepted" || status == "acceptée" || status == "validée" || status == "confirmed"
-                            3 -> status == "refused" || status == "refusée" || status == "rejetée" || status == "rejected"
+                            2 -> status == "accepted" || status == "acceptée" || status == "validée" || status == "confirmed" || status == "completed"
+                            3 -> status == "refused" || status == "refusée" || status == "rejected" || status == "cancelled"
                             else -> false
                         }
                     }
@@ -214,7 +214,9 @@ fun VisitRequestsScreen(navController: NavController) {
                             description = emptyDescription,
                             actionLabel = "Actualiser",
                             onAction = { viewModel.loadLogementsVisites(force = true) },
-                            icon = if (selectedTabIndex == 2) Icons.Default.EventAvailable else Icons.Default.EventBusy
+                            icon = if (selectedTabIndex == 2) Icons.Default.EventAvailable else Icons.Default.EventBusy,
+                            titleColor = Color.Black,
+                            descriptionColor = Color.Black
                         )
                     }
                     else -> {
@@ -395,7 +397,7 @@ private fun VisitRequestCard(
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color.Black
+                                color = Color.Black // Force text color to black
                             )
                         }
                     }

@@ -18,6 +18,9 @@ import com.sim.darna.notifications.FirebaseTokenRegistrar
 import com.sim.darna.ui.theme.DarnaTheme
 import com.stripe.android.paymentsheet.PaymentSheetResult
 import dagger.hilt.android.AndroidEntryPoint
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -37,15 +40,61 @@ class MainActivity : ComponentActivity() {
         // Enable fullscreen (status + navigation bars hidden)
         hideSystemBars()
         requestNotificationPermissionIfNeeded()
-        FirebaseTokenRegistrar.syncCurrentToken(this)
+        // Move non-UI initialization to background to avoid ANR
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                FirebaseTokenRegistrar.syncCurrentToken(this@MainActivity)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
 
         // Initialiser PaymentSheetManager (doit être fait dans onCreate, avant STARTED)
-        // Le callback sera défini dans le composable qui utilise le PaymentSheet
-        PaymentSheetManager.initialize(this)
+        try {
+            PaymentSheetManager.initialize(this)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
 
         setContent {
             DarnaTheme {
-                AppNavGraph()
+                val navController = androidx.navigation.compose.rememberNavController()
+                
+                // Handle notification intent
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    intent?.let {
+                        val type = it.getStringExtra("type")
+                        val visitId = it.getStringExtra("visitId")
+                        val housingId = it.getStringExtra("housingId")
+                        
+                        if (type != null) {
+                            when (type) {
+                                "VISIT_REQUEST" -> {
+                                    navController.navigate(com.sim.darna.navigation.Routes.VisitRequests)
+                                }
+                                "NEW_MESSAGE" -> {
+                                    if (visitId != null) {
+                                        // We might not have the title, default to "Discussion"
+                                        val title = it.getStringExtra("housingTitle") ?: "Discussion"
+                                        val encodedTitle = java.net.URLEncoder.encode(title, "UTF-8")
+                                        navController.navigate("chat/$visitId/$encodedTitle")
+                                    } else {
+                                        navController.navigate(com.sim.darna.navigation.Routes.Notifications)
+                                    }
+                                }
+                                "VISIT_ACCEPTED", "VISIT_REFUSED" -> {
+                                    // For client, go to MyVisits
+                                    navController.navigate(com.sim.darna.navigation.Routes.MyVisits)
+                                }
+                                else -> {
+                                    navController.navigate(com.sim.darna.navigation.Routes.Notifications)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                AppNavGraph(navController = navController)
             }
         }
     }
