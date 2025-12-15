@@ -75,7 +75,7 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
     var confirmPasswordError by remember { mutableStateOf<String?>(null) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
 
-    val baseUrl = "http://172.16.14.253:3000/"
+    val baseUrl = "http://10.0.2.2:3000/"
     val sharedPreferences = LocalContext.current.getSharedPreferences("APP_PREFS", Context.MODE_PRIVATE)
     val viewModel: RegisterViewModel = viewModel(
         factory = RegisterVmFactory(

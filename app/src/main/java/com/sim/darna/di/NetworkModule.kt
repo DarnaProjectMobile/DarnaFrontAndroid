@@ -25,8 +25,8 @@ object NetworkModule {
     // Pour l'émulateur Android, utilisez: "http://10.0.2.2:3000/"
     // Pour un appareil physique sur le même réseau WiFi, utilisez: "http://192.168.1.14:3000/"
     // Remplacez 192.168.1.14 par l'adresse IP locale de votre ordinateur
-    //private const val BASE_URL = "http://192.168.1.14:3000/"
-    val BASE_URL = "http://10.0.2.2:3000/"
+    private const val BASE_URL = "http://192.168.1.14:3000/"
+    //val BASE_URL = "http://10.0.2.2:3000/"
 
     @Provides
     @Singleton

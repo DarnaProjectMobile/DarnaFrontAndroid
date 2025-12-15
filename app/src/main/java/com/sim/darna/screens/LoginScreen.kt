@@ -50,8 +50,8 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
     // ✅ ViewModel setup (your base URL here)
     // Pour l'émulateur Android, utilisez: "http://10.0.2.2:3000/"
     // Pour un appareil physique sur le même réseau WiFi,
-    //val baseUrl =  "http://192.168.1.14:3000/"
-    val baseUrl = "http://10.0.2.2:3000/"
+    val baseUrl =  "http://192.168.1.14:3000/"
+    //val baseUrl = "http://10.0.2.2:3000/"
     val viewModel: LoginViewModel = viewModel(factory = LoginVmFactory(baseUrl, context.getSharedPreferences("APP_PREFS", Context.MODE_PRIVATE)))
     val uiState = viewModel.state.collectAsState().value
 
