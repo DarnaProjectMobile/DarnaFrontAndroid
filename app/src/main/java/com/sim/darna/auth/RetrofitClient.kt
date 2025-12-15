@@ -2,14 +2,13 @@ package com.sim.darna.auth
 
 import android.content.Context
 import com.google.gson.GsonBuilder
+import com.sim.darna.utils.ApiConfig
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
-
-    private const val BASE_URL = "http://172.18.12.144:3000/"
 
     /**
      * Creates a Retrofit instance with JWT token automatically added.
@@ -43,7 +42,7 @@ object RetrofitClient {
             .create()
 
         return Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(ApiConfig.BASE_URL)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .client(client)
             .build()

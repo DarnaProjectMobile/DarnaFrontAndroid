@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.sim.darna.utils.ApiConfig
 import com.sim.darna.viewmodel.ResetPasswordViewModel
 import com.sim.darna.factory.ResetPasswordVmFactory
 import com.sim.darna.navigation.Routes
@@ -33,13 +34,12 @@ fun ResetPasswordScreen(navController: NavController) {
     var confirmPassword by remember { mutableStateOf(TextFieldValue("")) }
 
     val context = LocalContext.current
-    val baseUrl = "http://172.16.11.61:3000/"
 
     // ✅ ViewModel
     val sharedPreferences = LocalContext.current.getSharedPreferences("DarnaPrefs", Context.MODE_PRIVATE)
     val viewModel: ResetPasswordViewModel = viewModel(
         factory = ResetPasswordVmFactory(
-            baseUrl = baseUrl,
+            baseUrl = ApiConfig.BASE_URL,
             sharedPreferences = sharedPreferences
         )
     )

@@ -3,6 +3,7 @@ package com.sim.darna.screens
 import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -30,13 +31,16 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.Divider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -44,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.times
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -63,40 +68,50 @@ import com.sim.darna.screens.AddPubliciteScreen
 import com.sim.darna.screens.ProfileScreen
 import com.sim.darna.screens.PublicitesListScreen
 
+// Modern Color Palette
+object ModernColors {
+    val Primary = Color(0xFFFF4B6E)
+    val Secondary = Color(0xFF4C6FFF)
+    val Accent = Color(0xFFFFC857)
+    val Background = Color(0xFFF7F7F7)
+    val CardBackground = Color.White
+    val TextPrimary = Color(0xFF1A1A2E)
+    val TextSecondary = Color(0xFF6B7280)
+    val Border = Color(0xFFE5E7EB)
+}
+
 // ---------------------- Bottom navigation items ----------------------
 sealed class BottomNavItem(
     val route: String,
     val icon: ImageVector,
+    val iconSelected: ImageVector,
     val label: String
 ) {
-    object Home : BottomNavItem("home", Icons.Default.Home, "Accueil")
-    object Publicite : BottomNavItem("publicite", Icons.Default.Campaign, "Publicités")
-    object Reserve : BottomNavItem("reserve", Icons.Default.Star, "Réserver")
-    object Profile : BottomNavItem("profile", Icons.Default.Person, "Profil")
-    object Calendar : BottomNavItem("calendar", Icons.Default.DateRange, "Calendrier")
+    object Home : BottomNavItem("home", Icons.Outlined.Home, Icons.Filled.Home, "Accueil")
+    object Publicite : BottomNavItem("publicite", Icons.Outlined.Campaign, Icons.Filled.Campaign, "Publicités")
+    object Reserve : BottomNavItem("reserve", Icons.Outlined.Star, Icons.Filled.Star, "Réserver")
+    object Profile : BottomNavItem("profile", Icons.Outlined.Person, Icons.Filled.Person, "Profil")
+    object Calendar : BottomNavItem("calendar", Icons.Outlined.DateRange, Icons.Filled.DateRange, "Calendrier")
 }
 
 // ---------------------- MainScreen ----------------------
 @Composable
 fun MainScreen(parentNavController: NavHostController) {
-
     val bottomNavController = rememberNavController()
 
     Scaffold(
         bottomBar = { BottomNavBar(bottomNavController) },
-        containerColor = Color(0xFFF5F5F5)
+        containerColor = ModernColors.Background
     ) { padding ->
-
         NavHost(
             navController = bottomNavController,
             startDestination = BottomNavItem.Home.route,
             modifier = Modifier.padding(padding)
         ) {
             composable(BottomNavItem.Home.route) {
-                HomeScreen(parentNavController)   // forward parent nav
+                HomeScreen(parentNavController)
             }
 
-            // Liste des publicités
             composable(BottomNavItem.Publicite.route) {
                 PublicitesListScreen(
                     onAddClick = { parentNavController.navigate(Routes.AddPublicite) },
@@ -115,7 +130,6 @@ fun MainScreen(parentNavController: NavHostController) {
 // ---------------------- BottomNavBar ----------------------
 @Composable
 fun BottomNavBar(navController: NavController) {
-
     val items = listOf(
         BottomNavItem.Home,
         BottomNavItem.Publicite,
@@ -127,40 +141,54 @@ fun BottomNavBar(navController: NavController) {
     val navBackStack by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStack?.destination
 
-    NavigationBar(
-        containerColor = AppTheme.primary,
-        contentColor = Color.White
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(8.dp),
+        color = ModernColors.CardBackground
     ) {
-        items.forEach { item ->
+        NavigationBar(
+            containerColor = Color.Transparent,
+            contentColor = ModernColors.TextSecondary,
+            tonalElevation = 0.dp
+        ) {
+            items.forEach { item ->
+                val selected = currentDestination?.hierarchy?.any { it.route == item.route } == true
 
-            val selected = currentDestination?.hierarchy?.any { it.route == item.route } == true
-
-            NavigationBarItem(
-                selected = selected,
-                onClick = {
-                    navController.navigate(item.route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
+                NavigationBarItem(
+                    selected = selected,
+                    onClick = {
+                        navController.navigate(item.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
                         }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
-                icon = {
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = item.label
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = if (selected) item.iconSelected else item.icon,
+                            contentDescription = item.label,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    },
+                    label = {
+                        Text(
+                            item.label,
+                            fontSize = 11.sp,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = ModernColors.Primary,
+                        unselectedIconColor = ModernColors.TextSecondary,
+                        selectedTextColor = ModernColors.Primary,
+                        unselectedTextColor = ModernColors.TextSecondary,
+                        indicatorColor = ModernColors.Primary.copy(alpha = 0.1f)
                     )
-                },
-                label = { Text(item.label) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Color.White,
-                    unselectedIconColor = Color.White.copy(alpha = 0.7f),
-                    selectedTextColor = Color.White,
-                    unselectedTextColor = Color.White.copy(alpha = 0.7f),
-                    indicatorColor = Color.White.copy(alpha = 0.2f)
                 )
-            )
+            }
         }
     }
 }
@@ -196,42 +224,108 @@ fun HomeScreen(navController: NavController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppTheme.background)
+            .background(ModernColors.Background)
     ) {
         LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Header / title
-
-
-            // Search and filter + list
+            // Header
             item {
-                SearchAndFilterBar(
-                    searchText = uiState.searchText,
-                    onSearchTextChange = { viewModel.setSearchText(it) },
-                    onFilterClick = { showFilterSheet = true },
-                    onNotificationsClick = { navController.navigate(Routes.Notifications) },
-                    notificationCount = notificationCount,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    // Top bar with greeting and notifications
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Bonjour 👋",
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ModernColors.TextPrimary
+                            )
+                            Text(
+                                text = "Trouvez votre colocation idéale",
+                                fontSize = 15.sp,
+                                color = ModernColors.TextSecondary,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                QuickFilterButtons(
-                    ownershipFilter = uiState.ownershipFilter,
-                    onFilterClick = { filter ->
-                        viewModel.toggleOwnershipFilter(filter)
+                        // Notification Button
+                        Box {
+                            Surface(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clickable { navController.navigate(Routes.Notifications) },
+                                shape = CircleShape,
+                                color = ModernColors.CardBackground,
+                                shadowElevation = 2.dp
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Notifications,
+                                    contentDescription = "Notifications",
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(12.dp),
+                                    tint = ModernColors.TextPrimary
+                                )
+                            }
+                            if (notificationCount > 0) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = ModernColors.Accent,
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .align(Alignment.TopEnd)
+                                        .offset(x = 2.dp, y = (-2).dp)
+                                ) {
+                                    Text(
+                                        text = if (notificationCount > 9) "9+" else notificationCount.toString(),
+                                        color = Color.White,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.wrapContentSize(Alignment.Center),
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
                     }
-                )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    // Search Bar
+                    SearchBar(
+                        searchText = uiState.searchText,
+                        onSearchTextChange = { viewModel.setSearchText(it) },
+                        onFilterClick = { showFilterSheet = true }
+                    )
 
-                ViewToggle(
-                    isGridView = isGridView,
-                    onViewChange = { isGridView = it }
-                )
+                    // Quick Filters
+                    QuickFilterButtons(
+                        ownershipFilter = uiState.ownershipFilter,
+                        onFilterClick = { filter -> viewModel.toggleOwnershipFilter(filter) }
+                    )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    // View Toggle & Results Count
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${uiState.filteredProperties.size} annonces",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = ModernColors.TextSecondary
+                        )
+                        ViewToggle(
+                            isGridView = isGridView,
+                            onViewChange = { isGridView = it }
+                        )
+                    }
+                }
             }
 
             // Property list content
@@ -241,13 +335,16 @@ fun HomeScreen(navController: NavController) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(200.dp),
+                                .height(300.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                CircularProgressIndicator()
+                                CircularProgressIndicator(color = ModernColors.Primary)
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Text("Chargement des annonces...")
+                                Text(
+                                    "Chargement des annonces...",
+                                    color = ModernColors.TextSecondary
+                                )
                             }
                         }
                     }
@@ -263,7 +360,7 @@ fun HomeScreen(navController: NavController) {
                         ) {
                             Text(
                                 text = uiState.error ?: "Erreur inconnue",
-                                color = Color.Red,
+                                color = ModernColors.Primary,
                                 modifier = Modifier.padding(16.dp)
                             )
                         }
@@ -275,12 +372,12 @@ fun HomeScreen(navController: NavController) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(220.dp),
+                                .height(300.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             EmptyStateLottie(
                                 title = "Aucune annonce trouvée",
-                                subtitle = "Essayez de modifier votre recherche ou vos filtres.",
+                                subtitle = "Essayez de modifier votre recherche",
                                 modifier = Modifier.padding(40.dp)
                             )
                         }
@@ -292,15 +389,16 @@ fun HomeScreen(navController: NavController) {
                         item {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(2),
-                                contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                                contentPadding = PaddingValues(0.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height((uiState.filteredProperties.size / 2 + 1) * 280.dp)
                             ) {
                                 items(uiState.filteredProperties.size) { index ->
                                     val property = uiState.filteredProperties[index]
-                                    val canManage =
-                                        currentUserRole == "collocator" && property.user == currentUserId
+                                    val canManage = currentUserRole == "collocator" && property.user == currentUserId
 
                                     PropertyCardView(
                                         property = property,
@@ -318,8 +416,7 @@ fun HomeScreen(navController: NavController) {
                     } else {
                         items(uiState.filteredProperties.size) { index ->
                             val property = uiState.filteredProperties[index]
-                            val canManage =
-                                currentUserRole == "collocator" && property.user == currentUserId
+                            val canManage = currentUserRole == "collocator" && property.user == currentUserId
 
                             PropertyCardView(
                                 property = property,
@@ -335,6 +432,11 @@ fun HomeScreen(navController: NavController) {
                     }
                 }
             }
+
+            // Bottom spacing for FAB
+            item {
+                Spacer(modifier = Modifier.height(80.dp))
+            }
         }
 
         // Floating Add Button (only for collocators)
@@ -343,51 +445,51 @@ fun HomeScreen(navController: NavController) {
                 onClick = { showAddPropertyForm = true },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(24.dp),
-                containerColor = AppTheme.primary
+                    .padding(end = 20.dp, bottom = 80.dp),
+                containerColor = ModernColors.Primary,
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = "Add Property",
-                    tint = Color.White
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
                 )
             }
         }
 
-        // Bottom-centered Map pill button (always visible)
+        // Map Button
         Surface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 12.dp),
-            shape = RoundedCornerShape(999.dp),
-            color = AppTheme.primary,
-            tonalElevation = 4.dp,
-            shadowElevation = 4.dp,
+                .padding(bottom = 16.dp)
+                .clickable { navController.navigate(Routes.Map) },
+            shape = RoundedCornerShape(30.dp),
+            color = ModernColors.TextPrimary,
+            shadowElevation = 8.dp
         ) {
             Row(
-                modifier = Modifier
-                    .clickable { navController.navigate(Routes.Map) }
-                    .padding(horizontal = 18.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Explore,
+                    imageVector = Icons.Default.Map,
                     contentDescription = "Carte",
                     tint = Color.White,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(20.dp)
                 )
                 Text(
-                    text = "Carte",
+                    text = "Voir la carte",
                     color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }
     }
 
-    // Filter Sheet
+    // Dialogs
     if (showFilterSheet) {
         FilterSheet(
             minPrice = uiState.minPrice,
@@ -400,7 +502,6 @@ fun HomeScreen(navController: NavController) {
         )
     }
 
-    // Add/Edit Property Form
     if (showAddPropertyForm || editingProperty != null) {
         AddPropertyFormView(
             propertyToEdit = editingProperty,
@@ -416,12 +517,18 @@ fun HomeScreen(navController: NavController) {
         )
     }
 
-    // Delete Confirmation Dialog
     propertyPendingDeletion?.let { property ->
         AlertDialog(
             onDismissRequest = { propertyPendingDeletion = null },
-            title = { Text("Supprimer l'annonce ?") },
-            text = { Text("Cette action supprimera définitivement « ${property.title} ».") },
+            title = {
+                Text(
+                    "Supprimer l'annonce ?",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text("Cette action supprimera définitivement « ${property.title} ».")
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -432,110 +539,241 @@ fun HomeScreen(navController: NavController) {
                         )
                     }
                 ) {
-                    Text("Supprimer", color = Color.Red)
+                    Text("Supprimer", color = ModernColors.Primary, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { propertyPendingDeletion = null }) {
-                    Text("Annuler")
+                    Text("Annuler", color = ModernColors.TextSecondary)
                 }
             }
         )
     }
 }
 
-// ---------------------- Search & Filter bar ----------------------
+// ---------------------- SearchBar ----------------------
 @Composable
-fun SearchAndFilterBar(
+fun SearchBar(
     searchText: String,
     onSearchTextChange: (String) -> Unit,
-    onFilterClick: () -> Unit,
-    onNotificationsClick: () -> Unit,
-    notificationCount: Int,
+    onFilterClick: () -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Search field
         OutlinedTextField(
             value = searchText,
             onValueChange = onSearchTextChange,
             modifier = Modifier.weight(1f),
-            placeholder = { Text("Rechercher") },
+            placeholder = {
+                Text(
+                    "Rechercher une colocation...",
+                    color = ModernColors.TextSecondary
+                )
+            },
             leadingIcon = {
-                Icon(Icons.Default.Search, contentDescription = null)
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = null,
+                    tint = ModernColors.TextSecondary
+                )
             },
             trailingIcon = {
                 if (searchText.isNotEmpty()) {
                     IconButton(onClick = { onSearchTextChange("") }) {
-                        Icon(Icons.Default.Close, contentDescription = "Clear")
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Clear",
+                            tint = ModernColors.TextSecondary
+                        )
                     }
                 }
             },
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = AppTheme.card,
-                unfocusedContainerColor = AppTheme.card
-            )
+                focusedContainerColor = ModernColors.CardBackground,
+                unfocusedContainerColor = ModernColors.CardBackground,
+                focusedBorderColor = ModernColors.Primary.copy(alpha = 0.3f),
+                unfocusedBorderColor = ModernColors.Border,
+                cursorColor = ModernColors.Primary
+            ),
+            singleLine = true
         )
 
-        // Filter button
-        IconButton(
-            onClick = onFilterClick,
+        Surface(
             modifier = Modifier
-                .size(48.dp)
-                .background(AppTheme.primary, RoundedCornerShape(14.dp))
+                .size(56.dp)
+                .clickable { onFilterClick() },
+            shape = RoundedCornerShape(16.dp),
+            color = ModernColors.Primary,
+            shadowElevation = 2.dp
         ) {
             Icon(
                 imageVector = Icons.Default.Tune,
                 contentDescription = "Filter",
-                tint = Color.White
+                tint = Color.White,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
             )
-        }
-
-        // Notifications button
-        IconButton(
-            onClick = onNotificationsClick,
-            modifier = Modifier
-                .size(48.dp)
-                .background(Color(0xFF00BFA5), RoundedCornerShape(14.dp))
-        ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = "Notifications",
-                    tint = Color.White,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-                if (notificationCount > 0) {
-                    Surface(
-                        shape = CircleShape,
-                        color = Color.Red,
-                        modifier = Modifier
-                            .size(16.dp)
-                            .align(Alignment.TopEnd)
-                            .offset(x = 2.dp, y = (-6).dp)
-                    ) {
-                        Text(
-                            text = if (notificationCount > 9) "9+" else notificationCount.toString(),
-                            color = Color.White,
-                            fontSize = 9.sp,
-                            modifier = Modifier.padding(2.dp),
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
         }
     }
 }
 
-// ---------------------- PropertyCard ----------------------
+// ---------------------- QuickFilterButtons ----------------------
+@Composable
+fun QuickFilterButtons(
+    ownershipFilter: com.sim.darna.viewmodel.OwnershipFilter,
+    onFilterClick: (com.sim.darna.viewmodel.OwnershipFilter) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        ModernFilterChip(
+            selected = ownershipFilter == com.sim.darna.viewmodel.OwnershipFilter.ALL,
+            onClick = { onFilterClick(com.sim.darna.viewmodel.OwnershipFilter.ALL) },
+            label = "Tous"
+        )
+        ModernFilterChip(
+            selected = ownershipFilter == com.sim.darna.viewmodel.OwnershipFilter.MINE,
+            onClick = { onFilterClick(com.sim.darna.viewmodel.OwnershipFilter.MINE) },
+            label = "Mes annonces"
+        )
+        ModernFilterChip(
+            selected = ownershipFilter == com.sim.darna.viewmodel.OwnershipFilter.NOT_MINE,
+            onClick = { onFilterClick(com.sim.darna.viewmodel.OwnershipFilter.NOT_MINE) },
+            label = "Autres"
+        )
+    }
+}
+
+@Composable
+fun ModernFilterChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: String
+) {
+    Surface(
+        modifier = Modifier
+            .height(40.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) ModernColors.Primary else ModernColors.CardBackground,
+        border = if (!selected) BorderStroke(1.dp, ModernColors.Border) else null,
+        shadowElevation = if (selected) 2.dp else 0.dp
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                color = if (selected) Color.White else ModernColors.TextSecondary,
+                fontSize = 14.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+            )
+        }
+    }
+}
+
+// ---------------------- ViewToggle ----------------------
+@Composable
+fun ViewToggle(
+    isGridView: Boolean,
+    onViewChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .background(ModernColors.CardBackground, RoundedCornerShape(12.dp))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Surface(
+            modifier = Modifier
+                .size(36.dp)
+                .clickable { onViewChange(false) },
+            shape = RoundedCornerShape(8.dp),
+            color = if (!isGridView) ModernColors.Primary.copy(alpha = 0.1f) else Color.Transparent
+        ) {
+            Icon(
+                imageVector = Icons.Default.ViewAgenda,
+                contentDescription = "List View",
+                tint = if (!isGridView) ModernColors.Primary else ModernColors.TextSecondary,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp)
+            )
+        }
+        Surface(
+            modifier = Modifier
+                .size(36.dp)
+                .clickable { onViewChange(true) },
+            shape = RoundedCornerShape(8.dp),
+            color = if (isGridView) ModernColors.Primary.copy(alpha = 0.1f) else Color.Transparent
+        ) {
+            Icon(
+                imageVector = Icons.Default.GridView,
+                contentDescription = "Grid View",
+                tint = if (isGridView) ModernColors.Primary else ModernColors.TextSecondary,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp)
+            )
+        }
+    }
+}
+
+// ---------------------- FilterSheet ----------------------
+@Composable
+fun FilterSheet(
+    minPrice: Double?,
+    maxPrice: Double?,
+    onDismiss: () -> Unit,
+    onApply: (Double?, Double?) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                "Filtres de prix",
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "Prix minimum: ${minPrice?.toInt() ?: "Non défini"}€",
+                    color = ModernColors.TextSecondary
+                )
+                Text(
+                    "Prix maximum: ${maxPrice?.toInt() ?: "Non défini"}€",
+                    color = ModernColors.TextSecondary
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onApply(minPrice, maxPrice) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ModernColors.Primary
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Appliquer")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Annuler", color = ModernColors.TextSecondary)
+            }
+        }
+    )
+}
+
+// ---------------------- PropertyCard (keeping for backward compatibility) ----------------------
 @Composable
 fun PropertyCard(
     title: String,
@@ -551,12 +789,10 @@ fun PropertyCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = ModernColors.CardBackground),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-
-            // Image placeholder
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -578,7 +814,6 @@ fun PropertyCard(
                     tint = Color.White.copy(alpha = 0.3f)
                 )
 
-                // Favorite button
                 IconButton(
                     onClick = { isFavorite = !isFavorite },
                     modifier = Modifier
@@ -593,18 +828,17 @@ fun PropertyCard(
                             imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Favorite",
                             modifier = Modifier.padding(8.dp),
-                            tint = if (isFavorite) Color(0xFFFF6B6B) else Color(0xFF757575)
+                            tint = if (isFavorite) ModernColors.Primary else ModernColors.TextSecondary
                         )
                     }
                 }
 
-                // New Badge
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(12.dp),
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFF00C853)
+                    color = ModernColors.Secondary
                 ) {
                     Text(
                         text = "NOUVEAU",
@@ -614,281 +848,6 @@ fun PropertyCard(
                         fontWeight = FontWeight.Bold
                     )
                 }
-            }
-
-            // Content
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = title,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1A1A1A)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = Color(0xFF757575)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = location,
-                        fontSize = 14.sp,
-                        color = Color(0xFF757575)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    InfoChip(icon = Icons.Default.Person, text = "$roommates pers.")
-                    InfoChip(icon = Icons.Default.Home, text = "${area}m²")
-                    Surface(
-                        color = Color(0xFF0066FF).copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = Color(0xFFFFC107)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "4.8",
-                                fontSize = 12.sp,
-                                color = Color(0xFF1A1A1A),
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "À partir de",
-                            fontSize = 12.sp,
-                            color = Color(0xFF757575)
-                        )
-                        Text(
-                            text = "${price}€/mois",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0066FF)
-                        )
-                    }
-
-                    Button(
-                        onClick = { /* Navigate to details if needed */ },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0066FF)),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Voir détails", fontSize = 14.sp)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowRight,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ---------------------- InfoChip ----------------------
-@Composable
-fun InfoChip(icon: ImageVector, text: String) {
-    Surface(
-        color = Color(0xFFF5F5F5),
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = Color(0xFF757575)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = text,
-                fontSize = 12.sp,
-                color = Color(0xFF757575)
-            )
-        }
-    }
-}
-
-// ---------------------- CategoryCard ----------------------
-@Composable
-fun CategoryCard(icon: ImageVector, label: String, color: Color) {
-    Card(
-        modifier = Modifier
-            .width(110.dp)
-            .height(100.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                modifier = Modifier.size(32.dp),
-                tint = color
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = label,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = color,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-// ---------------------- Placeholder Screens ----------------------
-// Note: These screens are implemented in their respective files
-// ProfileScreen - implemented in ProfileScreen.kt
-// PublicitesListScreen - implemented in PublicitesListScreen.kt
-// AddPubliciteScreen - implemented in AddPubliciteScreen.kt
-
-// ---------------------- QuickFilterButtons ----------------------
-@Composable
-fun QuickFilterButtons(
-    ownershipFilter: com.sim.darna.viewmodel.OwnershipFilter,
-    onFilterClick: (com.sim.darna.viewmodel.OwnershipFilter) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        FilterChip(
-            selected = ownershipFilter == com.sim.darna.viewmodel.OwnershipFilter.ALL,
-            onClick = { onFilterClick(com.sim.darna.viewmodel.OwnershipFilter.ALL) },
-            label = { Text("Tous") }
-        )
-        FilterChip(
-            selected = ownershipFilter == com.sim.darna.viewmodel.OwnershipFilter.MINE,
-            onClick = { onFilterClick(com.sim.darna.viewmodel.OwnershipFilter.MINE) },
-            label = { Text("Mes annonces") }
-        )
-        FilterChip(
-            selected = ownershipFilter == com.sim.darna.viewmodel.OwnershipFilter.NOT_MINE,
-            onClick = { onFilterClick(com.sim.darna.viewmodel.OwnershipFilter.NOT_MINE) },
-            label = { Text("Annonces des autres") }
-        )
-    }
-}
-
-// ---------------------- ViewToggle ----------------------
-@Composable
-fun ViewToggle(
-    isGridView: Boolean,
-    onViewChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End
-    ) {
-        IconButton(
-            onClick = { onViewChange(false) }
-        ) {
-            Icon(
-                imageVector = if (!isGridView) Icons.Default.List else Icons.Default.List,
-                contentDescription = "List View"
-            )
-        }
-        IconButton(
-            onClick = { onViewChange(true) }
-        ) {
-            Icon(
-                imageVector = if (isGridView) Icons.Default.GridView else Icons.Default.GridView,
-                contentDescription = "Grid View"
-            )
-        }
-    }
-}
-
-// ---------------------- FilterSheet ----------------------
-@Composable
-fun FilterSheet(
-    minPrice: Double?,
-    maxPrice: Double?,
-    onDismiss: () -> Unit,
-    onApply: (Double?, Double?) -> Unit
-) {
-    // Simple implementation - you may want to enhance this with a proper sheet
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Filtres") },
-        text = {
-            Column {
-                Text("Prix minimum: $minPrice")
-                Text("Prix maximum: $maxPrice")
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onApply(minPrice, maxPrice) }) {
-                Text("Appliquer")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Annuler")
-            }
-        }
-    )
-}
-
-// ---------------------- FilterChip ----------------------
-@Composable
-fun FilterChip(
-    selected: Boolean,
-    onClick: () -> Unit,
-    label: @Composable () -> Unit
-) {
-    Surface(
-        modifier = Modifier.height(32.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = if (selected) AppTheme.primary else Color.Transparent,
-        border = if (!selected) BorderStroke(1.dp, AppTheme.primary) else null
-    ) {
-        TextButton(
-            onClick = onClick,
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp)
-        ) {
-            CompositionLocalProvider(
-                LocalContentColor provides if (selected) Color.White else AppTheme.primary
-            ) {
-                label()
             }
         }
     }

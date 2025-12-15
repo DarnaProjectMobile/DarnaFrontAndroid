@@ -3,32 +3,21 @@ package com.sim.darna.model
 import com.google.gson.annotations.SerializedName
 
 data class ReviewRequest(
-    @SerializedName("rating")
-    val rating: Int,
-    
-    @SerializedName("comment")
-    val comment: String,
-    
     @SerializedName("property")
     val propertyId: String,
     
-    @SerializedName("userName")
-    val userName: String,
-    
-    @SerializedName("propertyName")
-    val propertyName: String
-)
-
-data class UpdateReviewRequest(
-    @SerializedName("rating")
     val rating: Int,
     
-    @SerializedName("comment")
     val comment: String,
     
-    @SerializedName("userName")
-    val userName: String,
+    val userName: String? = null,
     
-    @SerializedName("propertyName")
-    val propertyName: String
+    val propertyName: String? = null,
+    
+    val visiteId: String? = null,
+    
+    val logementId: String? = null,
+    
+    val collectorId: String? = null
 )
+

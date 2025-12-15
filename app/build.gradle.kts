@@ -166,6 +166,9 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
 
     implementation("androidx.compose.ui:ui-text")
+    
+    // --- Biometric Authentication ---
+    implementation("androidx.biometric:biometric:1.1.0")
 
     // --- Tests ---
     testImplementation("junit:junit:4.13.2")

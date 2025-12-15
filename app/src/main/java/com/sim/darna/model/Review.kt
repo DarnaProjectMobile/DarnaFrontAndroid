@@ -6,17 +6,17 @@ data class Review(
     @SerializedName("_id")
     val id: String,
     
+    @SerializedName("userId")
+    val userId: String,
+    
+    @SerializedName("propertyId")
+    val propertyId: String,
+    
     @SerializedName("rating")
     val rating: Int,
     
     @SerializedName("comment")
     val comment: String,
-    
-    @SerializedName("user")
-    val userId: String,
-    
-    @SerializedName("property")
-    val propertyId: String,
     
     @SerializedName("userName")
     val userName: String,
@@ -24,9 +24,22 @@ data class Review(
     @SerializedName("propertyName")
     val propertyName: String,
     
+    @SerializedName("date")
+    val date: String? = null,
+    
     @SerializedName("createdAt")
-    val createdAt: String?,
+    val createdAt: String? = null,
     
     @SerializedName("updatedAt")
-    val updatedAt: String?
+    val updatedAt: String? = null,
+    
+    @SerializedName("visiteId")
+    val visiteId: String? = null,
+    
+    @SerializedName("logementId")
+    val logementId: String? = null,
+    
+    @SerializedName("collectorId")
+    val collectorId: String? = null
 )
+

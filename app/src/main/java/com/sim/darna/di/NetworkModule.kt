@@ -5,6 +5,7 @@ import com.sim.darna.data.adapter.DateAdapter
 import com.sim.darna.data.remote.PubliciteApi
 import com.sim.darna.data.remote.PubliciteUploadService
 import com.sim.darna.data.remote.StripeService
+import com.sim.darna.utils.ApiConfig
 import com.squareup.moshi.Moshi
 import dagger.Module
 import dagger.Provides
@@ -53,7 +54,7 @@ object NetworkModule {
             .build()
 
         return Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(ApiConfig.BASE_URL)
             .client(client)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
