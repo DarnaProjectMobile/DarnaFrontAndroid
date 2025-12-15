@@ -28,7 +28,7 @@ class DarnaFirebaseMessagingService : FirebaseMessagingService() {
         val body = message.notification?.body ?: message.data["body"] ?: "Vous avez une nouvelle notification"
 
         NotificationStore.saveNotification(applicationContext, title, body, HashMap(message.data))
-        showNotification(title, body)
+        showNotification(title, body, message.data)
     }
 
     override fun onNewToken(token: String) {
@@ -37,9 +37,13 @@ class DarnaFirebaseMessagingService : FirebaseMessagingService() {
         FirebaseTokenRegistrar.registerToken(applicationContext, token)
     }
 
-    private fun showNotification(title: String, body: String) {
+    private fun showNotification(title: String, body: String, data: Map<String, String>) {
         val intent = Intent(this, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            // Put all data keys into intent extras
+            data.forEach { (key, value) ->
+                putExtra(key, value)
+            }
         }
 
         val pendingIntent = PendingIntent.getActivity(

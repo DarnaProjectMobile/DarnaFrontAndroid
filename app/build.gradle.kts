@@ -58,21 +58,21 @@ android {
 dependencies {
     // --- Android Core ---
     implementation("androidx.core:core-ktx:1.12.0")
-    implementation("androidx.activity:activity-compose:1.8.2")
+    implementation("androidx.activity:activity-compose:1.9.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.2")
 
     // --- Compose + Material 3 ---
-    implementation(platform("androidx.compose:compose-bom:2024.10.01"))
+    // BOM compatible avec Stripe SDK 21.0.0
+    implementation(platform("androidx.compose:compose-bom:2024.08.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.activity:activity-compose:1.8.2")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.activity:activity-compose:1.9.0")
 
 
     // Navigation Compose
     implementation("androidx.navigation:navigation-compose:2.8.2")
-    
-    // Pager for swipeable images
-    implementation("androidx.compose.foundation:foundation:1.6.0")
 
     implementation("androidx.core:core-splashscreen:1.0.1")
     implementation(libs.androidx.camera.core)
@@ -81,19 +81,24 @@ dependencies {
     implementation ("androidx.camera:camera-camera2:1.3.0")
     implementation ("androidx.camera:camera-lifecycle:1.3.0")
     implementation ("androidx.camera:camera-view:1.3.0")
+    implementation(libs.androidx.compose.material3)
+    
+    // ML Kit Barcode Scanning
+    implementation("com.google.mlkit:barcode-scanning:17.2.0")
+    implementation("androidx.camera:camera-mlkit-vision:1.3.0-beta1")
 
 
     // Tests
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2024.10.01"))
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.08.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     implementation("androidx.compose.material:material-icons-extended")
-    implementation("androidx.compose.material:material:1.6.0")
+    implementation("androidx.compose.material:material")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
 // Retrofit core
@@ -149,6 +154,13 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
     implementation("com.google.firebase:firebase-messaging")
     implementation("com.google.firebase:firebase-analytics-ktx")
+    
+    // --- Stripe Android SDK ---
+    implementation("com.stripe:stripe-android:21.0.0")
+    
+    // --- Image Picker ---
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    
     // --- Hilt (DI) ---
     implementation("com.google.dagger:hilt-android:2.51")
     kapt("com.google.dagger:hilt-compiler:2.51")
@@ -157,12 +169,21 @@ dependencies {
     // --- Material Icons ---
     implementation("androidx.compose.material:material-icons-extended")
 
+    // --- Accompanist (SwipeRefresh pour MyVisitsScreen) ---
+    implementation("com.google.accompanist:accompanist-swiperefresh:0.32.0")
+
+    // --- DataStore (pour SessionManager) ---
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+
+    // --- Socket.IO (pour chat en temps réel) ---
+    implementation("io.socket:socket.io-client:2.1.0")
+
     implementation("androidx.compose.ui:ui-text")
 
     // --- Tests ---
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2024.10.01"))
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.08.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 }

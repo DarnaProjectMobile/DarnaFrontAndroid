@@ -236,6 +236,51 @@ fun ProfileScreen(navController: NavHostController) {
 
             Spacer(Modifier.height(32.dp))
 
+            // DASHBOARD BUTTON (ONLY FOR COLLOCATORS)
+            if (role.equals("collocator", ignoreCase = true)) {
+                AnimatedCard(visible, 650) {
+                    GradientButton(
+                        text = "Tableau de bord",
+                        icon = Icons.Default.Dashboard,
+                        colors = listOf(Color(0xFF2196F3), Color(0xFF1976D2))
+                    ) {
+                        navController.navigate(Routes.Dashboard)
+                    }
+                }
+                
+                Spacer(Modifier.height(16.dp))
+                
+                // DEMANDES DE VISITE BUTTON (ONLY FOR COLLOCATORS)
+                AnimatedCard(visible, 670) {
+                    GradientButton(
+                        text = "Demandes de visite",
+                        icon = Icons.Default.EventAvailable,
+                        colors = listOf(Color(0xFFFF9800), Color(0xFFF57C00))
+                    ) {
+                        // TODO: Navigate to visit requests screen
+                        // navController.navigate(Routes.VisitRequests)
+                        navController.navigate(Routes.VisitRequests)
+                    }
+                }
+                
+                Spacer(Modifier.height(16.dp))
+                
+                // ÉVALUATIONS REÇUES BUTTON (ONLY FOR COLLOCATORS)
+                AnimatedCard(visible, 690) {
+                    GradientButton(
+                        text = "Évaluations reçues",
+                        icon = Icons.Default.StarRate,
+                        colors = listOf(Color(0xFFFFC107), Color(0xFFFFA000))
+                    ) {
+                        // TODO: Navigate to received reviews screen
+                        // navController.navigate(Routes.ReceivedReviews)
+                        navController.navigate(Routes.ReceivedReviews)
+                    }
+                }
+                
+                Spacer(Modifier.height(16.dp))
+            }
+
             // UPDATE PROFILE BUTTON
             AnimatedCard(visible, 700) {
                 GradientButton(
@@ -257,6 +302,32 @@ fun ProfileScreen(navController: NavHostController) {
                     colors = listOf(Color(0xFFE91E63), Color(0xFFC2185B))
                 ) {
                     navController.navigate(Routes.Favorites)
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // MES VISITES BUTTON
+            AnimatedCard(visible, 850) {
+                GradientButton(
+                    text = "Mes Visites",
+                    icon = Icons.Default.EventNote,
+                    colors = listOf(Color(0xFF9C27B0), Color(0xFF7B1FA2))
+                ) {
+                    navController.navigate(Routes.MyVisits)
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // MES ÉVALUATIONS BUTTON
+            AnimatedCard(visible, 880) {
+                GradientButton(
+                    text = "Mes Évaluations",
+                    icon = Icons.Default.RateReview,
+                    colors = listOf(Color(0xFFFF5722), Color(0xFFE64A19))
+                ) {
+                    navController.navigate(Routes.MyEvaluations)
                 }
             }
 

@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "955046422614",
-    "project_id": "darnanotif",
-    "storage_bucket": "darnanotif.firebasestorage.app"
+    "project_number": "999983467688",
+    "project_id": "darnadam-70385",
+    "storage_bucket": "darnadam-70385.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:955046422614:android:e5c696722d18000594f3f7",
+        "mobilesdk_app_id": "1:999983467688:android:7f6acc710c5ce49ed2869d",
         "android_client_info": {
           "package_name": "com.sim.darna"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDIhpZVQk2Lzq6QnWJUM2s1MdcIzpdNsHM"
+          "current_key": "AIzaSyB0WX7AjleQdE77b4D5qCV4LcWoENPhKII"
         }
       ],
       "services": {

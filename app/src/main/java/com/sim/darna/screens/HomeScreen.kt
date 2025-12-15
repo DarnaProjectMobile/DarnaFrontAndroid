@@ -2,47 +2,74 @@ package com.sim.darna.screens
 
 import android.content.Context
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-import com.sim.darna.navigation.Routes
-
-// ---------------------- Navigation destinations ----------------------
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.*
 import com.sim.darna.components.EmptyStateLottie
 import com.sim.darna.components.PropertyCardView
 import com.sim.darna.model.Property
@@ -51,6 +78,7 @@ import com.sim.darna.ui.theme.AppTheme
 import com.sim.darna.viewmodel.OwnershipFilter
 import com.sim.darna.viewmodel.PropertyViewModel
 
+// ---------------------- Bottom navigation items ----------------------
 sealed class BottomNavItem(
     val route: String,
     val icon: ImageVector,
@@ -60,12 +88,12 @@ sealed class BottomNavItem(
     object Publicite : BottomNavItem("publicite", Icons.Default.Campaign, "Publicités")
     object Reserve : BottomNavItem("reserve", Icons.Default.Star, "Réserver")
     object Profile : BottomNavItem("profile", Icons.Default.Person, "Profil")
+    object Calendar : BottomNavItem("calendar", Icons.Default.DateRange, "Calendrier")
 }
-
 
 // ---------------------- MainScreen ----------------------
 @Composable
-fun MainScreen(parentNavController: NavHostController){
+fun MainScreen(parentNavController: NavHostController) {
 
     val bottomNavController = rememberNavController()
 
@@ -79,46 +107,23 @@ fun MainScreen(parentNavController: NavHostController){
             startDestination = BottomNavItem.Home.route,
             modifier = Modifier.padding(padding)
         ) {
-            composable(BottomNavItem.Home.route) { HomeScreen(navController) }
+            composable(BottomNavItem.Home.route) {
+                HomeScreen(parentNavController)   // forward parent nav
+            }
 
             // Liste des publicités
             composable(BottomNavItem.Publicite.route) {
                 PublicitesListScreen(
-                    onAddClick = { navController.navigate("add_publicite") },
-                    onEdit = { id -> navController.navigate("add_publicite/$id") }
+                    onAddClick = { parentNavController.navigate(Routes.AddPublicite) },
+                    onEdit = { id -> parentNavController.navigate(Routes.EditPublicite.replace("{publiciteId}", id)) },
+                    onDetailClick = { id -> parentNavController.navigate(Routes.PubliciteDetail.replace("{publiciteId}", id)) }
                 )
             }
 
-            // Ajouter / Modifier une publicité
-            composable(
-                route = "add_publicite/{id?}", // id est optionnel
-                arguments = listOf(navArgument("id") { defaultValue = "" })
-            ) { backStackEntry ->
-                val id = backStackEntry.arguments?.getString("id")
-                AddPubliciteScreen(
-                    publiciteId = id.takeIf { it?.isNotEmpty() == true },
-                    onFinish = { navController.popBackStack() },
-                    onCancel = { navController.popBackStack() }
-                )
-            }
-            composable(BottomNavItem.Home.route) {
-                HomeScreen(parentNavController)   // ⭐ forward parent nav
-            }
-            composable(BottomNavItem.Calendar.route) { CalendarScreen() }
-            composable(BottomNavItem.Reserve.route) { ReserveScreen() }
             composable(BottomNavItem.Profile.route) {
-                ProfileScreen(parentNavController) // ⭐ FIXED
+                ProfileScreen(parentNavController)
             }
         }
-    }
-}
-
-
-
-            composable(BottomNavItem.Reserve.route) { ReserveScreen() }
-            composable(BottomNavItem.Profile.route) { ProfileScreen() }
-        }
-
     }
 }
 
@@ -129,12 +134,11 @@ fun BottomNavBar(navController: NavController) {
     val items = listOf(
         BottomNavItem.Home,
         BottomNavItem.Publicite,
-        BottomNavItem.Reserve,
         BottomNavItem.Profile
     )
 
     val navBackStack by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStack?.destination?.route
+    val currentDestination = navBackStack?.destination
 
     NavigationBar(
         containerColor = AppTheme.primary,
@@ -142,11 +146,15 @@ fun BottomNavBar(navController: NavController) {
     ) {
         items.forEach { item ->
 
+            val selected = currentDestination?.hierarchy?.any { it.route == item.route } == true
+
             NavigationBarItem(
-                selected = currentRoute == item.route,
+                selected = selected,
                 onClick = {
                     navController.navigate(item.route) {
-                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
                         launchSingleTop = true
                         restoreState = true
                     }
@@ -171,42 +179,6 @@ fun BottomNavBar(navController: NavController) {
 }
 
 // ---------------------- HomeScreen ----------------------
-@Composable
-fun HomeScreen(navController: NavController) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
-            .verticalScroll(rememberScrollState())
-    ) {
-        // Header
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White)
-                .padding(20.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Découvrir",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1A1A1A)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Trouvez votre colocation idéale",
-                        fontSize = 14.sp,
-                        color = Color(0xFF757575)
-                    )
-                }
-
-// Home Screen
 @Composable
 fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
@@ -242,88 +214,9 @@ fun HomeScreen(navController: NavController) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 16.dp)
-            // Search Bar
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = Color(0xFF9E9E9E)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Rechercher une colocation...",
-                        color = Color(0xFF9E9E9E),
-                        fontSize = 16.sp
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Categories
-        Text(
-            text = "Catégories",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF1A1A1A),
-            modifier = Modifier.padding(start = 20.dp)
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Row(
-            modifier = Modifier.padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            CategoryCard(Icons.Default.Home, "Studios", Color(0xFF0066FF))
-            CategoryCard(Icons.Default.Build, "Maisons", Color(0xFFFF6D00))
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // À la une
-        Text(
-            text = "À la une",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF1A1A1A),
-            modifier = Modifier.padding(start = 20.dp)
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Column(
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.padding(horizontal = 20.dp)
-        ) {
-            listOf(
-                Triple("Colocation moderne à Paris", "75011 - Bastille", Color(0xFF4A90E2)),
-                Triple("Studio lumineux Bastille", "75012 - Nation", Color(0xFF50C878)),
-                Triple("Appartement spacieux Marais", "75003 - Le Marais", Color(0xFFFF6B6B))
-            ).forEachIndexed { index, item ->
-                PropertyCard(
-                    title = item.first,
-                    location = item.second,
-                    price = listOf(650, 850, 1200)[index],
-                    roommates = listOf(3, 1, 4)[index],
-                    area = listOf(85, 45, 120)[index],
-                    imageColor = item.third,
-                    navController = navController
-        LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Search and Filter Bar
             SearchAndFilterBar(
                 searchText = uiState.searchText,
                 onSearchTextChange = { viewModel.setSearchText(it) },
@@ -332,9 +225,6 @@ fun HomeScreen(navController: NavController) {
                 notificationCount = notificationCount,
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Quick Filter Buttons
             QuickFilterButtons(
                 ownershipFilter = uiState.ownershipFilter,
                 onFilterClick = { filter ->
@@ -342,21 +232,17 @@ fun HomeScreen(navController: NavController) {
                 }
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // View Toggle (Grid/List)
             ViewToggle(
                 isGridView = isGridView,
                 onViewChange = { isGridView = it }
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Property List
             when {
                 uiState.isLoading -> {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -366,9 +252,12 @@ fun HomeScreen(navController: NavController) {
                         }
                     }
                 }
+
                 uiState.error != null -> {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -378,9 +267,12 @@ fun HomeScreen(navController: NavController) {
                         )
                     }
                 }
+
                 uiState.filteredProperties.isEmpty() -> {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
                         EmptyStateLottie(
@@ -390,18 +282,22 @@ fun HomeScreen(navController: NavController) {
                         )
                     }
                 }
+
                 else -> {
                     if (isGridView) {
-                        // Grid View
                         LazyVerticalGrid(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                            .weight(1f),
                             columns = GridCells.Fixed(2),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                            contentPadding = PaddingValues(vertical = 4.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             items(uiState.filteredProperties.size) { index ->
                                 val property = uiState.filteredProperties[index]
-                                val canManage = currentUserRole == "collocator" && property.user == currentUserId
+                                val canManage =
+                                    currentUserRole == "collocator" && property.user == currentUserId
 
                                 PropertyCardView(
                                     property = property,
@@ -416,14 +312,17 @@ fun HomeScreen(navController: NavController) {
                             }
                         }
                     } else {
-                        // List View
                         LazyColumn(
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(20.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentPadding = PaddingValues(vertical = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             items(uiState.filteredProperties.size) { index ->
                                 val property = uiState.filteredProperties[index]
-                                val canManage = currentUserRole == "collocator" && property.user == currentUserId
+                                val canManage =
+                                    currentUserRole == "collocator" && property.user == currentUserId
 
                                 PropertyCardView(
                                     property = property,
@@ -442,14 +341,47 @@ fun HomeScreen(navController: NavController) {
             }
         }
 
+        // Map pill button
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 12.dp),
+            shape = RoundedCornerShape(999.dp),
+            color = AppTheme.primary,
+            tonalElevation = 6.dp,
+            shadowElevation = 6.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .clickable { navController.navigate(Routes.Map) }
+                    .padding(horizontal = 18.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Explore,
+                    contentDescription = "Carte",
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = "Carte",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+
         // Floating Add Button (only for collocators)
         if (currentUserRole == "collocator") {
             FloatingActionButton(
                 onClick = { showAddPropertyForm = true },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(24.dp),
-                containerColor = AppTheme.primary
+                    .padding(end = 16.dp, bottom = 82.dp),
+                containerColor = AppTheme.primary,
+                shape = RoundedCornerShape(18.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
@@ -517,6 +449,7 @@ fun HomeScreen(navController: NavController) {
     }
 }
 
+// ---------------------- Search & Filter bar ----------------------
 @Composable
 fun SearchAndFilterBar(
     searchText: String,
@@ -524,22 +457,23 @@ fun SearchAndFilterBar(
     onFilterClick: () -> Unit,
     onNotificationsClick: () -> Unit,
     notificationCount: Int,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        // Search field
+        val fieldShape = RoundedCornerShape(16.dp)
+
         OutlinedTextField(
             value = searchText,
             onValueChange = onSearchTextChange,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .height(54.dp),
             placeholder = { Text("Rechercher") },
-            leadingIcon = {
-                Icon(Icons.Default.Search, contentDescription = null)
-            },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             trailingIcon = {
                 if (searchText.isNotEmpty()) {
                     IconButton(onClick = { onSearchTextChange("") }) {
@@ -547,18 +481,23 @@ fun SearchAndFilterBar(
                     }
                 }
             },
-            shape = RoundedCornerShape(14.dp),
+            singleLine = true,
+            shape = fieldShape,
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = AppTheme.card,
-                unfocusedContainerColor = AppTheme.card
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
+                focusedBorderColor = Color.Transparent,
+                unfocusedBorderColor = Color.Transparent,
+                cursorColor = AppTheme.primary,
+                focusedTextColor = AppTheme.textPrimary,
+                unfocusedTextColor = AppTheme.textPrimary
             )
         )
 
-        // Filter button
         IconButton(
             onClick = onFilterClick,
             modifier = Modifier
-                .size(48.dp)
+                .size(52.dp)
                 .background(AppTheme.primary, RoundedCornerShape(14.dp))
         ) {
             Icon(
@@ -571,7 +510,7 @@ fun SearchAndFilterBar(
         IconButton(
             onClick = onNotificationsClick,
             modifier = Modifier
-                .size(48.dp)
+                .size(52.dp)
                 .background(Color(0xFF00BFA5), RoundedCornerShape(14.dp))
         ) {
             Box(
@@ -591,7 +530,6 @@ fun SearchAndFilterBar(
                         modifier = Modifier
                             .size(16.dp)
                             .align(Alignment.TopEnd)
-                            // push slightly outside so it overlaps like Instagram badge
                             .offset(x = 2.dp, y = (-6).dp)
                     ) {
                         Text(
@@ -605,46 +543,10 @@ fun SearchAndFilterBar(
                 }
             }
         }
-        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
 // ---------------------- PropertyCard ----------------------
-
-@Composable
-fun CategoryCard(icon: ImageVector, label: String, color: Color) {
-    Card(
-        modifier = Modifier
-            .width(110.dp)
-            .height(100.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                modifier = Modifier.size(32.dp),
-                tint = color
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = label,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = color,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
 @Composable
 fun PropertyCard(
     title: String,
@@ -799,7 +701,7 @@ fun PropertyCard(
                     }
 
                     Button(
-                        onClick = { /* Navigate to details */ },
+                        onClick = { /* Navigate to details if needed */ },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0066FF)),
                         shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
@@ -884,6 +786,374 @@ fun CategoryCard(icon: ImageVector, label: String, color: Color) {
 }
 
 // ---------------------- Placeholder Screens ----------------------
-@Composable fun ProfileScreen() { /* TODO */ }
-@Composable fun ReserveScreen() { /* TODO */ }
-@Composable fun PublicitesListScreen() { /* TODO */ }
+// Note: These screens are implemented in their respective files
+// ProfileScreen - implemented in ProfileScreen.kt
+// PublicitesListScreen - implemented in PublicitesListScreen.kt
+// AddPubliciteScreen - implemented in AddPubliciteScreen.kt
+
+// ---------------------- QuickFilterButtons ----------------------
+@Composable
+fun QuickFilterButtons(
+    ownershipFilter: OwnershipFilter,
+    onFilterClick: (OwnershipFilter) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(0.dp)
+    ) {
+        OwnershipFilterButton(
+            title = "Mes annonces",
+            isSelected = ownershipFilter == OwnershipFilter.MINE,
+            icon = Icons.Default.Person,
+            onClick = { onFilterClick(OwnershipFilter.MINE) },
+            isFirst = true,
+            modifier = Modifier.weight(1f)
+        )
+
+        OwnershipFilterButton(
+            title = "Autre annonces",
+            isSelected = ownershipFilter == OwnershipFilter.NOT_MINE,
+            icon = Icons.Default.People,
+            onClick = { onFilterClick(OwnershipFilter.NOT_MINE) },
+            isFirst = false,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+fun OwnershipFilterButton(
+    title: String,
+    isSelected: Boolean,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    isFirst: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(44.dp),
+        color = if (isSelected) AppTheme.primary else Color.White,
+        shape = RoundedCornerShape(
+            topStart = if (isFirst) 12.dp else 0.dp,
+            bottomStart = if (isFirst) 12.dp else 0.dp,
+            topEnd = if (isFirst) 0.dp else 12.dp,
+            bottomEnd = if (isFirst) 0.dp else 12.dp
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = if (isSelected) Color.Transparent else Color(0xFFE0E0E0)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = if (isSelected) Color.White else AppTheme.textPrimary
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (isSelected) Color.White else AppTheme.textPrimary
+            )
+        }
+    }
+}
+
+@Composable
+fun ViewToggle(
+    isGridView: Boolean,
+    onViewChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(0.dp)
+    ) {
+        ViewToggleButton(
+            isSelected = !isGridView,
+            icon = Icons.Default.ViewList,
+            onClick = { onViewChange(false) },
+            isFirst = true,
+            modifier = Modifier.weight(1f)
+        )
+
+        ViewToggleButton(
+            isSelected = isGridView,
+            icon = Icons.Default.GridView,
+            onClick = { onViewChange(true) },
+            isFirst = false,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+fun ViewToggleButton(
+    isSelected: Boolean,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    isFirst: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(44.dp),
+        color = if (isSelected) AppTheme.primary else Color.White,
+        shape = RoundedCornerShape(
+            topStart = if (isFirst) 12.dp else 0.dp,
+            bottomStart = if (isFirst) 12.dp else 0.dp,
+            topEnd = if (isFirst) 0.dp else 12.dp,
+            bottomEnd = if (isFirst) 0.dp else 12.dp
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = Color(0xFFE0E0E0)
+        )
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = if (isSelected) Color.White else AppTheme.textPrimary
+            )
+        }
+    }
+}
+
+// ---------------------- FilterSheet ----------------------
+@Composable
+fun FilterSheet(
+    minPrice: Double?,
+    maxPrice: Double?,
+    onDismiss: () -> Unit,
+    onApply: (Double?, Double?) -> Unit
+) {
+    var minPriceText by remember { mutableStateOf(minPrice?.toString() ?: "") }
+    var maxPriceText by remember { mutableStateOf(maxPrice?.toString() ?: "") }
+    var minPriceError by remember { mutableStateOf<String?>(null) }
+    var maxPriceError by remember { mutableStateOf<String?>(null) }
+
+    fun filterNumericInput(text: String): String {
+        return text.filter { it.isDigit() || it == '.' }
+    }
+
+    fun validatePrices(): Boolean {
+        minPriceError = null
+        maxPriceError = null
+
+        val min = minPriceText.toDoubleOrNull()
+        val max = maxPriceText.toDoubleOrNull()
+
+        if (minPriceText.isEmpty() && maxPriceText.isEmpty()) return true
+
+        if (minPriceText.isNotEmpty() && min == null) {
+            minPriceError = "Veuillez entrer un nombre valide"
+            return false
+        }
+
+        if (maxPriceText.isNotEmpty() && max == null) {
+            maxPriceError = "Veuillez entrer un nombre valide"
+            return false
+        }
+
+        if (min != null && max != null && min >= max) {
+            minPriceError = "Le prix minimum doit être inférieur au prix maximum"
+            maxPriceError = "Le prix maximum doit être supérieur au prix minimum"
+            return false
+        }
+
+        return true
+    }
+
+    val isValid = validatePrices()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = AppTheme.card,
+        shape = RoundedCornerShape(24.dp),
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Tune,
+                    contentDescription = null,
+                    tint = AppTheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    text = "Filtrer par prix",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AppTheme.textPrimary
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.padding(top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                OutlinedTextField(
+                    value = minPriceText,
+                    onValueChange = {
+                        val filtered = filterNumericInput(it)
+                        minPriceText = filtered
+                        validatePrices()
+                    },
+                    label = {
+                        Text(
+                            "Prix minimum",
+                            color = AppTheme.textSecondary
+                        )
+                    },
+                    placeholder = { Text("Ex: 100", color = AppTheme.textSecondary.copy(alpha = 0.6f)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal
+                    ),
+                    isError = minPriceError != null,
+                    supportingText = minPriceError?.let {
+                        {
+                            Text(
+                                it,
+                                color = Color(0xFFD32F2F),
+                                fontSize = 12.sp
+                            )
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = AppTheme.card,
+                        unfocusedContainerColor = AppTheme.card,
+                        focusedBorderColor = AppTheme.primary,
+                        unfocusedBorderColor = Color(0xFFE0E0E0),
+                        errorBorderColor = Color(0xFFD32F2F),
+                        focusedTextColor = AppTheme.textPrimary,
+                        unfocusedTextColor = AppTheme.textPrimary
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.AttachMoney,
+                            contentDescription = null,
+                            tint = AppTheme.textSecondary
+                        )
+                    }
+                )
+                OutlinedTextField(
+                    value = maxPriceText,
+                    onValueChange = {
+                        val filtered = filterNumericInput(it)
+                        maxPriceText = filtered
+                        validatePrices()
+                    },
+                    label = {
+                        Text(
+                            "Prix maximum",
+                            color = AppTheme.textSecondary
+                        )
+                    },
+                    placeholder = { Text("Ex: 1000", color = AppTheme.textSecondary.copy(alpha = 0.6f)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal
+                    ),
+                    isError = maxPriceError != null,
+                    supportingText = maxPriceError?.let {
+                        {
+                            Text(
+                                it,
+                                color = Color(0xFFD32F2F),
+                                fontSize = 12.sp
+                            )
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = AppTheme.card,
+                        unfocusedContainerColor = AppTheme.card,
+                        focusedBorderColor = AppTheme.primary,
+                        unfocusedBorderColor = Color(0xFFE0E0E0),
+                        errorBorderColor = Color(0xFFD32F2F),
+                        focusedTextColor = AppTheme.textPrimary,
+                        unfocusedTextColor = AppTheme.textPrimary
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.AttachMoney,
+                            contentDescription = null,
+                            tint = AppTheme.textSecondary
+                        )
+                    }
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (isValid) {
+                        val min = minPriceText.toDoubleOrNull()
+                        val max = maxPriceText.toDoubleOrNull()
+                        onApply(min, max)
+                    }
+                },
+                enabled = isValid,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AppTheme.primary,
+                    contentColor = Color.White,
+                    disabledContainerColor = AppTheme.primary.copy(alpha = 0.5f),
+                    disabledContentColor = Color.White.copy(alpha = 0.5f)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.padding(end = 8.dp)
+            ) {
+                Text(
+                    "Appliquer",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp
+                )
+            }
+        },
+        dismissButton = {
+            OutlinedButton(
+                onClick = {
+                    minPriceText = ""
+                    maxPriceText = ""
+                    minPriceError = null
+                    maxPriceError = null
+                    onApply(null, null)
+                },
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = AppTheme.textPrimary
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    Color(0xFFE0E0E0)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
+                Text(
+                    "Réinitialiser",
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 14.sp
+                )
+            }
+        }
+    )
+}

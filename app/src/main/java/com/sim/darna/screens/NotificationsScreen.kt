@@ -81,24 +81,39 @@ fun NotificationsScreen(
         val annonceId = payload["annonceId"]
 
         when (type) {
-            "BOOKING_REQUEST" -> {
-                if (annonceId != null) {
-                    navController.navigate("property_bookings/$annonceId")
-                } else {
-                    Toast.makeText(context, "Annonce introuvable", Toast.LENGTH_SHORT).show()
-                }
-            }
-
-            "BOOKING_RESPONSE" -> {
+            "BOOKING_REQUEST", "BOOKING_RESPONSE" -> {
                 if (annonceId != null) {
                     navController.navigate("${Routes.PropertyDetail}/$annonceId")
                 } else {
-                    Toast.makeText(context, "Annonce introuvable", Toast.LENGTH_SHORT).show()
+                    navController.navigate(Routes.MyVisits)
+                }
+            }
+
+            "VISIT_ACCEPTED", "VISIT_REFUSED" -> {
+                navController.navigate(Routes.MyVisits)
+            }
+
+            "VISIT_REQUEST" -> {
+                navController.navigate(Routes.VisitRequests)
+            }
+
+            "NEW_MESSAGE" -> {
+                val visitId = payload["visitId"]
+                val housingTitle = payload["housingTitle"] ?: "Chat"
+                if (visitId != null) {
+                    navController.navigate("chat/$visitId/$housingTitle")
+                } else {
+                    navController.navigate(Routes.MyVisits)
                 }
             }
 
             else -> {
-                Toast.makeText(context, "Notification non prise en charge", Toast.LENGTH_SHORT).show()
+                // Check if it's a reminder
+                if (type?.startsWith("VISIT_REMINDER") == true) {
+                    navController.navigate(Routes.MyVisits)
+                } else {
+                    Toast.makeText(context, "Notification non prise en charge", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }

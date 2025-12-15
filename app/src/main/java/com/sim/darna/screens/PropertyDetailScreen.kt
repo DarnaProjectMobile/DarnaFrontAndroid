@@ -57,6 +57,14 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
     // ViewModel for reviews
     val reviewViewModel: ReviewViewModel = viewModel()
     val allReviews by reviewViewModel.reviews.collectAsState()
+
+    // Visite ViewModel
+    val baseUrl = com.sim.darna.auth.NetworkConfig.BASE_URL
+    val visiteViewModel: com.sim.darna.visite.VisiteViewModel = viewModel(
+        factory = com.sim.darna.factory.VisiteVmFactory(baseUrl, context)
+    )
+    val visiteState by visiteViewModel.state.collectAsState()
+    var showVisiteDialog by remember { mutableStateOf(false) }
     
     // Load property from API
     LaunchedEffect(propertyId) {
@@ -82,22 +90,25 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
         }
     }
     
-    // Initialize ViewModel and load reviews
-    LaunchedEffect(Unit) {
-        reviewViewModel.init(context)
-        reviewViewModel.loadReviews()
+    // Initialize ViewModel and load reviews for this property
+    LaunchedEffect(propertyId) {
+        if (propertyId != null) {
+            reviewViewModel.init(context)
+            reviewViewModel.loadReviewsForProperty(propertyId)
+        }
     }
     
-    // Take only first 3 reviews
-    val recentReviews = allReviews.take(3)
+    // Take only first 3 reviews for this property
+    val recentReviews = allReviews.filter { it.propertyId == propertyId }.take(3)
     
-    // Calculate average rating and total reviews
-    val averageRating = if (allReviews.isNotEmpty()) {
-        allReviews.map { it.rating }.average().toFloat()
+    // Calculate average rating and total reviews for this property
+    val propertyReviews = allReviews.filter { it.propertyId == propertyId }
+    val averageRating = if (propertyReviews.isNotEmpty()) {
+        propertyReviews.map { it.rating }.average().toFloat()
     } else {
         0f
     }
-    val totalReviews = allReviews.size
+    val totalReviews = propertyReviews.size
     
     if (isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -385,7 +396,16 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                     }
 
                     Button(
-                        onClick = { navController.navigate(Routes.Reviews) },
+                        onClick = { 
+                            // Get current user's username
+                            val currentUser = context.getSharedPreferences("APP_PREFS", android.content.Context.MODE_PRIVATE)
+                            val currentUsername = currentUser.getString("username", "Anonymous")
+                            
+                            // Navigate to reviews screen with property and user information
+                            val encodedTitle = android.net.Uri.encode(prop.title)
+                            val encodedUsername = android.net.Uri.encode(currentUsername)
+                            navController.navigate("${Routes.ReviewsWithParams.replace("{propertyId}", prop.id).replace("{propertyName}", encodedTitle).replace("{userName}", encodedUsername)}")
+                        },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0066FF)),
                         shape = RoundedCornerShape(10.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
@@ -402,7 +422,7 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                RatingBreakdown(allReviews)
+                RatingBreakdown(propertyReviews)
             }
         }
 
@@ -503,6 +523,27 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                 }
             }
                 } else {
+                    // Visite Button
+                    Button(
+                        onClick = { showVisiteDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFFF9800) // Orange for visits
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(
+                            text = "Réserver une visite",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(vertical = 16.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     // Contact Button
                     Button(
                         onClick = {
@@ -529,6 +570,30 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
             }
             Spacer(modifier = Modifier.height(20.dp))
         }
+    }
+    
+    // Handle Visite State Feedback
+    LaunchedEffect(visiteState) {
+        if (visiteState.message != null) {
+            android.widget.Toast.makeText(context, visiteState.message, android.widget.Toast.LENGTH_LONG).show()
+            showVisiteDialog = false
+            visiteViewModel.clearFeedback()
+        }
+        if (visiteState.error != null) {
+            android.widget.Toast.makeText(context, visiteState.error, android.widget.Toast.LENGTH_LONG).show()
+            visiteViewModel.clearFeedback()
+        }
+    }
+
+    // Visite Dialog
+    if (showVisiteDialog) {
+        com.sim.darna.components.CreateVisiteDialog(
+            onDismiss = { showVisiteDialog = false },
+            onSubmit = { date, hour, min, notes, phone ->
+                visiteViewModel.createVisite(prop.id, date, hour, min, notes, phone)
+            },
+            isLoading = visiteState.isSubmitting
+        )
     }
 }
 
@@ -624,7 +689,7 @@ fun RatingBreakdown(reviews: List<DatabaseReview>) {
 
 @Composable
 fun ReviewCard(review: DatabaseReview) {
-    val username = review.user?.username ?: "Anonymous"
+    val username = review.userName
     val userInitial = username.firstOrNull()?.uppercase() ?: "?"
     
     Card(
