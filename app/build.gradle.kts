@@ -5,7 +5,6 @@ plugins {
     id("com.google.gms.google-services")
     id("com.google.dagger.hilt.android")
     id("kotlin-kapt")
-
 }
 
 android {
@@ -19,6 +18,7 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        multiDexEnabled = true
     }
 
     buildTypes {
@@ -45,7 +45,7 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.7.5"
+        kotlinCompilerExtensionVersion = "1.5.16"
     }
 
     packaging {
@@ -55,125 +55,95 @@ android {
     }
 }
 
+kapt {
+    correctErrorTypes = true
+    useBuildCache = true
+    // Helps avoid weird stub generation issues with some setups
+    includeCompileClasspath = false
+}
+
 dependencies {
-    // --- Android Core ---
+
+    // ---------------- CORE ---------------- 
     implementation("androidx.core:core-ktx:1.12.0")
-    implementation("androidx.activity:activity-compose:1.8.2")
-
-    // --- Compose + Material 3 ---
-    implementation(platform("androidx.compose:compose-bom:2024.10.01"))
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.activity:activity-compose:1.8.2")
-
-
-    // Navigation Compose
-    implementation("androidx.navigation:navigation-compose:2.8.2")
+    implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation("androidx.activity:activity-compose:1.9.2")
+    implementation("androidx.preference:preference-ktx:1.2.1")
     
-    // Pager for swipeable images
-    implementation("androidx.compose.foundation:foundation:1.6.0")
+    // ---------------- DATASTORE ----------------
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
 
-    implementation("androidx.core:core-splashscreen:1.0.1")
-    implementation(libs.androidx.camera.core)
-    implementation(libs.androidx.camera.lifecycle)
-
-    implementation ("androidx.camera:camera-camera2:1.3.0")
-    implementation ("androidx.camera:camera-lifecycle:1.3.0")
-    implementation ("androidx.camera:camera-view:1.3.0")
-    implementation(libs.androidx.compose.material3)
-
-
-    // Tests
-    testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2024.10.01"))
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    // ---------------- COMPOSE (ONE SOURCE OF TRUTH) ---------------- 
+    implementation(platform("androidx.compose:compose-bom:2024.10.00"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.material3:material3")
+    // Material 2 for SwipeToDismiss and other Material 2 components
+    implementation("androidx.compose.material:material")
+    // Material Icons Extended (includes all icons like CalendarToday, People, etc.)
     implementation("androidx.compose.material:material-icons-extended")
-    implementation("androidx.compose.material:material:1.6.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
-
-// Retrofit core
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
-    // --- Navigation ---
+    // ---------------- NAVIGATION ----------------
     implementation("androidx.navigation:navigation-compose:2.8.2")
 
-    // --- Splash Screen ---
-    implementation("androidx.core:core-splashscreen:1.0.1")
+    // ---------------- IMAGES & UI ---------------- 
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("io.coil-kt:coil-gif:2.6.0")
+    implementation("com.airbnb.android:lottie-compose:6.1.0")
 
-    // --- CameraX ---
+    // ---------------- CAMERA ---------------- 
     implementation("androidx.camera:camera-camera2:1.3.0")
     implementation("androidx.camera:camera-lifecycle:1.3.0")
     implementation("androidx.camera:camera-view:1.3.0")
-
-    // --- Image loading (Coil) ---
-    implementation("io.coil-kt:coil-compose:2.6.0")
-
-    // --- Retrofit + OkHttp ---
-    implementation("io.coil-kt:coil-compose:2.4.0")
-    implementation("io.coil-kt:coil:2.4.0")
-    implementation("io.coil-kt:coil-gif:2.4.0")
     
-    // Lottie for high-quality vector animations (optional - best quality)
-    implementation("com.airbnb.android:lottie-compose:6.1.0")
+    // ---------------- ML KIT (Barcode Scanning) ---------------- 
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
 
+    // ---------------- MAP ----------------
     implementation("org.osmdroid:osmdroid-android:6.1.18")
-    implementation("androidx.preference:preference-ktx:1.2.1")
 
-
-    // ✅ Retrofit + OkHttp + Kotlin Serialization
+    // ---------------- NETWORK ----------------
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:okhttp:5.0.0-alpha.14")
     implementation("com.squareup.okhttp3:logging-interceptor:5.0.0-alpha.14")
 
-    // --- Moshi (JSON parser) ---
+    // ✅ Gson for Retrofit converter and custom JsonDeserializer classes
+    implementation("com.google.code.gson:gson:2.10.1")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    
+    // ---------------- SOCKET.IO (Real-time Chat) ----------------
+    implementation("io.socket:socket.io-client:2.1.0")
+
+    // ---------------- MOSHI ----------------
     implementation("com.squareup.moshi:moshi:1.15.1")
     implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
     kapt("com.squareup.moshi:moshi-kotlin-codegen:1.15.1")
 
-    // --- Kotlin Serialization (si tu veux l'utiliser ailleurs) ---
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-
-    // --- Retrofit Kotlin Serialization Converter ---
-    implementation("com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:1.0.0")
-
-    // Firebase Cloud Messaging + Analytics
+    // ---------------- FIREBASE ----------------
     implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
     implementation("com.google.firebase:firebase-messaging")
     implementation("com.google.firebase:firebase-analytics-ktx")
-    
-    // --- Stripe Android SDK ---
-    implementation("com.stripe:stripe-android:20.37.0")
-    
-    // --- Image Picker ---
-    implementation("io.coil-kt:coil-compose:2.6.0")
-    
-    // --- Hilt (DI) ---
-    implementation("com.google.dagger:hilt-android:2.51")
-    kapt("com.google.dagger:hilt-compiler:2.51")
+
+    // ---------------- ✅ STRIPE ----------------
+    implementation("com.stripe:stripe-android:20.39.0")
+
+    // ---------------- HILT ----------------
+    implementation("com.google.dagger:hilt-android:2.52")
+    kapt("com.google.dagger:hilt-compiler:2.52")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
-    // --- Material Icons ---
-    implementation("androidx.compose.material:material-icons-extended")
-
-    implementation("androidx.compose.ui:ui-text")
-    
-    // --- Biometric Authentication ---
+    // ---------------- BIOMETRIC ----------------
     implementation("androidx.biometric:biometric:1.1.0")
 
-    // --- Tests ---
+    // ---------------- MULTIDEX ----------------
+    implementation("androidx.multidex:multidex:2.0.1")
+
+    // ---------------- TESTS ----------------
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2024.10.01"))
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 }

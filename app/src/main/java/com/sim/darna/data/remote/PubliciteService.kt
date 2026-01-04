@@ -1,6 +1,7 @@
 package com.sim.darna.data.remote
 
 import com.sim.darna.data.model.Publicite
+import com.sim.darna.data.model.QRCodeVerificationResponse
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -31,4 +32,10 @@ interface PubliciteApi {
         @Header("Authorization") token: String,
         @Path("id") id: String
     ): Response<Unit>
+    
+    @POST("publicites/verify-qr")
+    suspend fun verifyQRCode(
+        @Header("Authorization") token: String,
+        @Body body: Map<String, String>
+    ): Response<QRCodeVerificationResponse>
 }

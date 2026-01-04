@@ -66,5 +66,9 @@ object RetrofitClient {
     fun propertyApi(context: Context): PropertyApi {
         return getInstance(context).create(PropertyApi::class.java)
     }
+    fun chatApi(context: Context): com.sim.darna.chat.ChatApi {
+        return getInstance(context).create(com.sim.darna.chat.ChatApi::class.java)
+    }
+
 
 }

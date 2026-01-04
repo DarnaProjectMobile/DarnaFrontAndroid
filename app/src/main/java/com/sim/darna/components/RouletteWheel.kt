@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,10 +15,17 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlin.math.cos
 import kotlin.math.sin
+import android.graphics.Paint
+import android.graphics.Typeface
+import com.sim.darna.utils.SoundManager
 
 @Composable
 fun RouletteWheel(
@@ -26,28 +34,23 @@ fun RouletteWheel(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
-    var isSpinning by remember { mutableStateOf(false) }
-    var selectedIndex by remember { mutableStateOf(0) }
+    val context = LocalContext.current
+    val soundManager = remember { SoundManager.getInstance(context) }
     
-    val infiniteTransition = rememberInfiniteTransition(label = "roulette")
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "rotation"
-    )
+    var isSpinning by remember { mutableStateOf(false) }
+    var currentRotation by remember { mutableStateOf(0f) }
+    var selectedIndex by remember { mutableStateOf(0) }
     
     val spinRotation = remember { Animatable(0f) }
     
     LaunchedEffect(isSpinning) {
         if (isSpinning) {
+            // Jouer le son de rotation
+            soundManager.playSound(SoundManager.SoundType.SPIN)
             // Rotation aléatoire entre 5 et 10 tours complets + angle aléatoire
             val randomSpins = (5..10).random()
             val randomAngle = (0..360).random().toFloat()
-            val targetRotation = (randomSpins * 360f) + randomAngle
+            val targetRotation = currentRotation + (randomSpins * 360f) + randomAngle
             
             spinRotation.animateTo(
                 targetRotation,
@@ -57,148 +60,205 @@ fun RouletteWheel(
                 )
             )
             
-            // Calculer l'index gagnant
+            // Calculer l'index gagnant basé sur l'angle final
+            // Le pointeur est fixe en haut (à 0°)
+            // Les segments commencent à -90° (en haut) et sont numérotés dans le sens horaire
+            // La roue tourne dans le sens horaire (rotation positive)
             val normalizedAngle = (targetRotation % 360f)
             val anglePerItem = 360f / items.size
-            selectedIndex = ((items.size - 1) - (normalizedAngle / anglePerItem).toInt()) % items.size
+            
+            // Le pointeur est à 0° (en haut, fixe)
+            // Les segments sont dessinés en commençant à -90°
+            // Segment 0 : de -90° à (-90° + anglePerItem)
+            // Segment 1 : de (-90° + anglePerItem) à (-90° + 2*anglePerItem)
+            // etc.
+            // Après rotation de targetRotation, chaque segment a tourné de targetRotation
+            // On cherche quel segment est maintenant sous le pointeur (à 0°)
+            // Le segment qui était à startAngle est maintenant à (startAngle + targetRotation)
+            // On veut que (startAngle + targetRotation) = 0° (mod 360°)
+            // startAngle = -90° + index * anglePerItem
+            // Donc : -90° + index * anglePerItem + targetRotation = 0° (mod 360°)
+            // Donc : index * anglePerItem = 90° - targetRotation (mod 360°)
+            // Mais on doit aussi tenir compte que le pointeur pointe vers le centre du segment
+            // Le centre du segment est à : startAngle + anglePerItem/2 = -90° + index * anglePerItem + anglePerItem/2
+            // On veut que ce centre soit à 0° après rotation
+            // Donc : -90° + index * anglePerItem + anglePerItem/2 + targetRotation = 0° (mod 360°)
+            // Donc : index * anglePerItem = 90° - anglePerItem/2 - targetRotation (mod 360°)
+            val angleForCenter = (90f - anglePerItem / 2f - normalizedAngle + 360f) % 360f
+            selectedIndex = ((angleForCenter / anglePerItem).toInt()) % items.size
             if (selectedIndex < 0) selectedIndex += items.size
             
+            android.util.Log.d("RouletteWheel", "=== CALCUL INDEX ===")
+            android.util.Log.d("RouletteWheel", "targetRotation: $targetRotation")
+            android.util.Log.d("RouletteWheel", "normalizedAngle: $normalizedAngle")
+            android.util.Log.d("RouletteWheel", "anglePerItem: $anglePerItem")
+            android.util.Log.d("RouletteWheel", "angleForCenter: $angleForCenter")
+            android.util.Log.d("RouletteWheel", "selectedIndex calculé: $selectedIndex")
+            android.util.Log.d("RouletteWheel", "Item sélectionné: ${items[selectedIndex]}")
+            
+            currentRotation = targetRotation
             isSpinning = false
             onSpinComplete(items[selectedIndex])
         }
     }
     
+    // Couleurs alternées pour la roue (bleu et bleu clair)
     val colors = listOf(
-        Color(0xFFE3F2FD),
-        Color(0xFFBBDEFB),
-        Color(0xFF90CAF9),
-        Color(0xFF64B5F6),
-        Color(0xFF42A5F5),
-        Color(0xFF2196F3),
-        Color(0xFF1E88E5),
-        Color(0xFF1976D2)
+        Color(0xFF2196F3), // Bleu vif
+        Color(0xFFE3F2FD)  // Bleu très clair
     )
     
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         Box(
-            modifier = Modifier.size(300.dp),
+            modifier = Modifier.size(320.dp),
             contentAlignment = Alignment.Center
         ) {
-            Canvas(
+            // Roue avec ombre légère
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .rotate(if (isSpinning) spinRotation.value else 0f)
+                    .size(300.dp)
+                    .background(
+                        color = Color.White,
+                        shape = CircleShape
+                    )
             ) {
-                val center = Offset(size.width / 2, size.height / 2)
-                val radius = size.minDimension / 2 - 20.dp.toPx()
-                val anglePerItem = 360f / items.size
-                
-                items.forEachIndexed { index, item ->
-                    val startAngle = index * anglePerItem - 90f
-                    val sweepAngle = anglePerItem
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .rotate(spinRotation.value)
+                ) {
+                    val center = Offset(size.width / 2, size.height / 2)
+                    val radius = size.minDimension / 2 - 10.dp.toPx()
+                    val anglePerItem = 360f / items.size
                     
-                    // Dessiner le secteur
-                    drawArc(
-                        color = colors[index % colors.size],
-                        startAngle = startAngle,
-                        sweepAngle = sweepAngle,
-                        useCenter = true,
-                        topLeft = Offset(center.x - radius, center.y - radius),
-                        size = Size(radius * 2, radius * 2)
+                    items.forEachIndexed { index, item ->
+                        val startAngle = index * anglePerItem - 90f
+                        val sweepAngle = anglePerItem
+                        
+                        // Dessiner le secteur avec couleur alternée
+                        drawArc(
+                            color = colors[index % colors.size],
+                            startAngle = startAngle,
+                            sweepAngle = sweepAngle,
+                            useCenter = true,
+                            topLeft = Offset(center.x - radius, center.y - radius),
+                            size = Size(radius * 2, radius * 2)
+                        )
+                        
+                        // Bordure entre les segments
+                        val borderAngle = Math.toRadians(startAngle.toDouble())
+                        val borderStartX = center.x + (cos(borderAngle) * radius).toFloat()
+                        val borderStartY = center.y + (sin(borderAngle) * radius).toFloat()
+                        drawLine(
+                            color = Color.White,
+                            start = center,
+                            end = Offset(borderStartX, borderStartY),
+                            strokeWidth = 2.dp.toPx()
+                        )
+                        
+                        // Dessiner le texte
+                        val textAngle = Math.toRadians((startAngle + sweepAngle / 2).toDouble())
+                        val textRadius = radius * 0.7f
+                        val textX = center.x + (cos(textAngle) * textRadius).toFloat()
+                        val textY = center.y + (sin(textAngle) * textRadius).toFloat()
+                        
+                        drawIntoCanvas { canvas ->
+                            val paint = Paint().apply {
+                                color = if (index % 2 == 0) android.graphics.Color.WHITE else android.graphics.Color.BLACK
+                                textSize = 32f
+                                textAlign = Paint.Align.CENTER
+                                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                                isAntiAlias = true
+                            }
+                            
+                            // Rotation du texte pour qu'il soit lisible
+                            canvas.nativeCanvas.save()
+                            canvas.nativeCanvas.translate(textX, textY)
+                            canvas.nativeCanvas.rotate((startAngle + sweepAngle / 2 + 90) % 360)
+                            
+                            // Tronquer le texte si trop long
+                            val text = if (item.length > 12) item.take(10) + "..." else item
+                            canvas.nativeCanvas.drawText(text, 0f, 0f, paint)
+                            canvas.nativeCanvas.restore()
+                        }
+                    }
+                    
+                    // Bordure extérieure
+                    drawCircle(
+                        color = Color(0xFF2196F3),
+                        radius = radius,
+                        center = center,
+                        style = Stroke(width = 6.dp.toPx())
                     )
                     
-                    // Dessiner le texte
-                    val textAngle = Math.toRadians((startAngle + sweepAngle / 2).toDouble())
-                    val textRadius = radius * 0.7f
-                    val textX = center.x + (cos(textAngle) * textRadius).toFloat()
-                    val textY = center.y + (sin(textAngle) * textRadius).toFloat()
-                    
-                    // Note: Pour un vrai texte, utilisez drawContext.canvas.nativeCanvas
-                    // Ici on dessine juste un cercle pour représenter le texte
+                    // Centre de la roue (hub)
+                    drawCircle(
+                        color = Color(0xFF2196F3),
+                        radius = 20.dp.toPx(),
+                        center = center
+                    )
                 }
-                
-                // Bordure
-                drawCircle(
-                    color = Color.Black,
-                    radius = radius,
-                    center = center,
-                    style = Stroke(width = 4.dp.toPx())
-                )
             }
             
-            // Flèche indicateur
+            // Pointeur triangulaire en haut (fixe) - plus visible
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val center = Offset(size.width / 2, size.height / 2)
-                val arrowLength = 30.dp.toPx()
-                val arrowWidth = 20.dp.toPx()
+                val pointerY = 10.dp.toPx()
+                val pointerSize = 35.dp.toPx()
                 
-                drawLine(
-                    color = Color.Red,
-                    start = Offset(center.x, center.y - size.minDimension / 2 + 20.dp.toPx()),
-                    end = Offset(center.x, center.y - size.minDimension / 2 + 20.dp.toPx() + arrowLength),
-                    strokeWidth = 8.dp.toPx()
-                )
-                
-                // Triangle de la flèche
                 val path = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(center.x, center.y - size.minDimension / 2 + 20.dp.toPx())
-                    lineTo(center.x - arrowWidth / 2, center.y - size.minDimension / 2 + 20.dp.toPx() + arrowLength)
-                    lineTo(center.x + arrowWidth / 2, center.y - size.minDimension / 2 + 20.dp.toPx() + arrowLength)
+                    moveTo(center.x, pointerY)
+                    lineTo(center.x - pointerSize / 2, pointerY + pointerSize)
+                    lineTo(center.x + pointerSize / 2, pointerY + pointerSize)
                     close()
                 }
-                drawPath(path, Color.Red)
+                drawPath(path, Color(0xFF2196F3))
+                
+                // Bordure du pointeur pour plus de visibilité
+                drawPath(
+                    path = path,
+                    color = Color(0xFF1976D2),
+                    style = Stroke(width = 2.dp.toPx())
+                )
             }
         }
         
-        // Liste des items
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = "Gains disponibles:",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            items.forEachIndexed { index, item ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .background(
-                                color = colors[index % colors.size],
-                                shape = CircleShape
-                            )
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = item)
-                }
-            }
-        }
-        
+        // Bouton Jouer
         Button(
             onClick = { if (enabled && !isSpinning) isSpinning = true },
             enabled = enabled && !isSpinning,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF2196F3)
+            ),
+            shape = RoundedCornerShape(12.dp)
         ) {
             if (isSpinning) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(20.dp),
                     strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = Color.White
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    "En cours...",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            } else {
+                Text(
+                    "Jouer",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White
+                )
             }
-            Text(if (isSpinning) "En cours..." else "Jouer")
         }
     }
 }

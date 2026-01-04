@@ -23,7 +23,6 @@ class UserRepository(
     fun updateUser(
         username: String,
         email: String,
-        password: String? = null,
         numTel: String? = null,
         dateDeNaissance: String? = null,
         gender: String? = null,
@@ -33,7 +32,7 @@ class UserRepository(
             username = username,
             email = email,
             bio = "User bio",  // Required by your UpdateUserDto
-            password = password ?: "KeepCurrentPassword123!",  // Use provided password or dummy
+            // Removed password field
             numTel = numTel,
             dateDeNaissance = dateDeNaissance,
             gender = gender

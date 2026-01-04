@@ -1,10 +1,14 @@
 package com.sim.darna.viewmodel
 
+import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sim.darna.repository.AuthRepository
 import com.sim.darna.model.RegisterRequest
 import com.sim.darna.model.RegisterResponse
+import com.sim.darna.model.LoginRequest
+import com.sim.darna.model.LoginResponse
+import com.sim.darna.auth.TokenStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -22,12 +26,15 @@ data class RegisterUiState(
     val success: Boolean = false
 )
 
-class RegisterViewModel(private val repository: AuthRepository) : ViewModel() {
+class RegisterViewModel(
+    private val repository: AuthRepository,
+    private val authPrefs: SharedPreferences
+) : ViewModel() {
 
     private val _state = MutableStateFlow(RegisterUiState())
     val state: StateFlow<RegisterUiState> = _state
 
-    fun register(user: RegisterRequest) {
+    fun register(user: RegisterRequest, imageFile: java.io.File? = null) {
         _state.value = RegisterUiState(isLoading = true)
 
         viewModelScope.launch {
@@ -50,16 +57,12 @@ class RegisterViewModel(private val repository: AuthRepository) : ViewModel() {
                 val numTel = textBody(normalizedUser.numTel)
                 val gender = textBody(normalizedUser.gender)
 
-                // ✅ Image optionnelle (multipart vide si null)
-                val imagePart = if (!normalizedUser.image.isNullOrBlank()) {
-                    MultipartBody.Part.createFormData(
-                        "image",
-                        "user_image.jpg",
-                        normalizedUser.image!!.toRequestBody("text/plain".toMediaTypeOrNull())
-                    )
+                // ✅ Image optionnelle (multipart)
+                val imagePart = if (imageFile != null && imageFile.exists()) {
+                    val requestBody = okhttp3.RequestBody.create("image/*".toMediaTypeOrNull(), imageFile)
+                    MultipartBody.Part.createFormData("image", imageFile.name, requestBody)
                 } else {
-                    // image vide pour éviter l’erreur 400 si champ requis
-                    MultipartBody.Part.createFormData("image", "", "".toRequestBody("text/plain".toMediaTypeOrNull()))
+                    null
                 }
 
                 // ✅ Envoi de la requête
@@ -78,7 +81,38 @@ class RegisterViewModel(private val repository: AuthRepository) : ViewModel() {
                         response: Response<RegisterResponse>
                     ) {
                         if (response.isSuccessful) {
-                            _state.value = RegisterUiState(success = true)
+                            // Auto-login to get token for verification
+                            val loginRequest = LoginRequest(
+                                email = normalizedUser.email,
+                                password = normalizedUser.password
+                            )
+                            repository.login(loginRequest).enqueue(object : Callback<LoginResponse> {
+                                override fun onResponse(
+                                    call: Call<LoginResponse>,
+                                    response: Response<LoginResponse>
+                                ) {
+                                    if (response.isSuccessful && response.body() != null) {
+                                        val loginResponse = response.body()!!
+                                        // Save token using TokenStorage
+                                        TokenStorage.saveAuthDataFromPrefs(
+                                            authPrefs,
+                                            loginResponse.token,
+                                            loginResponse.user.id
+                                        )
+                                        _state.value = RegisterUiState(success = true)
+                                    } else {
+                                        _state.value = RegisterUiState(
+                                            error = "Inscription réussie mais connexion automatique échouée"
+                                        )
+                                    }
+                                }
+
+                                override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
+                                    _state.value = RegisterUiState(
+                                        error = "Inscription réussie mais connexion automatique échouée: ${t.localizedMessage}"
+                                    )
+                                }
+                            })
                         } else {
                             val errorBody = response.errorBody()?.string()
                             _state.value = RegisterUiState(

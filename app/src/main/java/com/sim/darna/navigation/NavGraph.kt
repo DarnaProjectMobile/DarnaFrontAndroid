@@ -13,6 +13,7 @@ object Routes {
     const val Login = "login"
     const val SignUp = "signup"
     const val ForgotPassword = "forgot_password"
+    const val Verification = "verification"
     const val IdScan = "idscan"
     const val Selfie = "selfie"
     const val Fingerprint = "fingerprint"
@@ -32,6 +33,12 @@ object Routes {
     const val Notifications = "notifications"
     const val Map = "map"
     const val ReviewSummary = "reviewSummary/{propertyId}/{propertyName}"
+    const val PubliciteDetail = "publicite_detail/{publiciteId}"
+    const val AddPublicite = "add_publicite"
+    const val EditPublicite = "edit_publicite/{publiciteId}"
+    const val Dashboard = "dashboard"
+    const val VisitRequests = "visit_requests"
+    const val MyVisits = "my_visits"
 }
 
 @Composable
@@ -50,15 +57,32 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                         popUpTo(Routes.Login) { inclusive = true }
                     }
                 },
-                onSignUp = { navController.navigate(Routes.SignUp) }
+                onSignUp = { navController.navigate(Routes.SignUp) },
+                onForgotPassword = { navController.navigate(Routes.ForgotPassword) }
             )
         }
 
         composable(Routes.SignUp) {
             SignUpScreen(
-                onScanIdClick = {
-                    navController.navigate(Routes.IdScan) {
+                onVerificationNavigate = {
+                    navController.navigate(Routes.Verification) {
                         popUpTo(Routes.SignUp) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(Routes.Verification) {
+            val previousRoute = navController.previousBackStackEntry?.destination?.route
+            VerificationScreen(
+                onVerificationSuccess = {
+                    // If coming from SignUp, go to IdScan; otherwise go back
+                    if (previousRoute == Routes.Login || previousRoute == Routes.SignUp) {
+                        navController.navigate(Routes.IdScan) {
+                            popUpTo(Routes.Verification) { inclusive = true }
+                        }
+                    } else {
+                        navController.popBackStack()
                     }
                 }
             )
@@ -202,6 +226,9 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                 publiciteId = publiciteId,
                 onFinish = { navController.popBackStack() },
                 onCancel = { navController.popBackStack() }
+            )
+        }
+
         // Review Summary (AI-Powered)
         composable(
             route = Routes.ReviewSummary,
@@ -217,6 +244,21 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                 propertyName = propertyName,
                 onNavigateBack = { navController.popBackStack() }
             )
+        }
+        
+        // Dashboard
+        composable(Routes.Dashboard) {
+            DashboardScreen(navController)
+        }
+        
+        // Visit Requests
+        composable(Routes.VisitRequests) {
+            VisitRequestsScreen(navController)
+        }
+        
+        // My Visits
+        composable(Routes.MyVisits) {
+            MyVisitsScreen(navController)
         }
     }
 }

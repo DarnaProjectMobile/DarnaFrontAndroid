@@ -7,9 +7,13 @@ interface StripeService {
     @POST("payments/create-intent")
     suspend fun createPaymentIntent(
         @Header("Authorization") token: String,
-        @Body body: Map<String, Any>
+        @Body body: CreatePaymentIntentRequest
     ): Response<PaymentIntentResponse>
 }
+
+data class CreatePaymentIntentRequest(
+    val amount: Double
+)
 
 data class PaymentIntentResponse(
     val clientSecret: String? = null,

@@ -32,7 +32,7 @@ import com.sim.darna.viewmodel.ReviewViewModel
 import kotlinx.coroutines.delay
 
 // Modern Color Palette
-private val PrimaryColor = Color(0xFFFF4B6E)
+private val PrimaryColor = Color(0xFF1382B3)
 private val SecondaryColor = Color(0xFF4C6FFF)
 private val AccentColor = Color(0xFFFFC857)
 private val BackgroundColor = Color(0xFFF7F7F7)

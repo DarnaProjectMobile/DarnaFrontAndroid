@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -16,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -33,7 +35,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // Modern Color Palette
-private val PrimaryColor = Color(0xFFFF4B6E)
+private val PrimaryColor = Color(0xFF1382B3)
 private val SecondaryColor = Color(0xFF4C6FFF)
 private val AccentColor = Color(0xFFFFC857)
 private val BackgroundColor = Color(0xFFF7F7F7)
@@ -44,8 +46,9 @@ private val ErrorColor = Color(0xFFFF3B30)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
+fun SignUpScreen(onVerificationNavigate: () -> Unit = {}) {
     var currentStep by remember { mutableStateOf(1) }
+    val context = LocalContext.current
 
     // Step 1 Fields
     var username by remember { mutableStateOf("") }
@@ -72,6 +75,13 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
     var genderError by remember { mutableStateOf<String?>(null) }
     var genderExpanded by remember { mutableStateOf(false) }
     val genderOptions = listOf("Homme", "Femme")
+    var imageUri by remember { mutableStateOf<android.net.Uri?>(null) }
+
+    val imagePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        imageUri = uri
+    }
 
     // Step 3 Fields
     var password by remember { mutableStateOf("") }
@@ -85,7 +95,8 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
     val viewModel: RegisterViewModel = viewModel(
         factory = RegisterVmFactory(
             baseUrl = ApiConfig.BASE_URL,
-            sharedPreferences = sharedPreferences
+            sharedPreferences = sharedPreferences,
+            context = context
         )
     )
     val uiState = viewModel.state.collectAsState().value
@@ -95,7 +106,22 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
     LaunchedEffect(uiState.success) {
         if (uiState.success) {
             snackbarHostState.showSnackbar("Inscription réussie 🎉")
-            onScanIdClick()
+            onVerificationNavigate()
+        }
+    }
+
+    // Helper to create file from URI
+    fun uriToFile(context: Context, uri: android.net.Uri): java.io.File? {
+        return try {
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val tempFile = java.io.File.createTempFile("upload", ".jpg", context.cacheDir)
+            tempFile.outputStream().use { outputStream ->
+                inputStream?.copyTo(outputStream)
+            }
+            tempFile
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 
@@ -299,7 +325,9 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
                                 genderError = validateGender(it)
                                 genderExpanded = false
                             },
-                            genderError = genderError
+                            genderError = genderError,
+                            imageUri = imageUri,
+                            onImageClick = { imagePickerLauncher.launch("image/*") }
                         )
 
                         3 -> ModernStep3Content(
@@ -388,7 +416,8 @@ fun SignUpScreen(onScanIdClick: () -> Unit = {}) {
                                                 },
                                                 image = null
                                             )
-                                            viewModel.register(request)
+                                            val imageFile = imageUri?.let { uriToFile(context, it) }
+                                            viewModel.register(request, imageFile)
                                         }
                                     }
                                 }
@@ -593,15 +622,50 @@ fun ModernStep2Content(
     onGenderExpandedChange: (Boolean) -> Unit,
     genderOptions: List<String>,
     onGenderSelect: (String) -> Unit,
-    genderError: String?
+    genderError: String?,
+    imageUri: android.net.Uri?,
+    onImageClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Image Picker
+        Box(
+            modifier = Modifier
+                .size(100.dp)
+                .clip(CircleShape)
+                .background(Color.LightGray)
+                .clickable { onImageClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            if (imageUri != null) {
+                coil.compose.AsyncImage(
+                    model = imageUri,
+                    contentDescription = "Profile Image",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    Icons.Default.AddAPhoto,
+                    contentDescription = "Add Photo",
+                    tint = Color.White,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+        }
+        Text(
+            text = "Ajouter une photo (optionnel)",
+            fontSize = 14.sp,
+            color = PrimaryColor,
+            modifier = Modifier.clickable { onImageClick() }
+        )
+
         ModernTextField(
             value = email,
             onValueChange = onEmailChange,
@@ -611,14 +675,72 @@ fun ModernStep2Content(
             error = emailError
         )
 
-        ModernTextField(
-            value = birthDate,
-            onValueChange = onBirthDateChange,
-            label = "Date de naissance",
-            placeholder = "AAAA-MM-JJ",
-            leadingIcon = Icons.Outlined.DateRange,
-            error = birthDateError
+        // Date Picker Logic
+        val context = LocalContext.current
+        val calendar = java.util.Calendar.getInstance()
+        val year = calendar.get(java.util.Calendar.YEAR)
+        val month = calendar.get(java.util.Calendar.MONTH)
+        val day = calendar.get(java.util.Calendar.DAY_OF_MONTH)
+
+        val datePickerDialog = android.app.DatePickerDialog(
+            context,
+            { _, selectedYear, selectedMonth, selectedDay ->
+                val formattedDate = String.format("%04d-%02d-%02d", selectedYear, selectedMonth + 1, selectedDay)
+                onBirthDateChange(formattedDate)
+            },
+            year, month, day
         )
+
+        // Date Input Field (Clickable)
+        Box(modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = birthDate,
+                onValueChange = {},
+                readOnly = true,
+                label = { 
+                    Text(
+                        text = "Date de naissance",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = TextPrimary
+                    )
+                },
+                placeholder = { Text("AAAA-MM-JJ", color = TextSecondary) },
+                leadingIcon = {
+                    Icon(Icons.Outlined.DateRange, contentDescription = null, tint = SecondaryColor)
+                },
+                isError = birthDateError != null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { datePickerDialog.show() }, // Make the whole box clickable
+                enabled = false, // Disable typing
+                colors = OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = TextPrimary,
+                    disabledContainerColor = SurfaceColor,
+                    disabledBorderColor = if (birthDateError != null) ErrorColor else Color(0xFFE0E0E0),
+                    disabledLeadingIconColor = SecondaryColor,
+                    disabledPlaceholderColor = TextSecondary,
+                    disabledLabelColor = TextPrimary
+                ),
+                shape = RoundedCornerShape(12.dp)
+            )
+            // Overlay to capture clicks since enabled=false blocks clicks on the TextField itself
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .alpha(0f)
+                    .clickable { datePickerDialog.show() }
+            )
+        }
+
+        if (birthDateError != null) {
+            Text(
+                text = birthDateError,
+                color = ErrorColor,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+            )
+        }
 
         ModernTextField(
             value = phoneNumber,

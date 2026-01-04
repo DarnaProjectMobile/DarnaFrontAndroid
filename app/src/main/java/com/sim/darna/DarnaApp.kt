@@ -8,15 +8,16 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
 import androidx.preference.PreferenceManager
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.decode.GifDecoder
+import com.sim.darna.components.PaymentSheetManager
 import com.sim.darna.navigation.AppNavGraph
 import com.sim.darna.notifications.FirebaseTokenRegistrar
 import com.sim.darna.ui.theme.DarnaTheme
@@ -66,6 +67,9 @@ class MainActivity : FragmentActivity() {
         hideSystemBars()
         requestNotificationPermissionIfNeeded()
         FirebaseTokenRegistrar.syncCurrentToken(this)
+        
+        // Initialize PaymentSheetManager for Stripe payments
+        PaymentSheetManager.initialize(this)
 
         setContent {
             DarnaTheme {

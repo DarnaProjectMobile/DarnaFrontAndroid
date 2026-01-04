@@ -70,7 +70,7 @@ import com.sim.darna.screens.PublicitesListScreen
 
 // Modern Color Palette
 object ModernColors {
-    val Primary = Color(0xFFFF4B6E)
+    val Primary = Color(0xFF1382B3)
     val Secondary = Color(0xFF4C6FFF)
     val Accent = Color(0xFFFFC857)
     val Background = Color(0xFFF7F7F7)
@@ -91,7 +91,6 @@ sealed class BottomNavItem(
     object Publicite : BottomNavItem("publicite", Icons.Outlined.Campaign, Icons.Filled.Campaign, "Publicités")
     object Reserve : BottomNavItem("reserve", Icons.Outlined.Star, Icons.Filled.Star, "Réserver")
     object Profile : BottomNavItem("profile", Icons.Outlined.Person, Icons.Filled.Person, "Profil")
-    object Calendar : BottomNavItem("calendar", Icons.Outlined.DateRange, Icons.Filled.DateRange, "Calendrier")
 }
 
 // ---------------------- MainScreen ----------------------
@@ -119,6 +118,10 @@ fun MainScreen(parentNavController: NavHostController) {
                     onDetailClick = { id -> parentNavController.navigate(Routes.PubliciteDetail.replace("{publiciteId}", id)) }
                 )
             }
+            
+            composable(BottomNavItem.Reserve.route) {
+                MyVisitsScreen(parentNavController)
+            }
 
             composable(BottomNavItem.Profile.route) {
                 ProfileScreen(parentNavController)
@@ -133,7 +136,6 @@ fun BottomNavBar(navController: NavController) {
     val items = listOf(
         BottomNavItem.Home,
         BottomNavItem.Publicite,
-        BottomNavItem.Calendar,
         BottomNavItem.Reserve,
         BottomNavItem.Profile
     )

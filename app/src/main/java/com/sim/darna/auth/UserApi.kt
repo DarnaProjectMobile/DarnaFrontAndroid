@@ -20,7 +20,6 @@ data class UpdateUserRequest(
     val username: String,
     val email: String,
     val bio: String = "User bio",  // Required by DTO
-    val password: String = "KeepCurrentPassword123!",  // Required by DTO - send dummy to avoid re-hashing
     val numTel: String? = null,
     val dateDeNaissance: String? = null,
     val gender: String? = null

@@ -59,7 +59,6 @@ class ProfileViewModel(
     fun updateProfile(
         username: String,
         email: String,
-        password: String? = null,
         numTel: String? = null,
         dateDeNaissance: String? = null,
         gender: String? = null,
@@ -67,7 +66,7 @@ class ProfileViewModel(
     ) {
         _uiState.value = _uiState.value.copy(isUpdating = true, error = null)
 
-        userRepository.updateUser(username, email, password, numTel, dateDeNaissance, gender, imageFile)
+        userRepository.updateUser(username, email, numTel, dateDeNaissance, gender, imageFile)
             .enqueue(object : Callback<UserDto> {
                 override fun onResponse(call: Call<UserDto>, response: Response<UserDto>) {
                     if (response.isSuccessful) {

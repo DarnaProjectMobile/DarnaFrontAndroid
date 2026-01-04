@@ -24,19 +24,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import android.widget.Toast
-import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.biometric.BiometricManager
 import com.sim.darna.auth.TokenStorage
 import com.sim.darna.navigation.Routes
 import com.sim.darna.notifications.FirebaseTokenRegistrar
 import com.sim.darna.utils.FingerprintManager
+import com.sim.darna.utils.DateFormatter
 import java.util.concurrent.Executor
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.sim.darna.utils.ApiConfig
 
 // Modern Color Palette
 object ProfileColors {
-    val Primary = Color(0xFFFF4B6E)
+    val Primary = Color(0xFF1382B3)
     val Secondary = Color(0xFF4C6FFF)
     val Accent = Color(0xFFFFC857)
     val Background = Color(0xFFF7F7F7)
@@ -61,6 +65,8 @@ fun ProfileScreen(navController: NavHostController) {
     var phone by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
     var createdAt by remember { mutableStateOf("") }
+    var isVerified by remember { mutableStateOf(false) }
+    var image by remember { mutableStateOf("") }
 
     LaunchedEffect(refreshTrigger) {
         username = prefs.getString("username", "") ?: ""
@@ -70,6 +76,13 @@ fun ProfileScreen(navController: NavHostController) {
         phone = prefs.getString("numTel", "") ?: ""
         gender = prefs.getString("gender", "") ?: ""
         createdAt = prefs.getString("createdAt", "") ?: ""
+        isVerified = prefs.getBoolean("isVerified", false)
+        image = prefs.getString("image", "") ?: ""
+    }
+
+    // Refresh when returning from verification
+    LaunchedEffect(navController.currentBackStackEntry) {
+        refreshTrigger++
     }
 
     DisposableEffect(Unit) {
@@ -87,7 +100,7 @@ fun ProfileScreen(navController: NavHostController) {
                 .verticalScroll(rememberScrollState())
         ) {
             // Header Section
-            ProfileHeader(username, email, role)
+            ProfileHeader(username, email, role, isVerified, image)
 
             // Content Section
             Column(
@@ -101,6 +114,51 @@ fun ProfileScreen(navController: NavHostController) {
                     onFeedback = { navController.navigate("feedback") },
                     onReservations = { navController.navigate(Routes.Reservations) }
                 )
+
+                Spacer(Modifier.height(20.dp))
+
+                // Verify Email Button (only if not verified)
+                if (!isVerified) {
+                    var isLoading by remember { mutableStateOf(false) }
+                    
+                    ModernButton(
+                        text = if (isLoading) "Envoi en cours..." else "Vérifier mon email",
+                        icon = Icons.Outlined.MarkEmailRead,
+                        backgroundColor = ProfileColors.Warning,
+                        textColor = Color.White,
+                        onClick = {
+                            isLoading = true
+                            val token = TokenStorage.getToken(context)
+                            if (token != null) {
+                                val api = com.sim.darna.auth.AuthApi.create(ApiConfig.BASE_URL)
+                                val repo = com.sim.darna.repository.AuthRepository(api, prefs)
+                                repo.sendVerificationCode(token).enqueue(object : retrofit2.Callback<com.sim.darna.auth.AuthApi.VerifyEmailResponse> {
+                                    override fun onResponse(
+                                        call: retrofit2.Call<com.sim.darna.auth.AuthApi.VerifyEmailResponse>,
+                                        response: retrofit2.Response<com.sim.darna.auth.AuthApi.VerifyEmailResponse>
+                                    ) {
+                                        isLoading = false
+                                        if (response.isSuccessful) {
+                                            Toast.makeText(context, "Code de vérification envoyé!", Toast.LENGTH_SHORT).show()
+                                            navController.navigate(Routes.Verification)
+                                        } else {
+                                            Toast.makeText(context, "Erreur lors de l'envoi", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+
+                                    override fun onFailure(call: retrofit2.Call<com.sim.darna.auth.AuthApi.VerifyEmailResponse>, t: Throwable) {
+                                        isLoading = false
+                                        Toast.makeText(context, "Erreur: ${t.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                })
+                            } else {
+                                isLoading = false
+                                Toast.makeText(context, "Session expirée", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
+                    Spacer(Modifier.height(20.dp))
+                }
 
                 // Contact Information
                 ModernInfoCard(
@@ -127,6 +185,7 @@ fun ProfileScreen(navController: NavHostController) {
                     }
                 }
 
+
                 // Personal Information
                 ModernInfoCard(
                     title = "Informations personnelles",
@@ -137,7 +196,7 @@ fun ProfileScreen(navController: NavHostController) {
                         InfoRow(
                             icon = Icons.Outlined.Cake,
                             label = "Date de naissance",
-                            value = birthday,
+                            value = DateFormatter.formatToYYYYMMDD(birthday),
                             iconColor = ProfileColors.Primary
                         )
                     }
@@ -155,7 +214,7 @@ fun ProfileScreen(navController: NavHostController) {
                         InfoRow(
                             icon = Icons.Outlined.CalendarToday,
                             label = "Membre depuis",
-                            value = createdAt,
+                            value = DateFormatter.formatToYYYYMMDD(createdAt),
                             iconColor = ProfileColors.Primary
                         )
                     }
@@ -195,7 +254,7 @@ fun ProfileScreen(navController: NavHostController) {
 }
 
 @Composable
-fun ProfileHeader(username: String, email: String, role: String) {
+fun ProfileHeader(username: String, email: String, role: String, isVerified: Boolean, image: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -231,24 +290,70 @@ fun ProfileHeader(username: String, email: String, role: String) {
                         )
                     )
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        modifier = Modifier.size(50.dp),
-                        tint = Color.White
-                    )
+                    if (image.isNotEmpty()) {
+                        val fullImageUrl = when {
+                            image.startsWith("http") -> image
+                            image.contains("uploads") -> "${ApiConfig.BASE_URL}${image.removePrefix("/")}"
+                            else -> "${ApiConfig.BASE_URL}uploads/users/$image"
+                        }
+
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(fullImageUrl)
+                                .listener(
+                                    onStart = { request -> android.util.Log.d("ProfileDebug", "Started loading: ${request.data}") },
+                                    onError = { _, result -> android.util.Log.e("ProfileDebug", "Error loading image: ${result.throwable}") },
+                                    onSuccess = { _, _ -> android.util.Log.d("ProfileDebug", "Successfully loaded image") }
+                                )
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Photo de profil",
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            modifier = Modifier.size(50.dp),
+                            tint = Color.White
+                        )
+                    }
                 }
             }
 
             Spacer(Modifier.height(16.dp))
 
-            // Username
-            Text(
-                text = username.ifEmpty { "Utilisateur" },
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
+            // Username with Verified Badge
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = username.ifEmpty { "Utilisateur" },
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                if (isVerified) {
+                    Icon(
+                        imageVector = Icons.Filled.Verified,
+                        contentDescription = "Vérifié",
+                        tint = ProfileColors.Success, // Green badge
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.Info, // Or another icon like GppBad or ReportProblem
+                        contentDescription = "Non vérifié",
+                        tint = Color.Red, // Red badge
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
 
             Spacer(Modifier.height(6.dp))
 

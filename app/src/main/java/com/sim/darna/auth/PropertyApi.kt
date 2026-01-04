@@ -2,6 +2,8 @@ package com.sim.darna.auth
 
 import com.sim.darna.model.Property
 import com.sim.darna.model.PropertyWithBookings
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Call
 import retrofit2.http.*
 
@@ -13,6 +15,23 @@ interface PropertyApi {
     @GET("annonces/{id}")
     fun getPropertyById(@Path("id") id: String): Call<Property>
     
+    // Multipart support for file uploads with image verification
+    @Multipart
+    @POST("annonces")
+    fun createPropertyWithFiles(
+        @Part("title") title: RequestBody,
+        @Part("description") description: RequestBody,
+        @Part("price") price: RequestBody,
+        @Part("location") location: RequestBody,
+        @Part("type") type: RequestBody,
+        @Part("nbrCollocateurMax") nbrCollocateurMax: RequestBody,
+        @Part("nbrCollocateurActuel") nbrCollocateurActuel: RequestBody,
+        @Part("startDate") startDate: RequestBody,
+        @Part("endDate") endDate: RequestBody,
+        @Part images: List<MultipartBody.Part>
+    ): Call<Property>
+    
+    // Keep the old JSON-based endpoint for backward compatibility
     @POST("annonces")
     fun createProperty(@Body property: CreatePropertyRequest): Call<Property>
     

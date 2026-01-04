@@ -31,7 +31,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // Modern Color Palette
-private val PrimaryColor = Color(0xFFFF4B6E)
+private val PrimaryColor = Color(0xFF1382B3)
 private val SecondaryColor = Color(0xFF4C6FFF)
 private val AccentColor = Color(0xFFFFC857)
 private val BackgroundColor = Color(0xFFF7F7F7)
@@ -56,8 +56,6 @@ fun UpdateProfileScreen(
     var phone by remember { mutableStateOf(prefs.getString("numTel", "") ?: "") }
     var birthday by remember { mutableStateOf(prefs.getString("dateDeNaissance", "") ?: "") }
     var gender by remember { mutableStateOf(prefs.getString("gender", "") ?: "") }
-    var newPassword by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
 
     val isLoading by viewModel.isLoading.collectAsState()
     val isSuccess by viewModel.isSuccess.collectAsState()
@@ -209,14 +207,7 @@ fun UpdateProfileScreen(
                     placeholder = "AAAA-MM-JJ"
                 )
 
-                // Password
-                ModernPasswordField(
-                    label = "Nouveau mot de passe",
-                    value = newPassword,
-                    onValueChange = { newPassword = it },
-                    passwordVisible = passwordVisible,
-                    onToggleVisibility = { passwordVisible = !passwordVisible }
-                )
+
 
                 // Gender Selection
                 Column {
@@ -263,7 +254,6 @@ fun UpdateProfileScreen(
                         viewModel.updateProfile(
                             username = username,
                             email = email,
-                            password = newPassword.ifBlank { null },
                             numTel = phone.ifBlank { null },
                             dateDeNaissance = birthday.ifBlank { null },
                             gender = gender.ifBlank { null }

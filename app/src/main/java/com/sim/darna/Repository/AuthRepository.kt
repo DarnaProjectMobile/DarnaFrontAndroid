@@ -63,6 +63,15 @@ class AuthRepository(
         image: okhttp3.MultipartBody.Part?
     ): Call<RegisterResponse> =
         api.register(username, email, password, role, dateDeNaissance, numTel, gender, image)
+
+    fun verifyEmail(token: String, code: String): Call<AuthApi.VerifyEmailResponse> {
+        return api.verifyEmail("Bearer $token", AuthApi.VerifyEmailRequest(code))
+    }
+
+    fun sendVerificationCode(token: String): Call<AuthApi.VerifyEmailResponse> {
+        return api.sendVerificationCode("Bearer $token")
+    }
+
     fun forgotPassword(email: String): Call<AuthApi.ForgotPasswordResponse> {
         val request = AuthApi.ForgotPasswordRequest(email)
         return api.forgotPassword(request)

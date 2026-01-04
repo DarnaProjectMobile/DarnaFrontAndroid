@@ -37,7 +37,6 @@ class UpdateProfileViewModel : ViewModel() {
     fun updateProfile(
         username: String,
         email: String,
-        password: String? = null,  // Optional password
         numTel: String?,
         dateDeNaissance: String?,
         gender: String?
@@ -52,7 +51,6 @@ class UpdateProfileViewModel : ViewModel() {
             repository.updateUser(
                 username = username,
                 email = email,
-                password = password,  // Pass password (null if not changing)
                 numTel = numTel,
                 dateDeNaissance = dateDeNaissance,
                 gender = gender,

@@ -56,8 +56,20 @@ interface AuthApi {
                 .create(AuthApi::class.java)
         }
     }
+    @POST("users/me/verify")
+    fun verifyEmail(
+        @Header("Authorization") authToken: String,
+        @Body body: VerifyEmailRequest
+    ): Call<VerifyEmailResponse>
+
     @POST("users/forgot-password")
     fun forgotPassword(@Body body: ForgotPasswordRequest): Call<ForgotPasswordResponse>
+
+    data class VerifyEmailRequest(val code: String)
+    data class VerifyEmailResponse(val message: String)
+
+    @POST("users/me/send-verification")
+    fun sendVerificationCode(@Header("Authorization") authToken: String): Call<VerifyEmailResponse>
 
 
     @POST("users/reset-password")

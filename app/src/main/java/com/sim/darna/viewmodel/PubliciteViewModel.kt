@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import android.content.Context
 import android.net.Uri
 import com.sim.darna.data.model.Publicite
+import com.sim.darna.data.model.QRCodeVerificationResponse
 import com.sim.darna.data.repository.PubliciteRepository
 import com.sim.darna.data.repository.PubliciteUploadRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -72,44 +73,72 @@ class PubliciteViewModel @Inject constructor(
     }
 
     // CREATE
-    fun createPublicite(publicite: Map<String, Any>, onResult: (Boolean, String?) -> Unit) {
+    fun createPublicite(context: Context, publicite: Map<String, Any>, onResult: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             try {
-                val res = repository.create(publicite)
+                Log.d("PubliciteViewModel", "Creating publicite with payload: $publicite")
+                val res = repository.create(context, publicite)
                 if (res.isSuccessful) {
+                    val createdPublicite = res.body()
+                    Log.d("PubliciteViewModel", "Publicité créée avec succès")
+                    Log.d("PubliciteViewModel", "Type: ${createdPublicite?.type}")
+                    Log.d("PubliciteViewModel", "detailJeu: ${createdPublicite?.detailJeu}")
+                    Log.d("PubliciteViewModel", "gains dans la réponse: ${createdPublicite?.detailJeu?.gains}")
                     onResult(true, null)
                     loadPublicites()
                 } else {
-                    onResult(false, "Erreur: ${res.code()}")
+                    val errorBody = try {
+                        res.errorBody()?.string() ?: "Erreur ${res.code()}"
+                    } catch (e: Exception) {
+                        "Erreur ${res.code()}"
+                    }
+                    Log.e("PubliciteViewModel", "Error creating publicite: $errorBody")
+                    onResult(false, errorBody)
                 }
             } catch (e: Exception) {
-                onResult(false, e.localizedMessage)
+                Log.e("PubliciteViewModel", "Exception creating publicite: ${e.message}", e)
+                onResult(false, e.localizedMessage ?: e.message)
             }
         }
     }
 
     // UPDATE
-    fun updatePublicite(id: String, payload: Map<String, Any>, onResult: (Boolean, String?) -> Unit) {
+    fun updatePublicite(context: Context, id: String, payload: Map<String, Any>, onResult: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             try {
-                val res = repository.update(id, payload)
+                Log.d("PubliciteViewModel", "Updating publicite with payload: $payload")
+                val res = repository.update(context, id, payload)
                 if (res.isSuccessful) {
                     onResult(true, null)
                     loadPublicites()
                 } else {
-                    onResult(false, "Erreur: ${res.code()}")
+                    val errorBody = res.errorBody()?.string()
+                    val errorMessage = if (errorBody != null) {
+                        try {
+                            // Attempt to parse the error message from the JSON body
+                            val json = org.json.JSONObject(errorBody)
+                            json.optString("message", "Erreur: ${res.code()}")
+                        } catch (e: Exception) {
+                            "Erreur: ${res.code()} - $errorBody"
+                        }
+                    } else {
+                        "Erreur: ${res.code()}"
+                    }
+                    android.util.Log.e("PubliciteViewModel", "Error updating publicite: $errorMessage")
+                    onResult(false, errorMessage)
                 }
             } catch (e: Exception) {
+                android.util.Log.e("PubliciteViewModel", "Exception updating publicite: ${e.localizedMessage}")
                 onResult(false, e.localizedMessage)
             }
         }
     }
 
     // DELETE
-    fun deletePublicite(id: String, onResult: (Boolean, String?) -> Unit) {
+    fun deletePublicite(context: Context, id: String, onResult: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             try {
-                val res = repository.delete(id)
+                val res = repository.delete(context, id)
                 if (res.isSuccessful) {
                     onResult(true, null)
                     loadPublicites()
@@ -129,11 +158,24 @@ class PubliciteViewModel @Inject constructor(
             try {
                 val res = repository.getOne(id)
                 if (res.isSuccessful) {
-                    _detailState.value = UiState.Success(res.body())
+                    val publicite = res.body()
+                    Log.d("PubliciteViewModel", "Publicité chargée: ${publicite?.titre}")
+                    Log.d("PubliciteViewModel", "Type: ${publicite?.type}")
+                    Log.d("PubliciteViewModel", "qrCode présent: ${!publicite?.qrCode.isNullOrEmpty()}")
+                    Log.d("PubliciteViewModel", "qrCode length: ${publicite?.qrCode?.length}")
+                    Log.d("PubliciteViewModel", "qrCode (premiers 50 chars): ${publicite?.qrCode?.take(50)}")
+                    Log.d("PubliciteViewModel", "coupon: ${publicite?.coupon}")
+                    Log.d("PubliciteViewModel", "detailJeu: ${publicite?.detailJeu}")
+                    Log.d("PubliciteViewModel", "gains: ${publicite?.detailJeu?.gains}")
+                    Log.d("PubliciteViewModel", "gains type: ${publicite?.detailJeu?.gains?.javaClass}")
+                    _detailState.value = UiState.Success(publicite)
                 } else {
+                    val errorBody = res.errorBody()?.string()
+                    Log.e("PubliciteViewModel", "Erreur ${res.code()}: $errorBody")
                     _detailState.value = UiState.Error("Erreur: ${res.code()}")
                 }
             } catch (e: Exception) {
+                Log.e("PubliciteViewModel", "Erreur lors du chargement: ${e.message}", e)
                 _detailState.value = UiState.Error(e.localizedMessage ?: "Erreur réseau")
             }
         }
@@ -151,6 +193,69 @@ class PubliciteViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 onResult(false, e.localizedMessage ?: "Erreur réseau")
+            }
+        }
+    }
+    
+    // Verify QR Code
+    fun verifyQRCode(context: Context, qrData: String, onResult: (Boolean, QRCodeVerificationResponse?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val res = repository.verifyQRCode(context, qrData)
+                if (res.isSuccessful) {
+                    val response = res.body()
+                    if (response != null && response.valid) {
+                        // Vérifier la date d'expiration de la publicité
+                        if (response.publiciteId != null) {
+                            try {
+                                val publiciteRes = repository.getOne(response.publiciteId)
+                                if (publiciteRes.isSuccessful) {
+                                    val publicite = publiciteRes.body()
+                                    if (publicite != null && !publicite.dateExpiration.isNullOrEmpty()) {
+                                        // Vérifier si la date d'expiration est passée
+                                        val expirationDate = try {
+                                            java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).parse(publicite.dateExpiration)
+                                        } catch (e: Exception) {
+                                            try {
+                                                java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).parse(publicite.dateExpiration)
+                                            } catch (e2: Exception) {
+                                                null
+                                            }
+                                        }
+                                        
+                                        if (expirationDate != null) {
+                                            val now = java.util.Date()
+                                            if (expirationDate.before(now)) {
+                                                // La publicité a expiré, le QR code n'est plus valide
+                                                Log.d("PubliciteViewModel", "Publicité expirée: ${publicite.dateExpiration}")
+                                                onResult(false, QRCodeVerificationResponse(
+                                                    valid = false,
+                                                    message = "Ce QR Code n'est plus valide. La publicité a expiré le ${publicite.dateExpiration}.",
+                                                    reduction = response.reduction,
+                                                    publiciteId = response.publiciteId
+                                                ))
+                                                return@launch
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.e("PubliciteViewModel", "Erreur lors de la récupération de la publicité: ${e.message}", e)
+                                // Continuer avec la réponse originale si on ne peut pas vérifier la date
+                            }
+                        }
+                        onResult(true, response)
+                    } else {
+                        onResult(false, response)
+                    }
+                } else {
+                    val errorBody = res.errorBody()?.string()
+                    Log.e("PubliciteViewModel", "Error verifying QR code: $errorBody")
+                    onResult(false, null)
+                }
+            } catch (e: Exception) {
+                Log.e("PubliciteViewModel", "Exception verifying QR code: ${e.message}", e)
+                onResult(false, null)
             }
         }
     }

@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
 
 // Modern Color Palette
 object FeedbackColors {
-    val Primary = Color(0xFFFF4B6E)
+    val Primary = Color(0xFF1382B3)
     val Secondary = Color(0xFF4C6FFF)
     val Accent = Color(0xFFFFC857)
     val Background = Color(0xFFF7F7F7)

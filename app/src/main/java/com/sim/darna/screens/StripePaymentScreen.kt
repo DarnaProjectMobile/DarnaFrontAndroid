@@ -20,11 +20,12 @@ fun StripePaymentScreen(
     onPaymentCancel: () -> Unit,
     viewModel: StripeViewModel = hiltViewModel()
 ) {
+    //val
     val paymentState by viewModel.paymentState.collectAsState()
     val context = LocalContext.current
     
     LaunchedEffect(Unit) {
-        viewModel.createPaymentIntent(amount) { success, paymentUrl ->
+        viewModel.createPaymentIntent(context, amount) { success, paymentUrl ->
             if (success && !paymentUrl.isNullOrEmpty()) {
                 // Ouvrir le navigateur pour le paiement
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(paymentUrl))

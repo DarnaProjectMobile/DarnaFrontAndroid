@@ -28,9 +28,16 @@ fun QRCodeDisplay(
             // Décoder l'image base64
             val bitmap = remember(qrCodeBase64) {
                 try {
-                    val imageBytes = Base64.decode(qrCodeBase64, Base64.DEFAULT)
+                    // Retirer le préfixe "data:image/png;base64," si présent
+                    val base64Data = if (qrCodeBase64.startsWith("data:image")) {
+                        qrCodeBase64.substring(qrCodeBase64.indexOf(",") + 1)
+                    } else {
+                        qrCodeBase64
+                    }
+                    val imageBytes = Base64.decode(base64Data, Base64.DEFAULT)
                     BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
                 } catch (e: Exception) {
+                    android.util.Log.e("QRCodeDisplay", "Erreur lors du décodage du QR code: ${e.message}", e)
                     null
                 }
             }

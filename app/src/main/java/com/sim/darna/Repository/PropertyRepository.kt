@@ -1,11 +1,19 @@
 package com.sim.darna.repository
 
 import android.content.Context
+import android.graphics.Bitmap
 import com.sim.darna.auth.PropertyApi
 import com.sim.darna.auth.RetrofitClient
 import com.sim.darna.model.Property
 import com.sim.darna.model.PropertyWithBookings
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Call
+import java.io.File
+import java.io.FileOutputStream
 
 class PropertyRepository(private val context: Context) {
     
@@ -19,6 +27,69 @@ class PropertyRepository(private val context: Context) {
         return api.getPropertyById(id)
     }
     
+    /**
+     * Create property with actual file upload (enables backend image verification)
+     */
+    fun createPropertyWithImageFile(
+        title: String,
+        description: String,
+        price: Double,
+        location: String,
+        type: String,
+        imageBitmap: Bitmap,  // Pass the actual bitmap instead of base64
+        nbrCollocateurMax: Int,
+        nbrCollocateurActuel: Int,
+        startDate: String,
+        endDate: String
+    ): Call<Property> {
+        // Convert bitmap to temporary file
+        val imageFile = bitmapToFile(imageBitmap, "property_${System.currentTimeMillis()}.jpg")
+        
+        // Create RequestBody instances
+        val titleBody = title.toRequestBody("text/plain".toMediaTypeOrNull())
+        val descriptionBody = description.toRequestBody("text/plain".toMediaTypeOrNull())
+        val priceBody = price.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+        val locationBody = location.toRequestBody("text/plain".toMediaTypeOrNull())
+        val typeBody = type.toRequestBody("text/plain".toMediaTypeOrNull())
+        val nbrMaxBody = nbrCollocateurMax.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+        val nbrActuelBody = nbrCollocateurActuel.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+        val startDateBody = startDate.toRequestBody("text/plain".toMediaTypeOrNull())
+        val endDateBody = endDate.toRequestBody("text/plain".toMediaTypeOrNull())
+        
+        // Create MultipartBody.Part for the image
+        val requestFile = imageFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
+        val imagePart = MultipartBody.Part.createFormData("images", imageFile.name, requestFile)
+        
+        return api.createPropertyWithFiles(
+            title = titleBody,
+            description = descriptionBody,
+            price = priceBody,
+            location = locationBody,
+            type = typeBody,
+            nbrCollocateurMax = nbrMaxBody,
+            nbrCollocateurActuel = nbrActuelBody,
+            startDate = startDateBody,
+            endDate = endDateBody,
+            images = listOf(imagePart)
+        )
+    }
+    
+    /**
+     * Helper function to convert Bitmap to File
+     */
+    private fun bitmapToFile(bitmap: Bitmap, filename: String): File {
+        val file = File(context.cacheDir, filename)
+        file.createNewFile()
+        
+        val fos = FileOutputStream(file)
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 70, fos)
+        fos.flush()
+        fos.close()
+        
+        return file
+    }
+    
+    // Keep the old base64 method for backward compatibility
     fun createProperty(
         title: String,
         description: String,

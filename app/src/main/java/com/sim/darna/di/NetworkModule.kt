@@ -6,6 +6,7 @@ import com.sim.darna.data.remote.PubliciteApi
 import com.sim.darna.data.remote.PubliciteUploadService
 import com.sim.darna.data.remote.StripeService
 import com.sim.darna.utils.ApiConfig
+import com.sim.darna.utils.ApiConfig.BASE_URL
 import com.squareup.moshi.Moshi
 import dagger.Module
 import dagger.Provides
@@ -23,10 +24,6 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    // Pour l'émulateur Android, utilisez: "http://10.0.2.2:3000/"
-    // Pour un appareil physique sur le même réseau WiFi, utilisez: "http://192.168.1.11:3000/"
-    // Remplacez 192.168.1.11 par l'adresse IP locale de votre ordinateur
-    private const val BASE_URL = "http://10.0.2.2:3000/"
 
     @Provides
     @Singleton
@@ -54,7 +51,7 @@ object NetworkModule {
             .build()
 
         return Retrofit.Builder()
-            .baseUrl(ApiConfig.BASE_URL)
+            .baseUrl(BASE_URL)
             .client(client)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()

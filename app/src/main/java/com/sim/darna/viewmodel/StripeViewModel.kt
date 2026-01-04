@@ -1,5 +1,6 @@
 package com.sim.darna.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sim.darna.data.repository.StripeRepository
@@ -23,21 +24,24 @@ class StripeViewModel @Inject constructor(
     private val _paymentState = MutableStateFlow(StripePaymentState())
     val paymentState: StateFlow<StripePaymentState> = _paymentState
     
-    fun createPaymentIntent(amount: Double, onResult: (Boolean, String?) -> Unit) {
+    fun createPaymentIntent(context: Context, amount: Double, onResult: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             _paymentState.value = StripePaymentState(isLoading = true)
             try {
-                val response = repository.createPaymentIntent(amount)
+                val response = repository.createPaymentIntent(context, amount)
                 if (response.isSuccessful && response.body() != null) {
                     val clientSecret = response.body()!!.clientSecret
                     _paymentState.value = StripePaymentState(paymentUrl = clientSecret)
                     onResult(true, clientSecret)
                 } else {
-                    val error = "Erreur lors de la création du paiement"
-                    _paymentState.value = StripePaymentState(error = error)
+                    val errorBody = response.errorBody()?.string()
+                    val errorMsg = "Payment error (${response.code()}): $errorBody"
+                    android.util.Log.e("StripeViewModel", errorMsg)
+                    _paymentState.value = StripePaymentState(error = errorMsg)
                     onResult(false, null)
                 }
             } catch (e: Exception) {
+                android.util.Log.e("StripeViewModel", "Payment exception: ${e.message}", e)
                 _paymentState.value = StripePaymentState(error = e.message)
                 onResult(false, null)
             }

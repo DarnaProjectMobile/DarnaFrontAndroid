@@ -20,6 +20,14 @@ object TokenStorage {
             .apply()
     }
 
+    // Overload that accepts SharedPreferences directly (for ViewModels)
+    fun saveAuthDataFromPrefs(prefs: SharedPreferences, token: String, userId: String) {
+        prefs.edit()
+            .putString(TOKEN_KEY, token)
+            .putString(USER_ID_KEY, userId)
+            .apply()
+    }
+
     // -----------------------------
     // 🔥 Save token only (fallback)
     // -----------------------------

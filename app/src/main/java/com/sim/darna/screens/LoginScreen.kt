@@ -2,6 +2,7 @@ package com.sim.darna.screens
 
 import android.content.Context
 import android.widget.Toast
+import com.sim.darna.R
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
@@ -48,7 +49,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.Executor
 
 // Modern Color Palette
-private val PrimaryColor = Color(0xFFFF4B6E)
+private val PrimaryColor = Color(0xFF1382B3)
 private val SecondaryColor = Color(0xFF4C6FFF)
 private val AccentColor = Color(0xFFFFC857)
 private val BackgroundColor = Color(0xFFF7F7F7)
@@ -57,7 +58,7 @@ private val TextPrimary = Color(0xFF1A1A1A)
 private val TextSecondary = Color(0xFF6B6B6B)
 
 @Composable
-fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
+fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit, onForgotPassword: () -> Unit) {
     val context = LocalContext.current
 
     var email by remember { mutableStateOf("") }
@@ -271,49 +272,22 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
             // Logo Section with animation
             AnimatedVisibility(
                 visible = visible,
-                enter = fadeIn(animationSpec = tween(800)) + scaleIn(
-                    initialScale = 0.8f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessLow
-                    )
-                )
-            ) {
-                Surface(
-                    modifier = Modifier.size(120.dp),
-                    shape = CircleShape,
-                    color = SurfaceColor,
-                    shadowElevation = 8.dp
-                ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        PrimaryColor.copy(alpha = 0.1f),
-                                        SecondaryColor.copy(alpha = 0.1f)
-                                    )
-                                )
+                enter = fadeIn(animationSpec = tween(800)) +
+                        scaleIn(
+                            initialScale = 0.6f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessLow
                             )
-                    ) {
-                        // TODO: Replace with your logo
-                        // Image(
-                        //     painter = painterResource(id = R.drawable.your_logo),
-                        //     contentDescription = "Logo",
-                        //     modifier = Modifier.size(80.dp)
-                        // )
-
-                        Icon(
-                            Icons.Outlined.Home,
-                            contentDescription = "Logo",
-                            modifier = Modifier.size(60.dp),
-                            tint = PrimaryColor
                         )
-                    }
-                }
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.logo),
+                    contentDescription = "Darna Logo",
+                    modifier = Modifier.size(190.dp)
+                )
             }
+
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -474,6 +448,20 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUp: () -> Unit) {
                                     color = PrimaryColor,
                                     fontSize = 12.sp,
                                     modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                                )
+                            }
+                            
+                            // Forgot Password Link
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.TopEnd
+                            ) {
+                                Text(
+                                    text = "Mot de passe oublié ?",
+                                    color = PrimaryColor,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.clickable { onForgotPassword() }
                                 )
                             }
                         }
@@ -720,7 +708,7 @@ private fun authenticateWithFingerprint(
                 if (!FingerprintManager.isFingerprintEnabled(context)) {
                     FingerprintManager.setFingerprintEnabled(context, true)
                 }
-                
+
                 // Get saved credentials for fingerprint
                 val (email, password) = FingerprintManager.getSavedCredentials(context)
                 if (!email.isNullOrBlank() && !password.isNullOrBlank()) {
