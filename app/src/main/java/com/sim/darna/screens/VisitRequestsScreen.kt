@@ -5,6 +5,8 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -29,6 +31,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import com.sim.darna.factory.VisiteVmFactory
+import com.sim.darna.navigation.Routes
 import com.sim.darna.ui.components.*
 import com.sim.darna.utils.ApiConfig
 import com.sim.darna.visite.VisiteResponse
@@ -243,6 +246,31 @@ fun VisitRequestsScreen(navController: NavController) {
                                             navController.navigate(
                                                 "chat/$id/${java.net.URLEncoder.encode(title, "UTF-8")}"
                                             )
+                                        },
+                                        onPropertyClick = { logementId ->
+                                            android.util.Log.d("VisitRequestsScreen", "onPropertyClick called with logementId: $logementId")
+                                            val validId = logementId?.trim()
+                                            if (!validId.isNullOrBlank() && validId.isNotEmpty()) {
+                                                try {
+                                                    val route = "property_bookings/$validId"
+                                                    android.util.Log.d("VisitRequestsScreen", "Navigating to: $route")
+                                                    navController.navigate(route) {
+                                                        // Prevent multiple navigations
+                                                        launchSingleTop = true
+                                                    }
+                                                } catch (e: IllegalArgumentException) {
+                                                    android.util.Log.e("VisitRequestsScreen", "Invalid route", e)
+                                                    e.printStackTrace()
+                                                    Toast.makeText(context, "Route invalide: ${e.message}", Toast.LENGTH_SHORT).show()
+                                                } catch (e: Exception) {
+                                                    android.util.Log.e("VisitRequestsScreen", "Navigation error", e)
+                                                    e.printStackTrace()
+                                                    Toast.makeText(context, "Erreur de navigation: ${e.message}", Toast.LENGTH_SHORT).show()
+                                                }
+                                            } else {
+                                                android.util.Log.w("VisitRequestsScreen", "logementId is null, blank, or empty")
+                                                Toast.makeText(context, "ID de logement manquant ou invalide", Toast.LENGTH_SHORT).show()
+                                            }
                                         }
                                     )
                                 }
@@ -262,7 +290,8 @@ private fun VisitRequestCard(
     showActions: Boolean,
     onAccept: (String) -> Unit,
     onReject: (String) -> Unit,
-    onChatClick: (String, String) -> Unit
+    onChatClick: (String, String) -> Unit,
+    onPropertyClick: (String?) -> Unit = {}
 ) {
     var isVisible by remember { mutableStateOf(false) }
 
@@ -326,6 +355,12 @@ private fun VisitRequestCard(
                                     Color(0xFFF57C00).copy(alpha = 0.08f)
                                 )
                             )
+                        )
+                        .clickable(
+                            enabled = !visite.logementId.isNullOrBlank(),
+                            onClick = {
+                                visite.logementId?.let { onPropertyClick(it) }
+                            }
                         )
                 ) {
                     Row(
@@ -501,45 +536,54 @@ private fun VisitRequestCard(
 
                     // Action Buttons
                     if (showActions) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(AppSpacing.md)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                                ) { /* Stop propagation */ }
                         ) {
-                            // Reject Button
-                            OutlinedButton(
-                                onClick = { visite.id?.let { onReject(it) } },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(AppRadius.md),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = AppColors.danger
-                                ),
-                                border = BorderStroke(2.dp, AppColors.danger)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(AppSpacing.md)
                             ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text("Refuser", fontWeight = FontWeight.Bold)
-                            }
+                                // Reject Button
+                                OutlinedButton(
+                                    onClick = { visite.id?.let { onReject(it) } },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(AppRadius.md),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = AppColors.danger
+                                    ),
+                                    border = BorderStroke(2.dp, AppColors.danger)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Refuser", fontWeight = FontWeight.Bold)
+                                }
 
-                            // Accept Button
-                            Button(
-                                onClick = { visite.id?.let { onAccept(it) } },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(AppRadius.md),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = AppColors.success
-                                )
-                            ) {
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text("Accepter", fontWeight = FontWeight.Bold)
+                                // Accept Button
+                                Button(
+                                    onClick = { visite.id?.let { onAccept(it) } },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(AppRadius.md),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = AppColors.success
+                                    )
+                                ) {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Accepter", fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }

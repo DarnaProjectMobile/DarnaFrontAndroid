@@ -54,6 +54,29 @@ fun PropertyBookingsScreen(
     var isProcessing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
+    // Safety check for empty propertyId
+    if (propertyId.isBlank()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "ID de propriété invalide",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Button(onClick = { navController.popBackStack() }) {
+                    Text("Retour")
+                }
+            }
+        }
+        return
+    }
+    
     fun loadProperty() {
         isLoading = true
         errorMessage = null
@@ -661,42 +684,292 @@ private fun PendingBookingCard(
     if (showAcceptDialog) {
         AlertDialog(
             onDismissRequest = { showAcceptDialog = false },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        color = Color(0xFFE8F5E9),
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = Color(0xFF2E7D32),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Accepter la demande ?",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppTheme.textPrimary
+                    )
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Cette personne sera ajoutée à vos colocataires confirmés.",
+                        fontSize = 15.sp,
+                        color = AppTheme.textSecondary,
+                        lineHeight = 22.sp
+                    )
+                    if (user != null) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = AppTheme.primaryLight.copy(alpha = 0.3f)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = AppTheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = user.username ?: "Utilisateur",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = AppTheme.textPrimary
+                                    )
+                                }
+                                if (bookingDate != null) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CalendarToday,
+                                            contentDescription = null,
+                                            tint = AppTheme.textSecondary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = "Souhaite emménager le $bookingDate",
+                                            fontSize = 13.sp,
+                                            color = AppTheme.textSecondary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
             confirmButton = {
-                TextButton(onClick = {
-                    showAcceptDialog = false
-                    onAccept()
-                }) {
-                    Text("Confirmer")
+                Button(
+                    onClick = {
+                        showAcceptDialog = false
+                        onAccept()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF2E7D32),
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Confirmer",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAcceptDialog = false }) {
-                    Text("Annuler")
+                OutlinedButton(
+                    onClick = { showAcceptDialog = false },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = AppTheme.textSecondary
+                    ),
+                    border = ButtonDefaults.outlinedButtonBorder.copy(
+                        width = 1.dp,
+                        brush = androidx.compose.ui.graphics.SolidColor(AppTheme.textSecondary.copy(alpha = 0.5f))
+                    )
+                ) {
+                    Text(
+                        text = "Annuler",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
                 }
             },
-            title = { Text("Accepter la demande ?") },
-            text = { Text("Cette personne sera ajoutée à vos colocataires confirmés.") }
+            containerColor = AppTheme.card,
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 8.dp
         )
     }
     
     if (showRejectDialog) {
         AlertDialog(
             onDismissRequest = { showRejectDialog = false },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        color = Color(0xFFFFEBEE),
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = null,
+                                tint = Color(0xFFD32F2F),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Refuser la demande ?",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppTheme.textPrimary
+                    )
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Cette demande sera supprimée définitivement.",
+                        fontSize = 15.sp,
+                        color = AppTheme.textSecondary,
+                        lineHeight = 22.sp
+                    )
+                    if (user != null) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFFFEBEE).copy(alpha = 0.5f)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = Color(0xFFD32F2F),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = user.username ?: "Utilisateur",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = AppTheme.textPrimary
+                                    )
+                                }
+                                if (bookingDate != null) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CalendarToday,
+                                            contentDescription = null,
+                                            tint = AppTheme.textSecondary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = "Souhaite emménager le $bookingDate",
+                                            fontSize = 13.sp,
+                                            color = AppTheme.textSecondary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
             confirmButton = {
-                TextButton(onClick = {
-                    showRejectDialog = false
-                    onReject()
-                }) {
-                    Text("Refuser", color = Color.Red)
+                Button(
+                    onClick = {
+                        showRejectDialog = false
+                        onReject()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFD32F2F),
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Refuser",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showRejectDialog = false }) {
-                    Text("Annuler")
+                OutlinedButton(
+                    onClick = { showRejectDialog = false },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = AppTheme.textSecondary
+                    ),
+                    border = ButtonDefaults.outlinedButtonBorder.copy(
+                        width = 1.dp,
+                        brush = androidx.compose.ui.graphics.SolidColor(AppTheme.textSecondary.copy(alpha = 0.5f))
+                    )
+                ) {
+                    Text(
+                        text = "Annuler",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
                 }
             },
-            title = { Text("Refuser la demande ?") },
-            text = { Text("Cette demande sera supprimée définitivement.") }
+            containerColor = AppTheme.card,
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 8.dp
         )
     }
 }

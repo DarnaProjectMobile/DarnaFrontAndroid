@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
@@ -99,6 +101,7 @@ fun AddPropertyFormView(
     var showEndDatePicker by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showErrorDialog by remember { mutableStateOf(false) }
     
     // Map-related state
     var addressSearchQuery by remember { mutableStateOf("") }
@@ -383,27 +386,61 @@ fun AddPropertyFormView(
     // Main UI
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        if (propertyToEdit == null) "Nouvelle Annonce" else "Modifier l'annonce",
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onDismiss) {
+            Column {
+                Spacer(modifier = Modifier.height(12.dp))
+                Surface(shadowElevation = 6.dp) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        AppTheme.primary,
+                                        AppTheme.primary.copy(alpha = 0.9f)
+                                    )
+                                )
+                            )
+                            .padding(horizontal = 16.dp, vertical = 14.dp)
+                    ) {
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.align(Alignment.CenterStart)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Retour",
+                                tint = Color.White
+                            )
+                        }
+
+                        Column(
+                            modifier = Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = if (propertyToEdit == null) "Nouvelle Annonce" else "Modifier l'annonce",
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Remplissez les informations ci-dessous",
+                                color = Color.White.copy(alpha = 0.85f),
+                                fontSize = 13.sp
+                            )
+                        }
+
                         Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Fermer",
-                            tint = AppTheme.textSecondary
+                            imageVector = if (propertyToEdit == null) Icons.Default.AddCircle else Icons.Default.Edit,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .size(24.dp)
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = AppTheme.background,
-                    titleContentColor = AppTheme.textPrimary
-                )
-            )
+                }
+            }
         },
         containerColor = AppTheme.background
     ) { paddingValues ->
@@ -582,9 +619,23 @@ fun AddPropertyFormView(
                     }
                 }
                 
-                // Error Message
+                // Error Message - Show banner for non-image errors
                 errorMessage?.let { msg ->
-                    ErrorBanner(message = msg)
+                    val isImageError = msg.contains("not house-related", ignoreCase = true) || 
+                                      msg.contains("house-related", ignoreCase = true) ||
+                                      msg.contains("images are not", ignoreCase = true) ||
+                                      msg.contains("property_", ignoreCase = true) ||
+                                      msg.contains(".jpg", ignoreCase = true) ||
+                                      msg.contains("upload images", ignoreCase = true)
+                    
+                    if (!isImageError) {
+                        ErrorBanner(message = msg)
+                    } else {
+                        // Trigger dialog for image-related errors
+                        LaunchedEffect(msg) {
+                            showErrorDialog = true
+                        }
+                    }
                 }
                 
                 // Save Button
@@ -602,6 +653,106 @@ fun AddPropertyFormView(
                 Spacer(modifier = Modifier.height(20.dp))
             }
         }
+    }
+    
+    // Image Error Dialog
+    if (showErrorDialog && errorMessage != null) {
+        AlertDialog(
+            onDismissRequest = { 
+                showErrorDialog = false
+                errorMessage = null
+            },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFFFFEBEE),
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = Color(0xFFD32F2F),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Image non valide",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppTheme.textPrimary
+                    )
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = errorMessage ?: "",
+                        fontSize = 15.sp,
+                        color = AppTheme.textSecondary,
+                        lineHeight = 22.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = AppTheme.primaryLight.copy(alpha = 0.3f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = AppTheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "Veuillez télécharger des images d'intérieurs ou d'extérieurs de maison uniquement.",
+                                fontSize = 13.sp,
+                                color = AppTheme.textPrimary,
+                                lineHeight = 18.sp
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { 
+                        showErrorDialog = false
+                        errorMessage = null
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppTheme.primary,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Compris",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+            },
+            containerColor = AppTheme.card,
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 8.dp
+        )
     }
     
     // Date pickers

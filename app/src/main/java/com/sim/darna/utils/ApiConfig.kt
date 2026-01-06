@@ -10,7 +10,7 @@ object ApiConfig {
     //const val BASE_URL = "https://darna-app.onrender.com/"
     
     // Alternative URLs for different environments (uncomment and use as needed):
-     const val BASE_URL = "http://192.168.1.165:3000/"  // Android emulator localhost
+     const val BASE_URL = "http://192.168.100.3:3000/"  // Android emulator localhost
     // const val BASE_URL = "http://10.0.2.2:3000/"      // Android emulator localhost
     // const val BASE_URL = "http://172.16.11.61:3000/"  // Alternative local IP
 }

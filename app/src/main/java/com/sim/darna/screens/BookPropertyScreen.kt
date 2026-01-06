@@ -23,6 +23,9 @@ import com.sim.darna.repository.PropertyRepository
 import com.sim.darna.ui.theme.AppTheme
 import java.text.SimpleDateFormat
 import java.util.*
+import org.json.JSONObject
+import org.json.JSONArray
+import android.util.Log
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +41,7 @@ fun BookPropertyScreen(navController: androidx.navigation.NavController, propert
     var showDatePicker by remember { mutableStateOf(false) }
     var showSuccessDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showErrorDialog by remember { mutableStateOf(false) }
     
     val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
     dateFormat.timeZone = TimeZone.getTimeZone("UTC")
@@ -476,33 +480,6 @@ fun BookPropertyScreen(navController: androidx.navigation.NavController, propert
                             }
                         )
                         
-                        errorMessage?.let {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFFFFEBEE),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Error,
-                                        contentDescription = null,
-                                        tint = Color(0xFFD32F2F),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Text(
-                                        text = it, 
-                                        color = Color(0xFFD32F2F), 
-                                        fontSize = 12.sp,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                            }
-                        }
                         
                         Spacer(modifier = Modifier.height(16.dp))
                         
@@ -511,34 +488,109 @@ fun BookPropertyScreen(navController: androidx.navigation.NavController, propert
                             onClick = {
                                 if (selectedDate == null) {
                                     errorMessage = "Veuillez sélectionner une date"
+                                    showErrorDialog = true
                                     return@Button
                                 }
                                 
-                                // Validate date range
-                                if (startDate != null && selectedDate!!.before(startDate)) {
+                                // Validate date range - must match backend logic exactly:
+                                // bookingDate >= startDate AND bookingDate < endDate (strictly less than endDate)
+                                // We need to compare dates at UTC midnight to match backend
+                                val localCal = Calendar.getInstance()
+                                localCal.time = selectedDate!!
+                                val selYear = localCal.get(Calendar.YEAR)
+                                val selMonth = localCal.get(Calendar.MONTH)
+                                val selDay = localCal.get(Calendar.DAY_OF_MONTH)
+                                
+                                val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+                                utcCal.set(selYear, selMonth, selDay, 0, 0, 0)
+                                utcCal.set(Calendar.MILLISECOND, 0)
+                                val selectedUtc = utcCal.time
+                                
+                                val startDateUtc = startDate?.let {
+                                    val startCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+                                    val localStartCal = Calendar.getInstance()
+                                    localStartCal.time = it
+                                    startCal.set(
+                                        localStartCal.get(Calendar.YEAR),
+                                        localStartCal.get(Calendar.MONTH),
+                                        localStartCal.get(Calendar.DAY_OF_MONTH),
+                                        0, 0, 0
+                                    )
+                                    startCal.set(Calendar.MILLISECOND, 0)
+                                    startCal.time
+                                }
+                                
+                                val endDateUtc = endDate?.let {
+                                    val endCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+                                    val localEndCal = Calendar.getInstance()
+                                    localEndCal.time = it
+                                    endCal.set(
+                                        localEndCal.get(Calendar.YEAR),
+                                        localEndCal.get(Calendar.MONTH),
+                                        localEndCal.get(Calendar.DAY_OF_MONTH),
+                                        0, 0, 0
+                                    )
+                                    endCal.set(Calendar.MILLISECOND, 0)
+                                    endCal.time
+                                }
+                                
+                                if (startDateUtc != null && selectedUtc.before(startDateUtc)) {
                                     errorMessage = "La date doit être >= ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(startDate)}"
+                                    showErrorDialog = true
                                     return@Button
                                 }
                                 
-                                if (endDate != null && selectedDate!!.after(endDate)) {
-                                    errorMessage = "La date doit être <= ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(endDate)}"
+                                // Backend uses: bookingDate >= endDate (reject), so we reject if selectedUtc >= endDateUtc
+                                if (endDateUtc != null && !selectedUtc.before(endDateUtc)) {
+                                    errorMessage = "La date doit être < ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(endDate)}"
+                                    showErrorDialog = true
                                     return@Button
                                 }
                                 
                                 errorMessage = null
-                                val dateStr = dateFormat.format(selectedDate!!)
+                                
+                                // Format date: Extract year/month/day from selected date and set to UTC midnight
+                                // This ensures the date doesn't shift due to timezone conversion
+                                val localCalendar = Calendar.getInstance()
+                                localCalendar.time = selectedDate!!
+                                val year = localCalendar.get(Calendar.YEAR)
+                                val month = localCalendar.get(Calendar.MONTH)
+                                val day = localCalendar.get(Calendar.DAY_OF_MONTH)
+                                
+                                // Create a new date at UTC midnight with the same year/month/day
+                                val utcCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+                                utcCalendar.set(year, month, day, 0, 0, 0)
+                                utcCalendar.set(Calendar.MILLISECOND, 0)
+                                
+                                val dateStr = dateFormat.format(utcCalendar.time)
+                                
+                                // Debug logging
+                                Log.d("BookPropertyScreen", "Selected date (local): ${selectedDate}")
+                                Log.d("BookPropertyScreen", "Year: $year, Month: $month, Day: $day")
+                                Log.d("BookPropertyScreen", "UTC date: ${utcCalendar.time}")
+                                Log.d("BookPropertyScreen", "Formatted date string: $dateStr")
+                                Log.d("BookPropertyScreen", "Property startDate: ${prop.startDate}")
+                                Log.d("BookPropertyScreen", "Property endDate: ${prop.endDate}")
                                 
                                 repository.bookProperty(propertyId, dateStr).enqueue(object : retrofit2.Callback<Property> {
                                     override fun onResponse(call: retrofit2.Call<Property>, response: retrofit2.Response<Property>) {
                                         if (response.isSuccessful) {
                                             showSuccessDialog = true
+                                            errorMessage = null
                                         } else {
-                                            errorMessage = "Erreur lors de la réservation"
+                                            val errorBody = response.errorBody()?.string()
+                                            val extractedError = extractServerError(errorBody, response.code())
+                                            errorMessage = extractedError
+                                            showErrorDialog = true
                                         }
                                     }
                                     
                                     override fun onFailure(call: retrofit2.Call<Property>, t: Throwable) {
-                                        errorMessage = "Erreur: ${t.message}"
+                                        errorMessage = when (t) {
+                                            is java.net.UnknownHostException -> "Impossible de contacter le serveur. Vérifiez votre connexion."
+                                            else -> "Erreur: ${t.message ?: "inconnue"}"
+                                        }
+                                        showErrorDialog = true
                                     }
                                 })
                             },
@@ -592,11 +644,13 @@ fun BookPropertyScreen(navController: androidx.navigation.NavController, propert
                 calendar.set(year, month, day)
                 val selected = calendar.time
                 
-                // Validate date range
+                // Validate date range (same as clone project)
                 if (startDate != null && selected.before(startDate)) {
                     errorMessage = "La date doit être >= ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(startDate)}"
+                    showErrorDialog = true
                 } else if (endDate != null && selected.after(endDate)) {
                     errorMessage = "La date doit être <= ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(endDate)}"
+                    showErrorDialog = true
                 } else {
                     selectedDate = selected
                     errorMessage = null
@@ -609,6 +663,83 @@ fun BookPropertyScreen(navController: androidx.navigation.NavController, propert
         )
     }
     
+    // Error Dialog
+    if (showErrorDialog && errorMessage != null) {
+        AlertDialog(
+            onDismissRequest = { 
+                showErrorDialog = false
+                errorMessage = null
+            },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        color = Color(0xFFFFEBEE),
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = null,
+                                tint = Color(0xFFD32F2F),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Erreur lors de la réservation",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppTheme.textPrimary
+                    )
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = errorMessage ?: "",
+                        fontSize = 15.sp,
+                        color = AppTheme.textSecondary,
+                        lineHeight = 22.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { 
+                        showErrorDialog = false
+                        errorMessage = null
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppTheme.primary,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Compris",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+            },
+            containerColor = AppTheme.card,
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 8.dp
+        )
+    }
+    
+    // Success Dialog
     if (showSuccessDialog) {
         AlertDialog(
             onDismissRequest = { 
@@ -674,5 +805,59 @@ private fun formatBookingDate(dateString: String): String {
         date?.let { outputFormat.format(it) } ?: dateString
     } catch (e: Exception) {
         dateString
+    }
+}
+
+private fun extractServerError(rawBody: String?, code: Int): String {
+    if (rawBody.isNullOrBlank()) {
+        return when (code) {
+            400 -> "Requête invalide. Veuillez vérifier les données saisies."
+            401 -> "Session expirée. Veuillez vous reconnecter."
+            403 -> "Vous n'avez pas la permission d'effectuer cette action."
+            404 -> "L'annonce n'a pas été trouvée."
+            500 -> "Erreur serveur. Veuillez réessayer plus tard."
+            else -> "Erreur de réservation (code $code)"
+        }
+    }
+    
+    return try {
+        val json = JSONObject(rawBody)
+        val message = when {
+            json.has("message") -> {
+                val messageNode = json.get("message")
+                when (messageNode) {
+                    is JSONArray -> (0 until messageNode.length())
+                        .joinToString("\n") { messageNode.getString(it) }
+                    is String -> messageNode
+                    else -> messageNode.toString()
+                }
+            }
+            json.has("error") -> json.getString("error")
+            else -> rawBody
+        }
+        
+        // Translate common backend error messages to French
+        when {
+            message.contains("bookingStartDate must be >= annonce.startDate and < annonce.endDate", ignoreCase = true) -> 
+                "La date de réservation doit être dans la période de disponibilité de l'annonce."
+            message.contains("bookingStartDate must be", ignoreCase = true) -> 
+                "La date de réservation doit être dans la période de disponibilité de l'annonce."
+            message.contains("Annonce #", ignoreCase = true) && message.contains("not found", ignoreCase = true) -> 
+                "L'annonce n'a pas été trouvée."
+            message.contains("not found", ignoreCase = true) -> 
+                "L'annonce n'a pas été trouvée."
+            else -> message
+        }
+    } catch (e: Exception) {
+        // If parsing fails, try to extract a simple message from raw body
+        when {
+            rawBody.contains("bookingStartDate must be", ignoreCase = true) -> 
+                "La date de réservation doit être dans la période de disponibilité de l'annonce."
+            rawBody.contains("not found", ignoreCase = true) -> 
+                "L'annonce n'a pas été trouvée."
+            rawBody.contains("Annonce", ignoreCase = true) && rawBody.contains("#", ignoreCase = false) -> 
+                "L'annonce n'existe plus."
+            else -> "Erreur lors de la réservation. Veuillez réessayer."
+        }
     }
 }

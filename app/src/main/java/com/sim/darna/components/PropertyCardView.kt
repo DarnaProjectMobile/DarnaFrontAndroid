@@ -155,23 +155,94 @@ fun PropertyCardView(
                     )
                     
                     if (!isGridMode && canManage) {
-                        Row {
-                            IconButton(onClick = { onEdit?.invoke() }) {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = "Edit",
-                                    modifier = Modifier.size(18.dp),
-                                    tint = AppTheme.primary
-                                )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                                // Modifier button
+                                Button(
+                                    onClick = { onEdit?.invoke() },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFFE3F2FD), // Light blue background
+                                        contentColor = AppTheme.primary // Dark blue text and icon
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                                    modifier = Modifier.height(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Modifier",
+                                        modifier = Modifier.size(16.dp),
+                                        tint = AppTheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Modifier",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AppTheme.primary
+                                    )
+                                }
+                                
+                                // Supprimer button
+                                Button(
+                                    onClick = { onDelete?.invoke() },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFFFFEBEE), // Light red/pink background
+                                        contentColor = Color(0xFFD32F2F) // Dark red text and icon
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                                    modifier = Modifier.height(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Supprimer",
+                                        modifier = Modifier.size(16.dp),
+                                        tint = Color(0xFFD32F2F)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Supprimer",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFD32F2F)
+                                    )
+                                }
                             }
-                            IconButton(onClick = { onDelete?.invoke() }) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Delete",
-                                    modifier = Modifier.size(18.dp),
-                                    tint = Color.Red
-                                )
-                            }
+                    }
+                }
+                
+                // Edit and Delete buttons for grid mode (bottom right)
+                if (isGridMode && canManage) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Edit icon button
+                        IconButton(
+                            onClick = { onEdit?.invoke() }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Modifier",
+                                modifier = Modifier.size(20.dp),
+                                tint = AppTheme.primary
+                            )
+                        }
+                        
+                        // Delete icon button
+                        IconButton(
+                            onClick = { onDelete?.invoke() }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Supprimer",
+                                modifier = Modifier.size(20.dp),
+                                tint = Color(0xFFD32F2F)
+                            )
                         }
                     }
                 }

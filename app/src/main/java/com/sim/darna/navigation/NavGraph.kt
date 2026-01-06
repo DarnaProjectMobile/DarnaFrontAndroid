@@ -29,7 +29,7 @@ object Routes {
     const val AcceptedClients = "accepted_clients"
     const val ConfirmedClients = "confirmed_clients/{propertyId}"
     const val BookProperty = "book_property/{propertyId}"
-    const val PropertyBookings = "property_books/{propertyId}"
+    const val PropertyBookings = "property_bookings/{propertyId}"
     const val Notifications = "notifications"
     const val Map = "map"
     const val ReviewSummary = "reviewSummary/{propertyId}/{propertyName}"
