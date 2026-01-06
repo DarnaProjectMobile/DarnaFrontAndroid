@@ -29,6 +29,7 @@ object Routes {
     const val AcceptedClients = "accepted_clients"
     const val ConfirmedClients = "confirmed_clients/{propertyId}"
     const val BookProperty = "book_property/{propertyId}"
+    const val BookVisit = "book_visit/{propertyId}"
     const val PropertyBookings = "property_books/{propertyId}"
     const val Notifications = "notifications"
     const val Map = "map"
@@ -180,6 +181,14 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         ) { backStackEntry ->
             val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
             BookPropertyScreen(navController, propertyId)
+        }
+        
+        composable(
+            route = Routes.BookVisit,
+            arguments = listOf(navArgument("propertyId") { type = androidx.navigation.NavType.StringType })
+        ) { backStackEntry ->
+            val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
+            BookVisitScreen(navController, propertyId)
         }
         composable(
             route = Routes.PropertyBookings,

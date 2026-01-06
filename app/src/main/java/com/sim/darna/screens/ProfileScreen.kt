@@ -220,11 +220,59 @@ fun ProfileScreen(navController: NavHostController) {
                     }
                 }
 
-                // Reservation Management
+                // Collocator Dashboard Access
+                if (role == "collocator") {
+                    ModernInfoCard(
+                        title = "Espace Propriétaire",
+                        icon = Icons.Outlined.Dashboard,
+                        iconColor = ProfileColors.Accent
+                    ) {
+                        Text(
+                            text = "Gérez vos annonces et suivez vos statistiques.",
+                            color = ProfileColors.TextSecondary,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                        
+                        ModernButton(
+                            text = "Accéder au Tableau de Bord",
+                            icon = Icons.Default.BarChart,
+                            backgroundColor = ProfileColors.Primary,
+                            textColor = Color.White,
+                            onClick = { navController.navigate(Routes.Dashboard) }
+                        )
+                    }
+                }
+
+                // Reservation Management (Announces)
                 ReservationManagementCard(
                     onPendingClick = { navController.navigate(Routes.Reservations) },
                     onAcceptedClick = { navController.navigate(Routes.AcceptedClients) }
                 )
+
+                // Visit Management (Visits) - Specific for Collocator
+                if (role == "collocator") {
+                    ModernInfoCard(
+                        title = "Gestion des Visites",
+                        icon = Icons.Outlined.EventRepeat,
+                        iconColor = ProfileColors.Primary
+                    ) {
+                        Text(
+                            text = "Gérez les demandes de visites de vos futurs colocataires.",
+                            color = ProfileColors.TextSecondary,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                        
+                        ModernButton(
+                            text = "Demandes de Visites",
+                            icon = Icons.Default.FactCheck,
+                            backgroundColor = ProfileColors.Secondary,
+                            textColor = Color.White,
+                            onClick = { navController.navigate(Routes.VisitRequests) }
+                        )
+                    }
+                }
 
                 // Fingerprint Settings
                 FingerprintSettingsCard(context = context)

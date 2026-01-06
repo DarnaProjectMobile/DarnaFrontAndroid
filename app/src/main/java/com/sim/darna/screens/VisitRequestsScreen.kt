@@ -44,6 +44,7 @@ fun VisitRequestsScreen(navController: NavController) {
 
     val viewModel: VisiteViewModel = viewModel(factory = VisiteVmFactory(ApiConfig.BASE_URL, context))
     val uiState = viewModel.state.collectAsState().value
+    var viewingReviewVisite by remember { mutableStateOf<VisiteResponse?>(null) }
 
 
 
@@ -243,6 +244,12 @@ fun VisitRequestsScreen(navController: NavController) {
                                             navController.navigate(
                                                 "chat/$id/${java.net.URLEncoder.encode(title, "UTF-8")}"
                                             )
+                                        },
+                                        onViewReview = { visite ->
+                                            visite.id?.let { id ->
+                                                viewModel.loadVisiteReviews(id)
+                                                viewingReviewVisite = visite
+                                            }
                                         }
                                     )
                                 }
@@ -251,6 +258,39 @@ fun VisitRequestsScreen(navController: NavController) {
                     }
                 }
             }
+        }
+    }
+
+    viewingReviewVisite?.let { visite ->
+        if (uiState.currentVisiteReviews.isNotEmpty()) {
+            val review = uiState.currentVisiteReviews.first()
+            AlertDialog(
+                onDismissRequest = { viewingReviewVisite = null },
+                title = { Text("Avis du client", fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Note globale: ", fontWeight = FontWeight.SemiBold)
+                            Icon(Icons.Default.Star, null, tint = Color(0xFFFF9800), modifier = Modifier.size(16.dp))
+                            Text(" ${review.rating}/5")
+                        }
+                        if (!review.comment.isNullOrBlank()) {
+                            Text("Commentaire:", fontWeight = FontWeight.SemiBold)
+                            Text(review.comment, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = { viewingReviewVisite = null },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800))
+                    ) {
+                        Text("Fermer")
+                    }
+                }
+            )
+        } else if (!uiState.isLoadingList) {
+             // Loading or empty
         }
     }
 }
@@ -262,7 +302,8 @@ private fun VisitRequestCard(
     showActions: Boolean,
     onAccept: (String) -> Unit,
     onReject: (String) -> Unit,
-    onChatClick: (String, String) -> Unit
+    onChatClick: (String, String) -> Unit,
+    onViewReview: (VisiteResponse) -> Unit
 ) {
     var isVisible by remember { mutableStateOf(false) }
 
@@ -572,6 +613,29 @@ private fun VisitRequestCard(
                             )
                             Spacer(Modifier.width(8.dp))
                             Text("Discuter avec le visiteur", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    
+                    // Show Review button if available
+                    if (visite.reviewId != null) {
+                        Spacer(modifier = Modifier.height(AppSpacing.sm))
+                        
+                        OutlinedButton(
+                            onClick = { onViewReview(visite) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(AppRadius.md),
+                            border = BorderStroke(1.dp, Color(0xFFFF9800)),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color(0xFFFF9800)
+                            )
+                        ) {
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Voir l'avis du client", fontWeight = FontWeight.Bold)
                         }
                     }
                 }

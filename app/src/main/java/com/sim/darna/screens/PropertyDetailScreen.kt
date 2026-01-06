@@ -643,34 +643,65 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                         }
                     }
                 } else {
-                    Button(
-                        onClick = {
-                            if (propertyId != null) {
-                                navController.navigate(Routes.BookProperty.replace("{propertyId}", propertyId))
+                            // Row for action buttons
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                // Visit Button
+                                Button(
+                                    onClick = {
+                                        if (propertyId != null) {
+                                            navController.navigate(Routes.BookVisit.replace("{propertyId}", propertyId))
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(containerColor = SecondaryColor),
+                                    shape = RoundedCornerShape(16.dp),
+                                    contentPadding = PaddingValues(vertical = 16.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Event,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Visiter",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                // Book/Contact Button
+                                Button(
+                                    onClick = {
+                                        if (propertyId != null) {
+                                            navController.navigate(Routes.BookProperty.replace("{propertyId}", propertyId))
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
+                                    shape = RoundedCornerShape(16.dp),
+                                    contentPadding = PaddingValues(vertical = 16.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Chat,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Contacter",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
-                        shape = RoundedCornerShape(16.dp),
-                        contentPadding = PaddingValues(vertical = 18.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Chat,
-                                contentDescription = null,
-                                modifier = Modifier.size(22.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "Contacter les Colocataires",
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
                 }
             }
         }

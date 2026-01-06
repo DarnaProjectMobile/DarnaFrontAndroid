@@ -69,6 +69,7 @@ fun MyVisitsScreen(
     var showCancelConfirmation by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirmation by remember { mutableStateOf<String?>(null) }
     var ratingVisite by remember { mutableStateOf<VisiteResponse?>(null) }
+    var viewingReviewVisite by remember { mutableStateOf<VisiteResponse?>(null) }
     var selectedStatusFilter by remember { mutableStateOf<String?>(null) }
     
 
@@ -254,6 +255,12 @@ fun MyVisitsScreen(
                                             android.util.Log.e("MyVisitsScreen", "Erreur de navigation", e)
                                             Toast.makeText(context, "Erreur de navigation: ${e.message}", Toast.LENGTH_SHORT).show()
                                         }
+                                    },
+                                    onViewReview = { visite ->
+                                        visite.id?.let { id ->
+                                            viewModel.loadVisiteReviews(id)
+                                            viewingReviewVisite = visite
+                                        }
                                     }
                                 )
                             }
@@ -345,6 +352,39 @@ fun MyVisitsScreen(
                 }
             }
         )
+    }
+            }
+        )
+    }
+
+    viewingReviewVisite?.let { visite ->
+        if (uiState.currentVisiteReviews.isNotEmpty()) {
+            val review = uiState.currentVisiteReviews.first()
+            AlertDialog(
+                onDismissRequest = { viewingReviewVisite = null },
+                title = { Text("Votre avis", fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Note globale: ", fontWeight = FontWeight.SemiBold)
+                            Icon(Icons.Default.Star, null, tint = AppColors.primary, modifier = Modifier.size(16.dp))
+                            Text(" ${review.rating}/5")
+                        }
+                        if (!review.comment.isNullOrBlank()) {
+                            Text("Commentaire:", fontWeight = FontWeight.SemiBold)
+                            Text(review.comment, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = { viewingReviewVisite = null }) {
+                        Text("Fermer")
+                    }
+                }
+            )
+        } else if (!uiState.isLoadingList) {
+             // Loading or empty (should ideally show loading indicator)
+        }
     }
 }
 
@@ -584,7 +624,8 @@ private fun AnimatedVisitCard(
     onDelete: (String) -> Unit,
     onValidate: (String) -> Unit,
     onRate: (VisiteResponse) -> Unit,
-    onChat: (VisiteResponse) -> Unit
+    onChat: (VisiteResponse) -> Unit,
+    onViewReview: (VisiteResponse) -> Unit
 ) {
     var isVisible by remember { mutableStateOf(false) }
     
@@ -613,7 +654,8 @@ private fun AnimatedVisitCard(
             onDelete = onDelete,
             onValidate = onValidate,
             onRate = onRate,
-            onChat = onChat
+            onChat = onChat,
+            onViewReview = onViewReview
         )
     }
 }
@@ -626,7 +668,8 @@ private fun ModernVisitCard(
     onDelete: (String) -> Unit,
     onValidate: (String) -> Unit,
     onRate: (VisiteResponse) -> Unit,
-    onChat: (VisiteResponse) -> Unit
+    onChat: (VisiteResponse) -> Unit,
+    onViewReview: (VisiteResponse) -> Unit
 ) {
     val statusStyle = mapStatus(visite.status)
     val isPending = visite.status?.equals("pending", ignoreCase = true) == true || 
@@ -641,6 +684,10 @@ private fun ModernVisitCard(
     val canRate = isCompleted &&
             (visite.validated == true) &&
             visite.reviewId == null &&
+            visite.id != null
+    val canViewReview = isCompleted &&
+            (visite.validated == true) &&
+            visite.reviewId != null &&
             visite.id != null
     val canCancel = isAccepted && visite.id != null
     val canDelete = isPending && visite.id != null
@@ -956,6 +1003,17 @@ private fun ModernVisitCard(
                             color = AppColors.primary,
                             modifier = Modifier.weight(1f),
                             isPrimary = true
+                        )
+                    }
+
+                    if (canViewReview && visite.id != null) {
+                        AnimatedActionButton(
+                            onClick = { onViewReview(visite) },
+                            icon = Icons.Default.Visibility,
+                            label = "Voir avis",
+                            color = AppColors.primary,
+                            modifier = Modifier.weight(1f),
+                            isPrimary = false
                         )
                     }
                 }
