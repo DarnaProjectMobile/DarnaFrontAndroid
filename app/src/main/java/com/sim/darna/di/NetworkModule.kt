@@ -30,6 +30,9 @@ object NetworkModule {
     fun provideOkHttp(): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
         return OkHttpClient.Builder()
+            .connectTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
             .addInterceptor { chain: Interceptor.Chain ->
                 val original = chain.request()
                 val builder = original.newBuilder()
@@ -72,4 +75,9 @@ object NetworkModule {
     @Singleton
     fun providePubliciteUploadService(retrofit: Retrofit): PubliciteUploadService =
         retrofit.create(PubliciteUploadService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideCloudinaryApi(retrofit: Retrofit): com.sim.darna.data.remote.CloudinaryApi =
+        retrofit.create(com.sim.darna.data.remote.CloudinaryApi::class.java)
 }

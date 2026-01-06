@@ -48,12 +48,35 @@ fun PropertyBookingsScreen(
     val repository = PropertyRepository(context)
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    
+
     var property by remember { mutableStateOf<Property?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isProcessing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    
+
+    // Safety check for empty propertyId
+    if (propertyId.isBlank()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "ID de propriété invalide",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Button(onClick = { navController.popBackStack() }) {
+                    Text("Retour")
+                }
+            }
+        }
+        return
+    }
+
     fun loadProperty() {
         isLoading = true
         errorMessage = null
@@ -69,29 +92,29 @@ fun PropertyBookingsScreen(
                 }
                 isLoading = false
             }
-            
+
             override fun onFailure(call: retrofit2.Call<Property>, t: Throwable) {
                 errorMessage = "Erreur de connexion : ${t.message}"
                 isLoading = false
             }
         })
     }
-    
+
     LaunchedEffect(propertyId) {
         loadProperty()
     }
-    
+
     fun rejectAllPendingBookings(bookings: List<Booking>) {
         if (bookings.isEmpty()) {
             isProcessing = false
             loadProperty() // Reload to refresh the UI
             return
         }
-        
+
         // Reject bookings one by one
         var completedCount = 0
         val totalCount = bookings.size
-        
+
         bookings.forEach { booking ->
             val bookingId = booking.id ?: return@forEach
             repository.respondToBooking(propertyId, bookingId, false)
@@ -104,14 +127,14 @@ fun PropertyBookingsScreen(
                         if (response.isSuccessful && response.body() != null) {
                             property = response.body()
                         }
-                        
+
                         // When all rejections are complete, reload the property
                         if (completedCount >= totalCount) {
                             isProcessing = false
                             loadProperty() // Reload to refresh the UI
                         }
                     }
-                    
+
                     override fun onFailure(call: retrofit2.Call<Property>, t: Throwable) {
                         completedCount++
                         // Continue even if one fails
@@ -123,7 +146,7 @@ fun PropertyBookingsScreen(
                 })
         }
     }
-    
+
     fun respondToBooking(booking: Booking, accept: Boolean) {
         val bookingId = booking.id ?: return
         isProcessing = true
@@ -136,21 +159,21 @@ fun PropertyBookingsScreen(
                     if (response.isSuccessful && response.body() != null) {
                         val updatedProperty = response.body()!!
                         property = updatedProperty
-                        
+
                         // Check if property is now full after accepting
                         val isFull = (updatedProperty.nbrCollocateurActuel ?: 0) >= (updatedProperty.nbrCollocateurMax ?: 0)
-                        
+
                         if (accept && isFull) {
                             // Automatically reject all remaining pending bookings
                             val remainingPendingBookings = updatedProperty.attendingListBookings ?: emptyList()
-                            
+
                             if (remainingPendingBookings.isNotEmpty()) {
                                 scope.launch {
                                     snackbarHostState.showSnackbar(
                                         message = "Demande acceptée. ${remainingPendingBookings.size} demande(s) en attente automatiquement refusée(s)."
                                     )
                                 }
-                                
+
                                 // Reject all remaining pending bookings
                                 rejectAllPendingBookings(remainingPendingBookings)
                             } else {
@@ -176,7 +199,7 @@ fun PropertyBookingsScreen(
                         }
                     }
                 }
-                
+
                 override fun onFailure(call: retrofit2.Call<Property>, t: Throwable) {
                     isProcessing = false
                     scope.launch {
@@ -185,7 +208,7 @@ fun PropertyBookingsScreen(
                 }
             })
     }
-    
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -213,7 +236,7 @@ fun PropertyBookingsScreen(
                             ) {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                             }
-                            
+
                             Column(
                                 modifier = Modifier.align(Alignment.Center),
                                 horizontalAlignment = Alignment.CenterHorizontally
@@ -231,7 +254,7 @@ fun PropertyBookingsScreen(
                                     fontSize = 13.sp
                                 )
                             }
-                            
+
                             Icon(
                                 imageVector = Icons.Default.Assignment,
                                 contentDescription = null,
@@ -312,7 +335,7 @@ fun PropertyBookingsScreen(
                                     pendingCount = pendingBookings.size
                                 )
                             }
-                            
+
                             if (pendingBookings.isEmpty()) {
                                 item {
                                     EmptyPendingState()
@@ -321,7 +344,7 @@ fun PropertyBookingsScreen(
                                 item {
                                     PendingHeader(pendingBookings.size)
                                 }
-                                
+
                                 items(pendingBookings) { booking ->
                                     PendingBookingCard(
                                         booking = booking,
@@ -335,7 +358,7 @@ fun PropertyBookingsScreen(
                 }
             }
         }
-        
+
         if (isProcessing) {
             Box(
                 modifier = Modifier
@@ -381,7 +404,7 @@ private fun PropertySummaryCard(property: Property, pendingCount: Int) {
                 fontWeight = FontWeight.Bold,
                 color = AppTheme.textPrimary
             )
-            
+
             property.location?.takeIf { it.isNotBlank() }?.let {
                 Text(
                     text = it,
@@ -390,9 +413,9 @@ private fun PropertySummaryCard(property: Property, pendingCount: Int) {
                     lineHeight = 18.sp
                 )
             }
-            
+
             Divider(color = Color(0xFFE0E0E0))
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -407,7 +430,7 @@ private fun PropertySummaryCard(property: Property, pendingCount: Int) {
                         color = Color(0xFF1E88E5)
                     )
                 }
-                
+
                 Column(horizontalAlignment = Alignment.End) {
                     Text("Loyer", fontSize = 12.sp, color = AppTheme.textSecondary)
                     Text(
@@ -491,7 +514,7 @@ private fun PendingBookingCard(
     val bookingDate = formatIsoDate(booking.bookingStartDate)
     val birthDate = user?.dateDeNaissance ?: user?.dateOfBirth
     val context = LocalContext.current
-    
+
     Card(
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -523,14 +546,14 @@ private fun PendingBookingCard(
                         color = Color(0xFFFFA000)
                     )
                 }
-                
+
                 Text(
                     text = bookingDate,
                     fontSize = 12.sp,
                     color = AppTheme.textSecondary
                 )
             }
-            
+
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
@@ -546,7 +569,7 @@ private fun PendingBookingCard(
                         modifier = Modifier.size(28.dp)
                     )
                 }
-                
+
                 if (user != null) {
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
@@ -571,9 +594,9 @@ private fun PendingBookingCard(
                     )
                 }
             }
-            
+
             Divider()
-            
+
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = AppTheme.primary)
@@ -583,7 +606,7 @@ private fun PendingBookingCard(
                         Text(bookingDate, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
-                
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Info, contentDescription = null, tint = AppTheme.textSecondary)
                     Spacer(modifier = Modifier.width(6.dp))
@@ -600,7 +623,7 @@ private fun PendingBookingCard(
                     )
                 }
             }
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -616,7 +639,7 @@ private fun PendingBookingCard(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Appeler", color = Color(0xFF1E88E5))
                 }
-                
+
                 Button(
                     onClick = {
                         user?.email?.let { tryOpenEmail(context, it) } ?: showContactToast(context)
@@ -629,7 +652,7 @@ private fun PendingBookingCard(
                     Text("Email", color = Color.White)
                 }
             }
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -644,7 +667,7 @@ private fun PendingBookingCard(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Refuser")
                 }
-                
+
                 Button(
                     onClick = { showAcceptDialog = true },
                     modifier = Modifier.weight(1f),
@@ -657,46 +680,296 @@ private fun PendingBookingCard(
             }
         }
     }
-    
+
     if (showAcceptDialog) {
         AlertDialog(
             onDismissRequest = { showAcceptDialog = false },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        color = Color(0xFFE8F5E9),
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = Color(0xFF2E7D32),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Accepter la demande ?",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppTheme.textPrimary
+                    )
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Cette personne sera ajoutée à vos colocataires confirmés.",
+                        fontSize = 15.sp,
+                        color = AppTheme.textSecondary,
+                        lineHeight = 22.sp
+                    )
+                    if (user != null) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = AppTheme.primaryLight.copy(alpha = 0.3f)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = AppTheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = user.username ?: "Utilisateur",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = AppTheme.textPrimary
+                                    )
+                                }
+                                if (bookingDate != null) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CalendarToday,
+                                            contentDescription = null,
+                                            tint = AppTheme.textSecondary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = "Souhaite emménager le $bookingDate",
+                                            fontSize = 13.sp,
+                                            color = AppTheme.textSecondary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
             confirmButton = {
-                TextButton(onClick = {
-                    showAcceptDialog = false
-                    onAccept()
-                }) {
-                    Text("Confirmer")
+                Button(
+                    onClick = {
+                        showAcceptDialog = false
+                        onAccept()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF2E7D32),
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Confirmer",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAcceptDialog = false }) {
-                    Text("Annuler")
+                OutlinedButton(
+                    onClick = { showAcceptDialog = false },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = AppTheme.textSecondary
+                    ),
+                    border = ButtonDefaults.outlinedButtonBorder.copy(
+                        width = 1.dp,
+                        brush = androidx.compose.ui.graphics.SolidColor(AppTheme.textSecondary.copy(alpha = 0.5f))
+                    )
+                ) {
+                    Text(
+                        text = "Annuler",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
                 }
             },
-            title = { Text("Accepter la demande ?") },
-            text = { Text("Cette personne sera ajoutée à vos colocataires confirmés.") }
+            containerColor = AppTheme.card,
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 8.dp
         )
     }
-    
+
     if (showRejectDialog) {
         AlertDialog(
             onDismissRequest = { showRejectDialog = false },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        color = Color(0xFFFFEBEE),
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = null,
+                                tint = Color(0xFFD32F2F),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Refuser la demande ?",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppTheme.textPrimary
+                    )
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Cette demande sera supprimée définitivement.",
+                        fontSize = 15.sp,
+                        color = AppTheme.textSecondary,
+                        lineHeight = 22.sp
+                    )
+                    if (user != null) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFFFEBEE).copy(alpha = 0.5f)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = Color(0xFFD32F2F),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = user.username ?: "Utilisateur",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = AppTheme.textPrimary
+                                    )
+                                }
+                                if (bookingDate != null) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CalendarToday,
+                                            contentDescription = null,
+                                            tint = AppTheme.textSecondary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = "Souhaite emménager le $bookingDate",
+                                            fontSize = 13.sp,
+                                            color = AppTheme.textSecondary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
             confirmButton = {
-                TextButton(onClick = {
-                    showRejectDialog = false
-                    onReject()
-                }) {
-                    Text("Refuser", color = Color.Red)
+                Button(
+                    onClick = {
+                        showRejectDialog = false
+                        onReject()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFD32F2F),
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Refuser",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showRejectDialog = false }) {
-                    Text("Annuler")
+                OutlinedButton(
+                    onClick = { showRejectDialog = false },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = AppTheme.textSecondary
+                    ),
+                    border = ButtonDefaults.outlinedButtonBorder.copy(
+                        width = 1.dp,
+                        brush = androidx.compose.ui.graphics.SolidColor(AppTheme.textSecondary.copy(alpha = 0.5f))
+                    )
+                ) {
+                    Text(
+                        text = "Annuler",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
                 }
             },
-            title = { Text("Refuser la demande ?") },
-            text = { Text("Cette demande sera supprimée définitivement.") }
+            containerColor = AppTheme.card,
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 8.dp
         )
     }
 }
@@ -729,12 +1002,12 @@ private fun tryOpenDialer(context: Context, phone: String) {
     val sanitized = phone.trim().filterIndexed { index, c ->
         c.isDigit() || (c == '+' && index == 0)
     }.ifEmpty { phone.trim() }
-    
+
     if (sanitized.isEmpty()) {
         showContactToast(context)
         return
     }
-    
+
     try {
         val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$sanitized"))
         context.startActivity(intent)
@@ -760,4 +1033,3 @@ private fun tryOpenEmail(context: Context, email: String) {
 private fun showContactToast(context: Context) {
     Toast.makeText(context, "Contact indisponible", Toast.LENGTH_SHORT).show()
 }
-

@@ -73,6 +73,57 @@ class PropertyRepository(private val context: Context) {
             images = listOf(imagePart)
         )
     }
+
+    /**
+     * Update property with image file upload
+     */
+    fun updatePropertyWithImageFile(
+        id: String,
+        title: String? = null,
+        description: String? = null,
+        price: Double? = null,
+        location: String? = null,
+        type: String? = null,
+        imageBitmap: Bitmap? = null,  // Pass the actual bitmap instead of base64
+        nbrCollocateurMax: Int? = null,
+        nbrCollocateurActuel: Int? = null,
+        startDate: String? = null,
+        endDate: String? = null
+    ): Call<Property> {
+        // Convert bitmap to temporary file if provided
+        val imagePart = if (imageBitmap != null) {
+            val imageFile = bitmapToFile(imageBitmap, "property_${System.currentTimeMillis()}.jpg")
+            val requestFile = imageFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
+            MultipartBody.Part.createFormData("images", imageFile.name, requestFile)
+        } else {
+            null
+        }
+        
+        // Create RequestBody instances for provided fields only
+        val titleBody = title?.toRequestBody("text/plain".toMediaTypeOrNull())
+        val descriptionBody = description?.toRequestBody("text/plain".toMediaTypeOrNull())
+        val priceBody = price?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
+        val locationBody = location?.toRequestBody("text/plain".toMediaTypeOrNull())
+        val typeBody = type?.toRequestBody("text/plain".toMediaTypeOrNull())
+        val nbrMaxBody = nbrCollocateurMax?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
+        val nbrActuelBody = nbrCollocateurActuel?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
+        val startDateBody = startDate?.toRequestBody("text/plain".toMediaTypeOrNull())
+        val endDateBody = endDate?.toRequestBody("text/plain".toMediaTypeOrNull())
+        
+        return api.updatePropertyWithFiles(
+            id = id,
+            title = titleBody,
+            description = descriptionBody,
+            price = priceBody,
+            location = locationBody,
+            type = typeBody,
+            nbrCollocateurMax = nbrMaxBody,
+            nbrCollocateurActuel = nbrActuelBody,
+            startDate = startDateBody,
+            endDate = endDateBody,
+            images = if (imagePart != null) listOf(imagePart) else null
+        )
+    }
     
     /**
      * Helper function to convert Bitmap to File
@@ -166,4 +217,3 @@ class PropertyRepository(private val context: Context) {
         return api.respondToBooking(annonceId, bookingId, accept)
     }
 }
-

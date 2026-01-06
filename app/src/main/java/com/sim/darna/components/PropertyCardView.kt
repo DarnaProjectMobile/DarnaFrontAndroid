@@ -1,6 +1,5 @@
 package com.sim.darna.components
 
-import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -25,6 +23,7 @@ import coil.compose.AsyncImage
 import com.sim.darna.model.Property
 import com.sim.darna.ui.theme.AppTheme
 import com.sim.darna.utils.FavoritesManager
+import com.sim.darna.utils.ImageUtils
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -39,12 +38,12 @@ fun PropertyCardView(
 ) {
     val context = LocalContext.current
     var isFavorite by remember { mutableStateOf(false) }
-    
+
     LaunchedEffect(property.id) {
         FavoritesManager.init(context)
         isFavorite = FavoritesManager.isFavorite(property.id)
     }
-    
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -54,6 +53,7 @@ fun PropertyCardView(
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
+
             // Image section
             Box(
                 modifier = Modifier
@@ -65,7 +65,7 @@ fun PropertyCardView(
                     imageString = property.getFirstImage(),
                     modifier = Modifier.fillMaxSize()
                 )
-                
+
                 // Favorite button
                 IconButton(
                     onClick = {
@@ -89,9 +89,10 @@ fun PropertyCardView(
                     }
                 }
             }
-            
+
             // Content section
             Column(modifier = Modifier.padding(if (isGridMode) 12.dp else 16.dp)) {
+
                 // Title and price
                 Column {
                     Text(
@@ -109,7 +110,7 @@ fun PropertyCardView(
                         color = AppTheme.primary
                     )
                 }
-                
+
                 // Description - only show in list mode
                 if (!isGridMode && !property.description.isNullOrEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -120,7 +121,7 @@ fun PropertyCardView(
                         maxLines = 3
                     )
                 }
-                
+
                 // Start date
                 property.startDate?.let { dateStr ->
                     Spacer(modifier = Modifier.height(if (isGridMode) 4.dp else 8.dp))
@@ -139,8 +140,8 @@ fun PropertyCardView(
                         )
                     }
                 }
-                
-                // Owner name
+
+                // Owner name + actions
                 Spacer(modifier = Modifier.height(if (isGridMode) 4.dp else 12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -153,25 +154,89 @@ fun PropertyCardView(
                         color = AppTheme.textSecondary,
                         maxLines = 1
                     )
-                    
+
+                    // NEW version buttons (list mode)
                     if (!isGridMode && canManage) {
-                        Row {
-                            IconButton(onClick = { onEdit?.invoke() }) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
+                            // Modifier button
+                            Button(
+                                onClick = { onEdit?.invoke() },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFE3F2FD),
+                                    contentColor = AppTheme.primary
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                                modifier = Modifier.height(36.dp)
+                            ) {
                                 Icon(
                                     imageVector = Icons.Default.Edit,
-                                    contentDescription = "Edit",
-                                    modifier = Modifier.size(18.dp),
+                                    contentDescription = "Modifier",
+                                    modifier = Modifier.size(16.dp),
                                     tint = AppTheme.primary
                                 )
-                            }
-                            IconButton(onClick = { onDelete?.invoke() }) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Delete",
-                                    modifier = Modifier.size(18.dp),
-                                    tint = Color.Red
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Modifier",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppTheme.primary
                                 )
                             }
+
+                            // Supprimer button
+                            Button(
+                                onClick = { onDelete?.invoke() },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFFFEBEE),
+                                    contentColor = Color(0xFFD32F2F)
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                                modifier = Modifier.height(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Supprimer",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = Color(0xFFD32F2F)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Supprimer",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFD32F2F)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // NEW version actions (grid mode)
+                if (isGridMode && canManage) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = { onEdit?.invoke() }) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Modifier",
+                                modifier = Modifier.size(20.dp),
+                                tint = AppTheme.primary
+                            )
+                        }
+                        IconButton(onClick = { onDelete?.invoke() }) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Supprimer",
+                                modifier = Modifier.size(20.dp),
+                                tint = Color(0xFFD32F2F)
+                            )
                         }
                     }
                 }
@@ -185,32 +250,18 @@ fun PropertyImageView(
     imageString: String?,
     modifier: Modifier = Modifier
 ) {
-    if (imageString != null && imageString.isNotEmpty()) {
-        if (imageString.startsWith("data:image")) {
-            // Base64 image
-            val base64String = imageString.substringAfter(",")
-            val imageBytes = android.util.Base64.decode(base64String, android.util.Base64.DEFAULT)
-            val bitmap = android.graphics.BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-            
-            if (bitmap != null) {
-                Image(
-                    bitmap = bitmap.asImageBitmap(),
-                    contentDescription = "Property image",
-                    modifier = modifier.clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                PlaceholderImage(modifier)
-            }
-        } else {
-            // URL image - using Coil
-            AsyncImage(
-                model = imageString,
-                contentDescription = "Property image",
-                modifier = modifier.clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
-                contentScale = ContentScale.Crop
-            )
-        }
+    if (!imageString.isNullOrBlank()) {
+        // Cloudinary-first:
+        // - If it's already https://... (Cloudinary or any CDN) -> keep it
+        // - If it's a relative path -> ImageUtils builds the full URL (backend base, etc.)
+        val imageUrl = ImageUtils.buildFullImageUrl(imageString)
+
+        AsyncImage(
+            model = imageUrl,
+            contentDescription = "Property image",
+            modifier = modifier.clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
+            contentScale = ContentScale.Crop
+        )
     } else {
         PlaceholderImage(modifier)
     }
@@ -241,5 +292,3 @@ private fun formatDate(dateString: String): String {
         dateString
     }
 }
-
-

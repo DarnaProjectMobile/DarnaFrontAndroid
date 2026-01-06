@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
@@ -66,7 +68,7 @@ fun AddPropertyFormView(
     val repository = PropertyRepository(context)
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
-    
+
     // State variables
     var title by remember { mutableStateOf(propertyToEdit?.title ?: "") }
     var location by remember { mutableStateOf(propertyToEdit?.location ?: "") }
@@ -75,31 +77,32 @@ fun AddPropertyFormView(
     var selectedType by remember { mutableStateOf(propertyToEdit?.type ?: "S") }
     var nbrCollocateurMax by remember { mutableStateOf(propertyToEdit?.nbrCollocateurMax?.toString() ?: "4") }
     var nbrCollocateurActuel by remember { mutableStateOf(propertyToEdit?.nbrCollocateurActuel?.toString() ?: "0") }
-    
+
     // Image state - single image like iOS version
     var selectedImage by remember { mutableStateOf<Bitmap?>(null) }
     var imageBase64 by remember { mutableStateOf(propertyToEdit?.images?.firstOrNull() ?: "") }
-    
+
     // Date formatting
     val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
     dateFormat.timeZone = TimeZone.getTimeZone("UTC")
-    
-    var startDate by remember { 
-        mutableStateOf(propertyToEdit?.startDate?.let { 
+
+    var startDate by remember {
+        mutableStateOf(propertyToEdit?.startDate?.let {
             try { dateFormat.parse(it) } catch (e: Exception) { Date() }
-        } ?: Date()) 
+        } ?: Date())
     }
-    var endDate by remember { 
+    var endDate by remember {
         mutableStateOf(propertyToEdit?.endDate?.let {
             try { dateFormat.parse(it) } catch (e: Exception) { Date() }
-        } ?: Date(System.currentTimeMillis() + 30L * 24 * 60 * 60 * 1000)) 
+        } ?: Date(System.currentTimeMillis() + 30L * 24 * 60 * 60 * 1000))
     }
-    
+
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showEndDatePicker by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    
+    var showErrorDialog by remember { mutableStateOf(false) }
+
     // Map-related state
     var addressSearchQuery by remember { mutableStateOf("") }
     var isSearchingLocation by remember { mutableStateOf(false) }
@@ -120,7 +123,7 @@ fun AddPropertyFormView(
             controller.setCenter(defaultGeoPoint)
         }
     }
-    
+
     // Load existing image if editing
     LaunchedEffect(propertyToEdit) {
         if (propertyToEdit != null && propertyToEdit.images != null && propertyToEdit.images!!.isNotEmpty()) {
@@ -150,12 +153,12 @@ fun AddPropertyFormView(
             mapView.onDetach()
         }
     }
-    
+
     // Helper functions
     fun formatCoordinates(point: GeoPoint): String {
         return "Lat: ${"%.5f".format(point.latitude)} / Lon: ${"%.5f".format(point.longitude)}"
     }
-    
+
     fun updateAddressFromPoint(point: GeoPoint, presetAddress: String? = null) {
         selectedGeoPoint = point
         mapZoom = 15.5
@@ -179,7 +182,7 @@ fun AddPropertyFormView(
             }
         }
     }
-    
+
     fun extractServerError(rawBody: String?, code: Int): String {
         if (rawBody.isNullOrBlank()) return "Erreur de sauvegarde (code $code)"
         return try {
@@ -201,7 +204,7 @@ fun AddPropertyFormView(
             rawBody
         }
     }
-    
+
     fun resizeBitmapIfNeeded(bitmap: Bitmap, maxDimension: Int = 1280): Bitmap {
         if (bitmap.width <= maxDimension && bitmap.height <= maxDimension) return bitmap
 
@@ -217,7 +220,7 @@ fun AddPropertyFormView(
         }
         return Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true)
     }
-    
+
     fun convertImageToBase64(image: Bitmap): String {
         val processedBitmap = resizeBitmapIfNeeded(image)
         val byteStream = ByteArrayOutputStream()
@@ -229,7 +232,7 @@ fun AddPropertyFormView(
         byteStream.close()
         return "data:image/jpeg;base64,$base64"
     }
-    
+
     fun searchLocation() {
         val query = addressSearchQuery.trim()
         if (query.length < 3) {
@@ -255,7 +258,7 @@ fun AddPropertyFormView(
             }
         }
     }
-    
+
     // Image picker launcher
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -276,41 +279,41 @@ fun AddPropertyFormView(
             }
         }
     }
-    
+
     // Save function
     suspend fun saveProperty() {
         // Validate inputs
-        if (title.isEmpty() || location.isEmpty() || price.isEmpty() || 
+        if (title.isEmpty() || location.isEmpty() || price.isEmpty() ||
             selectedImage == null || description.isEmpty()) {
             errorMessage = "Merci de remplir tous les champs requis."
             return
         }
-        
+
         val priceValue = price.toDoubleOrNull()
         val nbrMax = nbrCollocateurMax.toIntOrNull()
         val nbrActuel = nbrCollocateurActuel.toIntOrNull()
-        
+
         if (priceValue == null || nbrMax == null || nbrActuel == null) {
             errorMessage = "Valeurs numériques invalides."
             return
         }
-        
+
         if (startDate.after(endDate)) {
             errorMessage = "La date de fin doit être après la date de début."
             return
         }
-        
+
         if (nbrActuel > nbrMax) {
             errorMessage = "Le nombre actuel dépasse le maximum."
             return
         }
-        
+
         isLoading = true
         errorMessage = null
-        
+
         val startDateStr = dateFormat.format(startDate)
         val endDateStr = dateFormat.format(endDate)
-        
+
         if (propertyToEdit == null) {
             // Create new property with file upload (triggers backend image verification)
             repository.createPropertyWithImageFile(
@@ -334,7 +337,7 @@ fun AddPropertyFormView(
                         errorMessage = extractServerError(errorBody, response.code())
                     }
                 }
-                
+
                 override fun onFailure(call: retrofit2.Call<Property>, t: Throwable) {
                     isLoading = false
                     errorMessage = when (t) {
@@ -368,7 +371,7 @@ fun AddPropertyFormView(
                         errorMessage = extractServerError(errorBody, response.code())
                     }
                 }
-                
+
                 override fun onFailure(call: retrofit2.Call<Property>, t: Throwable) {
                     isLoading = false
                     errorMessage = when (t) {
@@ -379,31 +382,65 @@ fun AddPropertyFormView(
             })
         }
     }
-    
+
     // Main UI
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        if (propertyToEdit == null) "Nouvelle Annonce" else "Modifier l'annonce",
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onDismiss) {
+            Column {
+                Spacer(modifier = Modifier.height(12.dp))
+                Surface(shadowElevation = 6.dp) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        AppTheme.primary,
+                                        AppTheme.primary.copy(alpha = 0.9f)
+                                    )
+                                )
+                            )
+                            .padding(horizontal = 16.dp, vertical = 14.dp)
+                    ) {
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.align(Alignment.CenterStart)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Retour",
+                                tint = Color.White
+                            )
+                        }
+
+                        Column(
+                            modifier = Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = if (propertyToEdit == null) "Nouvelle Annonce" else "Modifier l'annonce",
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Remplissez les informations ci-dessous",
+                                color = Color.White.copy(alpha = 0.85f),
+                                fontSize = 13.sp
+                            )
+                        }
+
                         Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Fermer",
-                            tint = AppTheme.textSecondary
+                            imageVector = if (propertyToEdit == null) Icons.Default.AddCircle else Icons.Default.Edit,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .size(24.dp)
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = AppTheme.background,
-                    titleContentColor = AppTheme.textPrimary
-                )
-            )
+                }
+            }
         },
         containerColor = AppTheme.background
     ) { paddingValues ->
@@ -421,7 +458,7 @@ fun AddPropertyFormView(
             ) {
                 // Header Section
                 HeaderSection(propertyToEdit)
-                
+
                 // Basic Information Section
                 FormSection(
                     title = "Informations de base",
@@ -434,9 +471,9 @@ fun AddPropertyFormView(
                         icon = Icons.Default.Title,
                         placeholder = "Ex: Villa S+3 à Ariana"
                     )
-                    
+
                     Spacer(modifier = Modifier.height(12.dp))
-                    
+
                     // Inline Map Location Picker
                     InlineMapLocationPicker(
                         location = location,
@@ -487,9 +524,9 @@ fun AddPropertyFormView(
                         },
                         formatCoordinates = { formatCoordinates(it) }
                     )
-                    
+
                     Spacer(modifier = Modifier.height(12.dp))
-                    
+
                     CustomTextField(
                         title = "Prix mensuel",
                         value = price,
@@ -499,7 +536,7 @@ fun AddPropertyFormView(
                         keyboardType = KeyboardType.Number
                     )
                 }
-                
+
                 // Image Section
                 FormSection(
                     title = "Photo",
@@ -514,7 +551,7 @@ fun AddPropertyFormView(
                         }
                     )
                 }
-                
+
                 // Property Details Section
                 FormSection(
                     title = "Détails du logement",
@@ -524,9 +561,9 @@ fun AddPropertyFormView(
                         selectedType = selectedType,
                         onTypeSelected = { selectedType = it }
                     )
-                    
+
                     Spacer(modifier = Modifier.height(12.dp))
-                    
+
                     CustomTextEditor(
                         title = "Description",
                         value = description,
@@ -535,7 +572,7 @@ fun AddPropertyFormView(
                         placeholder = "Décrivez votre logement, ses avantages, le quartier..."
                     )
                 }
-                
+
                 // Availability Section
                 FormSection(
                     title = "Disponibilité",
@@ -548,7 +585,7 @@ fun AddPropertyFormView(
                         onEndDateClick = { showEndDatePicker = true }
                     )
                 }
-                
+
                 // Collocators Section
                 FormSection(
                     title = "Colocataires",
@@ -568,7 +605,7 @@ fun AddPropertyFormView(
                                 keyboardType = KeyboardType.Number
                             )
                         }
-                        
+
                         Box(modifier = Modifier.weight(1f)) {
                             CustomTextField(
                                 title = "Actuel",
@@ -581,12 +618,26 @@ fun AddPropertyFormView(
                         }
                     }
                 }
-                
-                // Error Message
+
+                // Error Message - Show banner for non-image errors
                 errorMessage?.let { msg ->
-                    ErrorBanner(message = msg)
+                    val isImageError = msg.contains("not house-related", ignoreCase = true) ||
+                            msg.contains("house-related", ignoreCase = true) ||
+                            msg.contains("images are not", ignoreCase = true) ||
+                            msg.contains("property_", ignoreCase = true) ||
+                            msg.contains(".jpg", ignoreCase = true) ||
+                            msg.contains("upload images", ignoreCase = true)
+
+                    if (!isImageError) {
+                        ErrorBanner(message = msg)
+                    } else {
+                        // Trigger dialog for image-related errors
+                        LaunchedEffect(msg) {
+                            showErrorDialog = true
+                        }
+                    }
                 }
-                
+
                 // Save Button
                 SaveButton(
                     isLoading = isLoading,
@@ -598,12 +649,112 @@ fun AddPropertyFormView(
                         }
                     }
                 )
-                
+
                 Spacer(modifier = Modifier.height(20.dp))
             }
         }
     }
-    
+
+    // Image Error Dialog
+    if (showErrorDialog && errorMessage != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showErrorDialog = false
+                errorMessage = null
+            },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFFFFEBEE),
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = Color(0xFFD32F2F),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Image non valide",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppTheme.textPrimary
+                    )
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = errorMessage ?: "",
+                        fontSize = 15.sp,
+                        color = AppTheme.textSecondary,
+                        lineHeight = 22.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = AppTheme.primaryLight.copy(alpha = 0.3f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = AppTheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "Veuillez télécharger des images d'intérieurs ou d'extérieurs de maison uniquement.",
+                                fontSize = 13.sp,
+                                color = AppTheme.textPrimary,
+                                lineHeight = 18.sp
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showErrorDialog = false
+                        errorMessage = null
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppTheme.primary,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Compris",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+            },
+            containerColor = AppTheme.card,
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 8.dp
+        )
+    }
+
     // Date pickers
     if (showStartDatePicker) {
         val calendar = Calendar.getInstance()
@@ -613,7 +764,7 @@ fun AddPropertyFormView(
         today.set(Calendar.MINUTE, 0)
         today.set(Calendar.SECOND, 0)
         today.set(Calendar.MILLISECOND, 0)
-        
+
         CustomDatePickerDialog(
             initialYear = calendar.get(Calendar.YEAR),
             initialMonth = calendar.get(Calendar.MONTH),
@@ -627,7 +778,7 @@ fun AddPropertyFormView(
             minDate = today.timeInMillis
         )
     }
-    
+
     if (showEndDatePicker) {
         val calendar = Calendar.getInstance()
         calendar.time = endDate
@@ -660,14 +811,14 @@ private fun HeaderSection(propertyToEdit: Property?) {
             tint = AppTheme.primary,
             modifier = Modifier.size(50.dp)
         )
-        
+
         Text(
             text = if (propertyToEdit == null) "Créer une nouvelle annonce" else "Modifier l'annonce",
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             color = AppTheme.textPrimary
         )
-        
+
         Text(
             text = "Remplissez les informations ci-dessous",
             fontSize = 14.sp,
@@ -712,7 +863,7 @@ private fun FormSection(
                 color = AppTheme.textPrimary
             )
         }
-        
+
         content()
     }
 }
@@ -728,7 +879,7 @@ private fun CustomTextField(
     keyboardType: KeyboardType = KeyboardType.Text
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    
+
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -738,7 +889,7 @@ private fun CustomTextField(
             fontWeight = FontWeight.Medium,
             color = AppTheme.textPrimary
         )
-        
+
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
@@ -796,7 +947,7 @@ private fun CustomTextEditor(
                 color = AppTheme.textPrimary
             )
         }
-        
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -811,7 +962,7 @@ private fun CustomTextEditor(
                     fontSize = 14.sp
                 )
             }
-            
+
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
@@ -838,7 +989,7 @@ private fun TypePicker(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val types = listOf("S", "S+1", "S+2", "S+3", "S+4", "Chambre")
-    
+
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -859,7 +1010,7 @@ private fun TypePicker(
                 color = AppTheme.textPrimary
             )
         }
-        
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -883,7 +1034,7 @@ private fun TypePicker(
                     modifier = Modifier.size(20.dp)
                 )
             }
-            
+
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
@@ -925,7 +1076,7 @@ private fun AvailabilitySection(
     onEndDateClick: () -> Unit
 ) {
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-    
+
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -948,7 +1099,7 @@ private fun AvailabilitySection(
                     tint = AppTheme.primary.copy(alpha = 0.7f),
                     modifier = Modifier.size(16.dp)
                 )
-                
+
                 Column(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
@@ -966,7 +1117,7 @@ private fun AvailabilitySection(
                 }
             }
         }
-        
+
         // End Date
         Box(
             modifier = Modifier
@@ -986,7 +1137,7 @@ private fun AvailabilitySection(
                     tint = AppTheme.primary.copy(alpha = 0.7f),
                     modifier = Modifier.size(16.dp)
                 )
-                
+
                 Column(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
@@ -1033,7 +1184,7 @@ private fun ImagePickerSection(
                 color = AppTheme.textPrimary
             )
         }
-        
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1047,7 +1198,7 @@ private fun ImagePickerSection(
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize()
                 )
-                
+
                 // Edit overlay
                 Box(
                     modifier = Modifier
@@ -1086,7 +1237,7 @@ private fun ImagePickerSection(
                             tint = AppTheme.primary,
                             modifier = Modifier.size(50.dp)
                         )
-                        
+
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -1143,13 +1294,13 @@ private fun InlineMapLocationPicker(
             fontWeight = FontWeight.SemiBold,
             color = AppTheme.textPrimary
         )
-        
+
         Text(
             text = "Utilisez OpenStreetMap pour rechercher une adresse",
             fontSize = 13.sp,
             color = AppTheme.textSecondary
         )
-        
+
         // Search field
         OutlinedTextField(
             value = addressSearchQuery,
@@ -1160,11 +1311,11 @@ private fun InlineMapLocationPicker(
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { 
+            placeholder = {
                 Text(
                     "Ex: Tunis, Avenue Habib Bourguiba",
                     color = AppTheme.textSecondary.copy(alpha = 0.6f)
-                ) 
+                )
             },
             leadingIcon = {
                 Icon(
@@ -1201,7 +1352,7 @@ private fun InlineMapLocationPicker(
             shape = RoundedCornerShape(14.dp),
             singleLine = true
         )
-        
+
         // Search button
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1232,7 +1383,7 @@ private fun InlineMapLocationPicker(
                 )
             }
         }
-        
+
         // Search error
         searchError?.let {
             Text(
@@ -1241,7 +1392,7 @@ private fun InlineMapLocationPicker(
                 color = Color.Red
             )
         }
-        
+
         // Search results
         if (searchResults.isNotEmpty()) {
             Column(
@@ -1276,7 +1427,7 @@ private fun InlineMapLocationPicker(
                 }
             }
         }
-        
+
         // Map view
         Box(
             modifier = Modifier
@@ -1292,7 +1443,7 @@ private fun InlineMapLocationPicker(
                 map.controller.setZoom(mapZoom)
                 map.controller.setCenter(center)
                 map.overlays.clear()
-                
+
                 selectedGeoPoint?.let { point ->
                     val marker = Marker(map).apply {
                         position = point
@@ -1301,10 +1452,10 @@ private fun InlineMapLocationPicker(
                     }
                     map.overlays.add(marker)
                 }
-                
+
                 map.invalidate()
             }
-            
+
             // Address card overlay
             Card(
                 modifier = Modifier
@@ -1324,7 +1475,7 @@ private fun InlineMapLocationPicker(
                         fontWeight = FontWeight.SemiBold,
                         color = AppTheme.textPrimary
                     )
-                    
+
                     Text(
                         text = when {
                             selectedMapAddress.isNotEmpty() -> selectedMapAddress
@@ -1335,11 +1486,11 @@ private fun InlineMapLocationPicker(
                         color = AppTheme.textSecondary,
                         maxLines = 2
                     )
-                    
+
                     if (isResolvingAddress) {
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }
-                    
+
                     mapError?.let {
                         Text(
                             text = it,
@@ -1347,7 +1498,7 @@ private fun InlineMapLocationPicker(
                             color = Color.Red
                         )
                     }
-                    
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -1358,7 +1509,7 @@ private fun InlineMapLocationPicker(
                         ) {
                             Text(text = "Annuler", maxLines = 1)
                         }
-                        
+
                         Button(
                             onClick = onConfirm,
                             enabled = selectedMapAddress.isNotEmpty(),
@@ -1441,7 +1592,7 @@ private fun SaveButton(
                     modifier = Modifier.size(18.dp)
                 )
             }
-            
+
             Text(
                 text = when {
                     isLoading -> "Enregistrement..."

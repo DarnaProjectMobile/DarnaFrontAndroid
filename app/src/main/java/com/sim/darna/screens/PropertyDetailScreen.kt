@@ -1,5 +1,4 @@
 package com.sim.darna.screens
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -27,7 +26,6 @@ import androidx.navigation.NavController
 import com.sim.darna.navigation.Routes
 import com.sim.darna.viewmodel.ReviewViewModel
 import com.sim.darna.model.Review as DatabaseReview
-
 //------------------------------------------------------
 // COLOR SCHEME
 //------------------------------------------------------
@@ -39,32 +37,26 @@ private val SurfaceColor = Color.White
 private val TextPrimary = Color(0xFF1A1A1A)
 private val TextSecondary = Color(0xFF6B6B6B)
 private val TextTertiary = Color(0xFF9E9E9E)
-
 //------------------------------------------------------
 // HELPER FUNCTIONS
 //------------------------------------------------------
 fun formatDate(createdAt: String?): String {
     return createdAt ?: "Date inconnue"
 }
-
 //------------------------------------------------------
 // MAIN SCREEN
 //------------------------------------------------------
 @Composable
 fun PropertyDetailScreen(navController: NavController, propertyId: String? = null) {
-
     val context = LocalContext.current
     val repository = com.sim.darna.repository.PropertyRepository(context)
     val prefs = context.getSharedPreferences("APP_PREFS", android.content.Context.MODE_PRIVATE)
     val currentUserId = prefs.getString("user_id", null)
-
     var property by remember { mutableStateOf<com.sim.darna.model.Property?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
-
     val reviewViewModel: ReviewViewModel = viewModel()
     val allReviews by reviewViewModel.reviews.collectAsState()
-
     LaunchedEffect(propertyId) {
         if (propertyId != null) {
             repository.getPropertyById(propertyId).enqueue(object : retrofit2.Callback<com.sim.darna.model.Property> {
@@ -77,7 +69,6 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                         isLoading = false
                     }
                 }
-
                 override fun onFailure(call: retrofit2.Call<com.sim.darna.model.Property>, t: Throwable) {
                     error = "Erreur: ${t.message}"
                     isLoading = false
@@ -87,32 +78,27 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
             isLoading = false
         }
     }
-
     LaunchedEffect(propertyId) {
         if (propertyId != null) {
             reviewViewModel.init(context)
             reviewViewModel.loadReviewsForProperty(propertyId)
         }
     }
-
     // Direct usage of reviews from VM, assumed to be for this property only
     val propertyReviews = allReviews
     val recentReviews = propertyReviews.take(3)
-
     val averageRating = if (propertyReviews.isNotEmpty()) {
         propertyReviews.map { it.rating }.average().toFloat()
     } else {
         0f
     }
     val totalReviews = propertyReviews.size
-
     if (isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = PrimaryColor)
         }
         return
     }
-
     if (error != null || property == null) {
         Box(
             modifier = Modifier
@@ -149,23 +135,19 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
         }
         return
     }
-
     val prop = property!!
-
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BackgroundColor)
         ) {
-
             //------------------------------------------------------
             // HEADER - Swipeable Images
             //------------------------------------------------------
             item {
                 val images = prop.images ?: listOfNotNull(prop.image)
                 val pagerState = rememberPagerState(initialPage = 0) { images.size }
-
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -181,7 +163,6 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
-
                         if (images.size > 1) {
                             Row(
                                 modifier = Modifier
@@ -210,7 +191,6 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                             modifier = Modifier.fillMaxSize()
                         )
                     }
-
                     IconButton(
                         onClick = { navController.popBackStack() },
                         modifier = Modifier
@@ -232,7 +212,6 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                     }
                 }
             }
-
             //------------------------------------------------------
             // TITLE + LOCATION
             //------------------------------------------------------
@@ -253,9 +232,7 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                             color = TextPrimary,
                             lineHeight = 32.sp
                         )
-
                         Spacer(modifier = Modifier.height(12.dp))
-
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
@@ -277,9 +254,7 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                                 fontWeight = FontWeight.Medium
                             )
                         }
-
                         Spacer(modifier = Modifier.height(16.dp))
-
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -308,7 +283,6 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                                     )
                                 }
                             }
-
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
                                 color = PrimaryColor.copy(alpha = 0.1f)
@@ -336,7 +310,6 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                     }
                 }
             }
-
             //------------------------------------------------------
             // PRICE CARD
             //------------------------------------------------------
@@ -380,7 +353,6 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                                 )
                             }
                         }
-
                         Icon(
                             Icons.Default.AttachMoney,
                             contentDescription = null,
@@ -390,7 +362,6 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                     }
                 }
             }
-
             //------------------------------------------------------
             // DESCRIPTION
             //------------------------------------------------------
@@ -423,7 +394,6 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                     }
                 }
             }
-
             //------------------------------------------------------
             // AMENITIES
             //------------------------------------------------------
@@ -447,7 +417,6 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                             color = TextPrimary
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -455,9 +424,7 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                             AmenityChip("WiFi", Icons.Default.Wifi, Modifier.weight(1f))
                             AmenityChip("Cuisine", Icons.Default.Restaurant, Modifier.weight(1f))
                         }
-
                         Spacer(modifier = Modifier.height(10.dp))
-
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -465,14 +432,11 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                             AmenityChip("Parking", Icons.Default.LocalParking, Modifier.weight(1f))
                             AmenityChip("Balcon", Icons.Default.Balcony, Modifier.weight(1f))
                         }
-
                         Spacer(modifier = Modifier.height(10.dp))
-
                         AmenityChip("Machine à laver", Icons.Default.LocalLaundryService, Modifier.fillMaxWidth())
                     }
                 }
             }
-
             //------------------------------------------------------
             // REVIEWS SECTION
             //------------------------------------------------------
@@ -523,7 +487,6 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                                     )
                                 }
                             }
-
                             TextButton(
                                 onClick = {
                                     val currentUser = context.getSharedPreferences("APP_PREFS", android.content.Context.MODE_PRIVATE)
@@ -547,13 +510,11 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                                 )
                             }
                         }
-
                         Spacer(modifier = Modifier.height(20.dp))
                         RatingBreakdown(propertyReviews)
                     }
                 }
             }
-
             //------------------------------------------------------
             // AI SUMMARY BUTTON
             //------------------------------------------------------
@@ -592,18 +553,15 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                     }
                 }
             }
-
             item {
                 Spacer(modifier = Modifier.height(100.dp))
             }
         }
-
         //------------------------------------------------------
         // FLOATING ACTION BUTTON
         //------------------------------------------------------
         val isFull = (prop.nbrCollocateurActuel ?: 0) >= (prop.nbrCollocateurMax ?: 0)
         val isOwner = prop.user == currentUserId
-
         if (!isOwner) {
             Surface(
                 modifier = Modifier
@@ -642,41 +600,69 @@ fun PropertyDetailScreen(navController: NavController, propertyId: String? = nul
                             )
                         }
                     }
-                } else {
-                    Button(
-                        onClick = {
-                            if (propertyId != null) {
-                                navController.navigate(Routes.BookProperty.replace("{propertyId}", propertyId))
-                            }
-                        },
+                } else {                      // Row for action buttons
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
-                        shape = RoundedCornerShape(16.dp),
-                        contentPadding = PaddingValues(vertical = 18.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                        // Visit Button
+                        Button(
+                            onClick = {
+                                if (propertyId != null) {
+                                    navController.navigate(Routes.BookVisit.replace("{propertyId}", propertyId))
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = SecondaryColor),
+                            shape = RoundedCornerShape(16.dp),
+                            contentPadding = PaddingValues(vertical = 16.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Event,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Visiter",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        // Book/Contact Button
+                        Button(
+                            onClick = {
+                                if (propertyId != null) {
+                                    navController.navigate(Routes.BookProperty.replace("{propertyId}", propertyId))
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
+                            shape = RoundedCornerShape(16.dp),
+                            contentPadding = PaddingValues(vertical = 16.dp)
                         ) {
                             Icon(
                                 Icons.Default.Chat,
                                 contentDescription = null,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(20.dp)
                             )
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Contacter les Colocataires",
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold
+                                text = "Contacter",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
-                    }
-                }
+                    }    }
             }
         }
     }
 }
-
 //------------------------------------------------------
 // SMALL COMPOSABLES
 //------------------------------------------------------
@@ -704,7 +690,6 @@ fun PropertyInfoCard(
         }
     }
 }
-
 @Composable
 fun AmenityChip(
     text: String,
@@ -733,20 +718,16 @@ fun AmenityChip(
         }
     }
 }
-
 @Composable
 fun RatingBreakdown(reviews: List<DatabaseReview>) {
     val ratingCounts = (1..5).map { star ->
         reviews.count { it.rating == star }
     }.reversed()
-
     val totalReviews = reviews.size
-
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         for ((index, star) in (5 downTo 1).withIndex()) {
             val count = ratingCounts[index]
             val percentage = if (totalReviews > 0) count.toFloat() / totalReviews else 0f
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -765,7 +746,6 @@ fun RatingBreakdown(reviews: List<DatabaseReview>) {
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
-
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -780,7 +760,6 @@ fun RatingBreakdown(reviews: List<DatabaseReview>) {
                             .background(AccentColor)
                     )
                 }
-
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = "${(percentage * 100).toInt()}%",
@@ -793,12 +772,10 @@ fun RatingBreakdown(reviews: List<DatabaseReview>) {
         }
     }
 }
-
 @Composable
 fun ReviewCard(review: DatabaseReview) {
     val username = review.userName
     val userInitial = username.firstOrNull()?.uppercase() ?: "?"
-
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -845,7 +822,6 @@ fun ReviewCard(review: DatabaseReview) {
                         )
                     }
                 }
-
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = AccentColor.copy(alpha = 0.15f)
@@ -870,9 +846,7 @@ fun ReviewCard(review: DatabaseReview) {
                     }
                 }
             }
-
             Spacer(modifier = Modifier.height(12.dp))
-
             Text(
                 text = review.comment,
                 fontSize = 14.sp,

@@ -3,15 +3,13 @@ package com.sim.darna.auth
 
 import com.sim.darna.model.UserDto
 import com.google.gson.annotations.SerializedName
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Call
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.Body
-import retrofit2.http.HTTP
-import retrofit2.http.PATCH
-import retrofit2.http.POST
+import retrofit2.http.*
 import java.util.concurrent.TimeUnit
 
 // DTO matching your NestJS UpdateUserDto
@@ -38,6 +36,13 @@ interface UserApi {
     @PATCH("users/me")
     fun updateMe(
         @Body request: UpdateUserRequest
+    ): Call<UserDto>
+
+    // PATCH /users/me/image - Multipart image upload (matches NestJS @UploadedFile)
+    @Multipart
+    @PATCH("users/me/image")
+    fun updateImage(
+        @Part image: MultipartBody.Part
     ): Call<UserDto>
 
     @POST("users/me/device-token")

@@ -1,5 +1,4 @@
 package com.sim.darna.navigation
-
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -8,7 +7,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.sim.darna.screens.*
-
 object Routes {
     const val Login = "login"
     const val SignUp = "signup"
@@ -29,6 +27,7 @@ object Routes {
     const val AcceptedClients = "accepted_clients"
     const val ConfirmedClients = "confirmed_clients/{propertyId}"
     const val BookProperty = "book_property/{propertyId}"
+    const val BookVisit = "book_visit/{propertyId}"
     const val PropertyBookings = "property_books/{propertyId}"
     const val Notifications = "notifications"
     const val Map = "map"
@@ -39,17 +38,14 @@ object Routes {
     const val Dashboard = "dashboard"
     const val VisitRequests = "visit_requests"
     const val MyVisits = "my_visits"
+    const val Chat = "chat/{visiteId}/{title}"
 }
-
 @Composable
 fun AppNavGraph(navController: NavHostController = rememberNavController()) {
-
     NavHost(
         navController = navController,
         startDestination = Routes.Login
     ) {
-
-
         composable(Routes.Login) {
             LoginScreen(
                 onLoginSuccess = {
@@ -61,7 +57,6 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                 onForgotPassword = { navController.navigate(Routes.ForgotPassword) }
             )
         }
-
         composable(Routes.SignUp) {
             SignUpScreen(
                 onVerificationNavigate = {
@@ -71,7 +66,6 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                 }
             )
         }
-
         composable(Routes.Verification) {
             val previousRoute = navController.previousBackStackEntry?.destination?.route
             VerificationScreen(
@@ -87,7 +81,6 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                 }
             )
         }
-
         composable(Routes.IdScan) {
             IdScanScreen {
                 navController.navigate(Routes.Selfie) {
@@ -95,7 +88,6 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                 }
             }
         }
-
         composable(Routes.Selfie) {
             SelfieScreen {
                 navController.navigate(Routes.Fingerprint) {
@@ -103,7 +95,6 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                 }
             }
         }
-
         composable(Routes.Fingerprint) {
             FingerprintScreen(
                 onNext = {
@@ -116,16 +107,11 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         composable("feedback") {
             FeedbackScreen(onNavigateBack = { navController.popBackStack() })
         }
-
         composable(Routes.UpdateProfile) {
             UpdateProfileScreen(onNavigateBack = { navController.popBackStack() })
         }
-
-
-
         // ⭐ MAIN APP (BOTTOM NAVIGATION)
         composable(Routes.Main) { MainScreen(navController) }
-
         // ⭐ FULL SCREEN PAGES
         composable(Routes.PropertyDetail) { PropertyDetailScreen(navController) }
         composable(
@@ -135,12 +121,12 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
             PropertyDetailScreen(navController, propertyId)
         }
-        composable(Routes.Reviews) { 
+        composable(Routes.Reviews) {
             ReviewsScreen(
                 onNavigateBack = { navController.popBackStack() }
-            ) 
+            )
         }
-        
+
         composable(
             route = Routes.ReviewsWithParams,
             arguments = listOf(
@@ -180,6 +166,14 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
             BookPropertyScreen(navController, propertyId)
         }
+
+        composable(
+            route = Routes.BookVisit,
+            arguments = listOf(navArgument("propertyId") { type = androidx.navigation.NavType.StringType })
+        ) { backStackEntry ->
+            val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
+            BookVisitScreen(navController, propertyId)
+        }
         composable(
             route = Routes.PropertyBookings,
             arguments = listOf(navArgument("propertyId") { type = androidx.navigation.NavType.StringType })
@@ -194,7 +188,7 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
             ConfirmedClientsScreen(navController, propertyId)
         }
-        
+
         // Routes pour les publicités
         composable(
             route = Routes.PubliciteDetail,
@@ -209,14 +203,14 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                 }
             )
         }
-        
+
         composable(Routes.AddPublicite) {
             AddPubliciteScreen(
                 onFinish = { navController.popBackStack() },
                 onCancel = { navController.popBackStack() }
             )
         }
-        
+
         composable(
             route = Routes.EditPublicite,
             arguments = listOf(navArgument("publiciteId") { type = NavType.StringType })
@@ -228,7 +222,6 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                 onCancel = { navController.popBackStack() }
             )
         }
-
         // Review Summary (AI-Powered)
         composable(
             route = Routes.ReviewSummary,
@@ -245,20 +238,35 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                 onNavigateBack = { navController.popBackStack() }
             )
         }
-        
+
         // Dashboard
         composable(Routes.Dashboard) {
             DashboardScreen(navController)
         }
-        
+
         // Visit Requests
         composable(Routes.VisitRequests) {
             VisitRequestsScreen(navController)
         }
-        
+
         // My Visits
         composable(Routes.MyVisits) {
             MyVisitsScreen(navController)
+        }
+        // Chat
+        composable(
+            route = Routes.Chat,
+            arguments = listOf(
+                navArgument("visiteId") { type = NavType.StringType },
+                navArgument("title") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val visiteId = backStackEntry.arguments?.getString("visiteId") ?: ""
+            val title = java.net.URLDecoder.decode(
+                backStackEntry.arguments?.getString("title") ?: "Chat",
+                "UTF-8"
+            )
+            ChatScreen(navController, visiteId, title)
         }
     }
 }

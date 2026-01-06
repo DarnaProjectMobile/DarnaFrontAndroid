@@ -7,10 +7,10 @@ package com.sim.darna.utils
 object ApiConfig {
     // Base URL for the main API
     // Change this value to switch between production, staging, or local development
-    //const val BASE_URL = "https://darna-app.onrender.com/"
+    const val BASE_URL = "https://darna-app-hl17.onrender.com/"
     
     // Alternative URLs for different environments (uncomment and use as needed):
-     const val BASE_URL = "http://192.168.1.165:3000/"  // Android emulator localhost
+     //const val BASE_URL = "http://192.168.10.200:3000/"  // Android emulator localhost
     // const val BASE_URL = "http://10.0.2.2:3000/"      // Android emulator localhost
     // const val BASE_URL = "http://172.16.11.61:3000/"  // Alternative local IP
 }

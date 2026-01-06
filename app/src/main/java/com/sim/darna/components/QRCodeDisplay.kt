@@ -15,7 +15,7 @@ import coil.compose.AsyncImage
 
 @Composable
 fun QRCodeDisplay(
-    qrCodeBase64: String?,
+    qrCodeBase64: String?,  // Can be either base64 string or URL
     couponCode: String? = null,
     modifier: Modifier = Modifier
 ) {
@@ -25,33 +25,43 @@ fun QRCodeDisplay(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         if (!qrCodeBase64.isNullOrEmpty()) {
-            // Décoder l'image base64
-            val bitmap = remember(qrCodeBase64) {
-                try {
-                    // Retirer le préfixe "data:image/png;base64," si présent
-                    val base64Data = if (qrCodeBase64.startsWith("data:image")) {
-                        qrCodeBase64.substring(qrCodeBase64.indexOf(",") + 1)
-                    } else {
-                        qrCodeBase64
+            // Check if it's a URL or base64
+            if (qrCodeBase64.startsWith("http")) {
+                // It's a URL, use AsyncImage
+                AsyncImage(
+                    model = qrCodeBase64,
+                    contentDescription = "QR Code",
+                    modifier = Modifier.size(250.dp)
+                )
+            } else {
+                // It's base64, decode it
+                val bitmap = remember(qrCodeBase64) {
+                    try {
+                        // Remove the prefix "data:image/png;base64," if present
+                        val base64Data = if (qrCodeBase64.startsWith("data:image")) {
+                            qrCodeBase64.substring(qrCodeBase64.indexOf(",") + 1)
+                        } else {
+                            qrCodeBase64
+                        }
+                        val imageBytes = Base64.decode(base64Data, Base64.DEFAULT)
+                        BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                    } catch (e: Exception) {
+                        android.util.Log.e("QRCodeDisplay", "Erreur lors du décodage du QR code: ${e.message}", e)
+                        null
                     }
-                    val imageBytes = Base64.decode(base64Data, Base64.DEFAULT)
-                    BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-                } catch (e: Exception) {
-                    android.util.Log.e("QRCodeDisplay", "Erreur lors du décodage du QR code: ${e.message}", e)
-                    null
                 }
-            }
-            
-            bitmap?.let {
-                Card(
-                    modifier = Modifier.size(250.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-                ) {
-                    androidx.compose.foundation.Image(
-                        bitmap = it.asImageBitmap(),
-                        contentDescription = "QR Code",
-                        modifier = Modifier.fillMaxSize()
-                    )
+                
+                bitmap?.let {
+                    Card(
+                        modifier = Modifier.size(250.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    ) {
+                        androidx.compose.foundation.Image(
+                            bitmap = it.asImageBitmap(),
+                            contentDescription = "QR Code",
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
         }
@@ -65,4 +75,3 @@ fun QRCodeDisplay(
         }
     }
 }
-

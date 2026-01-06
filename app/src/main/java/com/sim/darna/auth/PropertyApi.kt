@@ -31,6 +31,23 @@ interface PropertyApi {
         @Part images: List<MultipartBody.Part>
     ): Call<Property>
     
+    // Multipart support for updating property with file uploads
+    @Multipart
+    @PATCH("annonces/{id}")
+    fun updatePropertyWithFiles(
+        @Path("id") id: String,
+        @Part("title") title: RequestBody? = null,
+        @Part("description") description: RequestBody? = null,
+        @Part("price") price: RequestBody? = null,
+        @Part("location") location: RequestBody? = null,
+        @Part("type") type: RequestBody? = null,
+        @Part("nbrCollocateurMax") nbrCollocateurMax: RequestBody? = null,
+        @Part("nbrCollocateurActuel") nbrCollocateurActuel: RequestBody? = null,
+        @Part("startDate") startDate: RequestBody? = null,
+        @Part("endDate") endDate: RequestBody? = null,
+        @Part images: List<MultipartBody.Part>? = null
+    ): Call<Property>
+    
     // Keep the old JSON-based endpoint for backward compatibility
     @POST("annonces")
     fun createProperty(@Body property: CreatePropertyRequest): Call<Property>
@@ -90,4 +107,3 @@ data class UpdatePropertyRequest(
 data class BookPropertyRequest(
     val bookingStartDate: String // ISO date string
 )
-

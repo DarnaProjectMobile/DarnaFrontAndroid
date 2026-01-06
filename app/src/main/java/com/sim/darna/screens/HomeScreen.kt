@@ -24,6 +24,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -77,7 +80,9 @@ object ModernColors {
     val CardBackground = Color.White
     val TextPrimary = Color(0xFF1A1A2E)
     val TextSecondary = Color(0xFF6B7280)
+
     val Border = Color(0xFFE5E7EB)
+    val Notification = Color(0xFF00C4B4)
 }
 
 // ---------------------- Bottom navigation items ----------------------
@@ -118,7 +123,7 @@ fun MainScreen(parentNavController: NavHostController) {
                     onDetailClick = { id -> parentNavController.navigate(Routes.PubliciteDetail.replace("{publiciteId}", id)) }
                 )
             }
-            
+
             composable(BottomNavItem.Reserve.route) {
                 MyVisitsScreen(parentNavController)
             }
@@ -235,24 +240,35 @@ fun HomeScreen(navController: NavController) {
             // Header
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                    // Top bar with greeting and notifications
+                    // Top Bar with Search, Filter, and Notification
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
-                            Text(
-                                text = "Bonjour 👋",
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ModernColors.TextPrimary
-                            )
-                            Text(
-                                text = "Trouvez votre colocation idéale",
-                                fontSize = 15.sp,
-                                color = ModernColors.TextSecondary,
-                                modifier = Modifier.padding(top = 2.dp)
+                        // Search Bar
+                        SearchBar(
+                            searchText = uiState.searchText,
+                            onSearchTextChange = { viewModel.setSearchText(it) },
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        // Filter Button
+                        Surface(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clickable { showFilterSheet = true },
+                            shape = RoundedCornerShape(16.dp),
+                            color = ModernColors.Secondary, // Blue from image
+                            shadowElevation = 2.dp
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Tune,
+                                contentDescription = "Filter",
+                                tint = Color.White,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp)
                             )
                         }
 
@@ -260,10 +276,10 @@ fun HomeScreen(navController: NavController) {
                         Box {
                             Surface(
                                 modifier = Modifier
-                                    .size(48.dp)
+                                    .size(56.dp)
                                     .clickable { navController.navigate(Routes.Notifications) },
-                                shape = CircleShape,
-                                color = ModernColors.CardBackground,
+                                shape = RoundedCornerShape(16.dp),
+                                color = ModernColors.Notification, // Teal from image
                                 shadowElevation = 2.dp
                             ) {
                                 Icon(
@@ -271,38 +287,31 @@ fun HomeScreen(navController: NavController) {
                                     contentDescription = "Notifications",
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .padding(12.dp),
-                                    tint = ModernColors.TextPrimary
+                                        .padding(16.dp),
+                                    tint = Color.White
                                 )
                             }
                             if (notificationCount > 0) {
                                 Surface(
                                     shape = CircleShape,
-                                    color = ModernColors.Accent,
+                                    color = Color.Red,
                                     modifier = Modifier
-                                        .size(20.dp)
+                                        .size(16.dp)
                                         .align(Alignment.TopEnd)
-                                        .offset(x = 2.dp, y = (-2).dp)
+                                        .offset(x = 4.dp, y = (-4).dp)
                                 ) {
-                                    Text(
-                                        text = if (notificationCount > 9) "9+" else notificationCount.toString(),
-                                        color = Color.White,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.wrapContentSize(Alignment.Center),
-                                        textAlign = TextAlign.Center
-                                    )
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = if (notificationCount > 9) "9+" else notificationCount.toString(),
+                                            color = Color.White,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-
-                    // Search Bar
-                    SearchBar(
-                        searchText = uiState.searchText,
-                        onSearchTextChange = { viewModel.setSearchText(it) },
-                        onFilterClick = { showFilterSheet = true }
-                    )
 
                     // Quick Filters
                     QuickFilterButtons(
@@ -558,69 +567,46 @@ fun HomeScreen(navController: NavController) {
 fun SearchBar(
     searchText: String,
     onSearchTextChange: (String) -> Unit,
-    onFilterClick: () -> Unit
+    modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        OutlinedTextField(
-            value = searchText,
-            onValueChange = onSearchTextChange,
-            modifier = Modifier.weight(1f),
-            placeholder = {
-                Text(
-                    "Rechercher une colocation...",
-                    color = ModernColors.TextSecondary
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    Icons.Default.Search,
-                    contentDescription = null,
-                    tint = ModernColors.TextSecondary
-                )
-            },
-            trailingIcon = {
-                if (searchText.isNotEmpty()) {
-                    IconButton(onClick = { onSearchTextChange("") }) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Clear",
-                            tint = ModernColors.TextSecondary
-                        )
-                    }
-                }
-            },
-            shape = RoundedCornerShape(16.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = ModernColors.CardBackground,
-                unfocusedContainerColor = ModernColors.CardBackground,
-                focusedBorderColor = ModernColors.Primary.copy(alpha = 0.3f),
-                unfocusedBorderColor = ModernColors.Border,
-                cursorColor = ModernColors.Primary
-            ),
-            singleLine = true
-        )
-
-        Surface(
-            modifier = Modifier
-                .size(56.dp)
-                .clickable { onFilterClick() },
-            shape = RoundedCornerShape(16.dp),
-            color = ModernColors.Primary,
-            shadowElevation = 2.dp
-        ) {
-            Icon(
-                imageVector = Icons.Default.Tune,
-                contentDescription = "Filter",
-                tint = Color.White,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
+    OutlinedTextField(
+        value = searchText,
+        onValueChange = onSearchTextChange,
+        modifier = modifier.fillMaxWidth(),
+        placeholder = {
+            Text(
+                "Rechercher",
+                color = ModernColors.TextSecondary
             )
-        }
-    }
+        },
+        leadingIcon = {
+            Icon(
+                Icons.Default.Search,
+                contentDescription = null,
+                tint = ModernColors.TextSecondary
+            )
+        },
+        trailingIcon = {
+            if (searchText.isNotEmpty()) {
+                IconButton(onClick = { onSearchTextChange("") }) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Clear",
+                        tint = ModernColors.TextSecondary
+                    )
+                }
+            }
+        },
+        shape = RoundedCornerShape(16.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = ModernColors.CardBackground,
+            unfocusedContainerColor = ModernColors.CardBackground,
+            focusedBorderColor = ModernColors.Primary.copy(alpha = 0.3f),
+            unfocusedBorderColor = ModernColors.Border,
+            cursorColor = ModernColors.Primary
+        ),
+        singleLine = true
+    )
 }
 
 // ---------------------- QuickFilterButtons ----------------------
@@ -735,43 +721,155 @@ fun FilterSheet(
     onDismiss: () -> Unit,
     onApply: (Double?, Double?) -> Unit
 ) {
+    var minPriceText by remember { mutableStateOf(minPrice?.toInt()?.toString() ?: "") }
+    var maxPriceText by remember { mutableStateOf(maxPrice?.toInt()?.toString() ?: "") }
+
+    // Sync values when dialog opens
+    LaunchedEffect(minPrice, maxPrice) {
+        minPriceText = minPrice?.toInt()?.toString() ?: ""
+        maxPriceText = maxPrice?.toInt()?.toString() ?: ""
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(
-                "Filtres de prix",
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Tune,
+                    contentDescription = null,
+                    tint = ModernColors.Primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    "Filtrer par prix",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    color = ModernColors.TextPrimary
+                )
+            }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    "Prix minimum: ${minPrice?.toInt() ?: "Non défini"}€",
-                    color = ModernColors.TextSecondary
-                )
-                Text(
-                    "Prix maximum: ${maxPrice?.toInt() ?: "Non défini"}€",
-                    color = ModernColors.TextSecondary
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onApply(minPrice, maxPrice) },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = ModernColors.Primary
-                ),
-                shape = RoundedCornerShape(12.dp)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Appliquer")
+                OutlinedTextField(
+                    value = minPriceText,
+                    onValueChange = { newValue ->
+                        if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
+                            minPriceText = newValue
+                        }
+                    },
+                    label = { Text("Prix minimum") },
+                    placeholder = { Text("Prix minimum") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.AttachMoney,
+                            contentDescription = null,
+                            tint = ModernColors.TextSecondary
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number
+                    ),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ModernColors.Primary,
+                        unfocusedBorderColor = Color(0xFFE0E0E0),
+                        focusedTextColor = ModernColors.TextPrimary,
+                        unfocusedTextColor = ModernColors.TextPrimary
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = maxPriceText,
+                    onValueChange = { newValue ->
+                        if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
+                            maxPriceText = newValue
+                        }
+                    },
+                    label = { Text("Prix maximum") },
+                    placeholder = { Text("Prix maximum") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.AttachMoney,
+                            contentDescription = null,
+                            tint = ModernColors.TextSecondary
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number
+                    ),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ModernColors.Primary,
+                        unfocusedBorderColor = Color(0xFFE0E0E0),
+                        focusedTextColor = ModernColors.TextPrimary,
+                        unfocusedTextColor = ModernColors.TextPrimary
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            minPriceText = ""
+                            maxPriceText = ""
+                            onApply(null, null)
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = ModernColors.TextSecondary
+                        ),
+                        border = ButtonDefaults.outlinedButtonBorder.copy(
+                            width = 1.dp,
+                            brush = androidx.compose.ui.graphics.SolidColor(Color(0xFFE0E0E0))
+                        )
+                    ) {
+                        Text(
+                            "Réinitialiser",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            val min = minPriceText.toIntOrNull()?.toDouble()
+                            val max = maxPriceText.toIntOrNull()?.toDouble()
+                            onApply(min, max)
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ModernColors.Primary,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            "Appliquer",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
             }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Annuler", color = ModernColors.TextSecondary)
-            }
-        }
+        confirmButton = {},
+        dismissButton = {},
+        containerColor = Color.White,
+        shape = RoundedCornerShape(24.dp),
+        tonalElevation = 8.dp
     )
 }
 

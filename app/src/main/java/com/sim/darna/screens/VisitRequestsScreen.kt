@@ -1,5 +1,4 @@
 package com.sim.darna.screens
-
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -35,7 +34,6 @@ import com.sim.darna.visite.VisiteResponse
 import com.sim.darna.visite.VisiteViewModel
 import java.text.SimpleDateFormat
 import java.util.*
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VisitRequestsScreen(navController: NavController) {
@@ -44,27 +42,25 @@ fun VisitRequestsScreen(navController: NavController) {
 
     val viewModel: VisiteViewModel = viewModel(factory = VisiteVmFactory(ApiConfig.BASE_URL, context))
     val uiState = viewModel.state.collectAsState().value
+    var viewingReviewVisite by remember { mutableStateOf<VisiteResponse?>(null) }
 
 
 
     LaunchedEffect(Unit) {
         viewModel.loadLogementsVisites(force = true)
     }
-
     LaunchedEffect(uiState.message) {
         uiState.message?.let { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             viewModel.clearFeedback()
         }
     }
-
     LaunchedEffect(uiState.error) {
         uiState.error?.let { error ->
             Toast.makeText(context, error, Toast.LENGTH_LONG).show()
             viewModel.clearFeedback()
         }
     }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -115,7 +111,6 @@ fun VisitRequestsScreen(navController: NavController) {
                     .padding(horizontal = AppSpacing.md)
             ) {
                 Spacer(modifier = Modifier.height(AppSpacing.md))
-
                 // Progress Indicator
                 AnimatedVisibility(
                     visible = uiState.isSubmitting,
@@ -130,13 +125,10 @@ fun VisitRequestsScreen(navController: NavController) {
                         trackColor = AppColors.divider
                     )
                 }
-
                 Spacer(modifier = Modifier.height(AppSpacing.md))
-
                 // Tabs
                 var selectedTabIndex by remember { mutableStateOf(0) }
                 val tabs = listOf("Tous", "En attente", "Acceptées", "Refusées")
-
                 TabRow(
                     selectedTabIndex = selectedTabIndex,
                     containerColor = Color.Transparent,
@@ -165,9 +157,7 @@ fun VisitRequestsScreen(navController: NavController) {
                         )
                     }
                 }
-
                 Spacer(modifier = Modifier.height(AppSpacing.md))
-
                 // Filter visits based on selected tab
                 val filteredVisits = remember(uiState.visites, selectedTabIndex) {
                     uiState.visites.filter { visite ->
@@ -181,7 +171,6 @@ fun VisitRequestsScreen(navController: NavController) {
                         }
                     }
                 }
-
                 when {
                     uiState.isLoadingList && filteredVisits.isEmpty() -> {
                         Box(
@@ -205,7 +194,6 @@ fun VisitRequestsScreen(navController: NavController) {
                             3 -> "Vous n'avez pas de visites refusées."
                             else -> "Vous n'avez aucune demande de visite pour le moment."
                         }
-
                         EmptyStateCard(
                             title = emptyMessage,
                             description = emptyDescription,
@@ -243,6 +231,12 @@ fun VisitRequestsScreen(navController: NavController) {
                                             navController.navigate(
                                                 "chat/$id/${java.net.URLEncoder.encode(title, "UTF-8")}"
                                             )
+                                        },
+                                        onViewReview = { visite ->
+                                            visite.id?.let { id ->
+                                                viewModel.loadVisiteReviews(id)
+                                                viewingReviewVisite = visite
+                                            }
                                         }
                                     )
                                 }
@@ -251,6 +245,39 @@ fun VisitRequestsScreen(navController: NavController) {
                     }
                 }
             }
+        }
+    }
+
+    viewingReviewVisite?.let { visite ->
+        if (uiState.currentVisiteReviews.isNotEmpty()) {
+            val review = uiState.currentVisiteReviews.first()
+            AlertDialog(
+                onDismissRequest = { viewingReviewVisite = null },
+                title = { Text("Avis du client", fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Note globale: ", fontWeight = FontWeight.SemiBold)
+                            Icon(Icons.Default.Star, null, tint = Color(0xFFFF9800), modifier = Modifier.size(16.dp))
+                            Text(" ${review.rating}/5")
+                        }
+                        if (!review.comment.isNullOrBlank()) {
+                            Text("Commentaire:", fontWeight = FontWeight.SemiBold)
+                            Text(review.comment, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = { viewingReviewVisite = null },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800))
+                    ) {
+                        Text("Fermer")
+                    }
+                }
+            )
+        } else if (!uiState.isLoadingList) {
+            // Loading or empty
         }
     }
 }
@@ -262,7 +289,8 @@ private fun VisitRequestCard(
     showActions: Boolean,
     onAccept: (String) -> Unit,
     onReject: (String) -> Unit,
-    onChatClick: (String, String) -> Unit
+    onChatClick: (String, String) -> Unit,
+    onViewReview: (VisiteResponse) -> Unit
 ) {
     var isVisible by remember { mutableStateOf(false) }
 
@@ -270,7 +298,6 @@ private fun VisitRequestCard(
         kotlinx.coroutines.delay((index * 100).toLong())
         isVisible = true
     }
-
     AnimatedVisibility(
         visible = isVisible,
         enter = fadeIn(animationSpec = tween(500)) +
@@ -358,7 +385,6 @@ private fun VisitRequestCard(
                                     )
                                 }
                             }
-
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = visite.clientUsername ?: "Client",
@@ -373,13 +399,11 @@ private fun VisitRequestCard(
                                 )
                             }
                         }
-
                         val statusColor = when {
                             visite.status?.equals("accepted", ignoreCase = true) == true || visite.status?.equals("confirmed", ignoreCase = true) == true || visite.status?.equals("acceptée", ignoreCase = true) == true -> AppColors.success
                             visite.status?.equals("refused", ignoreCase = true) == true || visite.status?.equals("refusée", ignoreCase = true) == true -> AppColors.danger
                             else -> Color(0xFFFF9800)
                         }
-
                         Surface(
                             shape = RoundedCornerShape(AppRadius.round),
                             color = statusColor.copy(alpha = 0.25f),
@@ -399,7 +423,6 @@ private fun VisitRequestCard(
                         }
                     }
                 }
-
                 // Content
                 Column(
                     modifier = Modifier
@@ -435,7 +458,6 @@ private fun VisitRequestCard(
                             }
                         }
                     }
-
                     // Notes
                     visite.notes?.let { notes ->
                         if (notes.isNotBlank()) {
@@ -465,7 +487,6 @@ private fun VisitRequestCard(
                             }
                         }
                     }
-
                     // Contact Phone
                     visite.contactPhone?.let { phone ->
                         if (phone.isNotBlank()) {
@@ -496,9 +517,7 @@ private fun VisitRequestCard(
                             }
                         }
                     }
-
                     Spacer(modifier = Modifier.height(AppSpacing.sm))
-
                     // Action Buttons
                     if (showActions) {
                         Row(
@@ -523,7 +542,6 @@ private fun VisitRequestCard(
                                 Spacer(Modifier.width(8.dp))
                                 Text("Refuser", fontWeight = FontWeight.Bold)
                             }
-
                             // Accept Button
                             Button(
                                 onClick = { visite.id?.let { onAccept(it) } },
@@ -543,15 +561,12 @@ private fun VisitRequestCard(
                             }
                         }
                     }
-
                     // Show Chat button if Accepted
                     if (visite.status?.equals("accepted", ignoreCase = true) == true ||
                         visite.status?.equals("confirmed", ignoreCase = true) == true ||
                         visite.status?.equals("acceptée", ignoreCase = true) == true ||
                         visite.status?.equals("validée", ignoreCase = true) == true) {
-
                         Spacer(modifier = Modifier.height(AppSpacing.sm))
-
                         Button(
                             onClick = {
                                 visite.id?.let { id ->
@@ -574,18 +589,39 @@ private fun VisitRequestCard(
                             Text("Discuter avec le visiteur", fontWeight = FontWeight.Bold)
                         }
                     }
+
+                    // Show Review button if available
+                    if (visite.reviewId != null) {
+                        Spacer(modifier = Modifier.height(AppSpacing.sm))
+
+                        OutlinedButton(
+                            onClick = { onViewReview(visite) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(AppRadius.md),
+                            border = BorderStroke(1.dp, Color(0xFFFF9800)),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color(0xFFFF9800)
+                            )
+                        ) {
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Voir l'avis du client", fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }
     }
 }
-
 private fun formatVisitDate(dateString: String): String {
     return try {
         val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
         inputFormat.timeZone = TimeZone.getTimeZone("UTC")
         val date = inputFormat.parse(dateString)
-
         val outputFormat = SimpleDateFormat("dd MMMM yyyy 'à' HH:mm", Locale.FRENCH)
         date?.let { outputFormat.format(it) } ?: dateString
     } catch (e: Exception) {

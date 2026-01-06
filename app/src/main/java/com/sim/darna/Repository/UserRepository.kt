@@ -42,6 +42,18 @@ class UserRepository(
     }
 
     /**
+     * Upload user profile image - sends multipart image to backend
+     */
+    fun uploadImage(imageFile: File): Call<UserDto> {
+        // Create request body from the file
+        val requestFile = imageFile.asRequestBody("image/*".toMediaTypeOrNull())
+        // Create multipart part with field name "image" (must match backend)
+        val imagePart = MultipartBody.Part.createFormData("image", imageFile.name, requestFile)
+        
+        return api.updateImage(imagePart)
+    }
+
+    /**
      * Save user in SharedPreferences
      */
     fun saveUser(user: UserDto) {

@@ -31,6 +31,7 @@ import com.sim.darna.model.Property
 import com.sim.darna.navigation.Routes
 import com.sim.darna.repository.PropertyRepository
 import com.sim.darna.ui.theme.AppTheme
+import com.sim.darna.utils.ImageUtils
 import retrofit2.Callback
 import retrofit2.Response
 
@@ -210,7 +211,7 @@ fun ReservationsScreen(navController: androidx.navigation.NavController) {
                                 property = property,
                                 onClick = {
                                     // Navigate to property bookings view to show all users who booked
-                                    navController.navigate("property_bookings/${property.id}")
+                                    navController.navigate(Routes.PropertyBookings.replace("{propertyId}", property.id))
                                 }
                             )
                         }
@@ -256,39 +257,15 @@ fun PropertyReservationCard(
                     .background(Color(0xFFF5F5F5))
             ) {
                 if (imageUrl != null && imageUrl.isNotEmpty()) {
-                    if (imageUrl.startsWith("data:image")) {
-                        // Base64 image
-                        val base64String = imageUrl.substringAfter(",")
-                        val imageBytes = android.util.Base64.decode(base64String, android.util.Base64.DEFAULT)
-                        val bitmap = android.graphics.BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-                        
-                        if (bitmap != null) {
-                            Image(
-                                bitmap = bitmap.asImageBitmap(),
-                                contentDescription = "Property image",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Home,
-                                contentDescription = "Property",
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(20.dp),
-                                tint = AppTheme.textSecondary
-                            )
-                        }
-                    } else {
-                        // URL image - using Coil
-                        val fullUrl = if (imageUrl.startsWith("http")) imageUrl else "${com.sim.darna.utils.ApiConfig.BASE_URL}$imageUrl"
-                        AsyncImage(
-                            model = fullUrl,
-                            contentDescription = "Property image",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
+                    // Updated to use only URL-based images with our utility function
+                    val fullImageUrl = ImageUtils.buildFullImageUrl(imageUrl)
+                    
+                    AsyncImage(
+                        model = fullImageUrl,
+                        contentDescription = "Property image",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
                 } else {
                     Icon(
                         imageVector = Icons.Default.Home,

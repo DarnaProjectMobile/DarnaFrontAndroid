@@ -1,5 +1,6 @@
 package com.sim.darna.screens
 
+
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.widget.Toast
@@ -52,42 +53,39 @@ import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.sin
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyVisitsScreen(
     navController: NavController
 ) {
     val context = LocalContext.current
-    
+
     val viewModel: VisiteViewModel = viewModel(
         factory = VisiteVmFactory(ApiConfig.BASE_URL, context)
     )
-    
+
     val uiState = viewModel.state.collectAsState().value
     var editingVisite by remember { mutableStateOf<VisiteResponse?>(null) }
     var showCancelConfirmation by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirmation by remember { mutableStateOf<String?>(null) }
     var ratingVisite by remember { mutableStateOf<VisiteResponse?>(null) }
+    var viewingReviewVisite by remember { mutableStateOf<VisiteResponse?>(null) }
     var selectedStatusFilter by remember { mutableStateOf<String?>(null) }
-    
 
 
     LaunchedEffect(Unit) {
         viewModel.loadVisites()
     }
-
     LaunchedEffect(uiState.message) {
         uiState.message?.let { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             viewModel.clearFeedback()
         }
     }
-
     LaunchedEffect(uiState.error) {
         uiState.error?.let { error ->
             Toast.makeText(context, error, Toast.LENGTH_LONG).show()
-            if (error.contains("n'existe plus", ignoreCase = true) || 
+            if (error.contains("n'existe plus", ignoreCase = true) ||
                 error.contains("supprimée", ignoreCase = true)) {
                 kotlinx.coroutines.delay(1000)
                 viewModel.loadVisites(force = true)
@@ -95,7 +93,6 @@ fun MyVisitsScreen(
             viewModel.clearFeedback()
         }
     }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -115,9 +112,7 @@ fun MyVisitsScreen(
         ) {
             // Header moderne avec animation
             ModernHeader(visitCount = uiState.visites.size)
-
             Spacer(modifier = Modifier.height(AppSpacing.sm))
-
             // Progress Indicator avec animation
             AnimatedVisibility(
                 visible = uiState.isSubmitting,
@@ -132,9 +127,7 @@ fun MyVisitsScreen(
                     trackColor = AppColors.divider
                 )
             }
-
             Spacer(modifier = Modifier.height(AppSpacing.sm))
-
             // Error Banner
             AnimatedVisibility(
                 visible = uiState.error != null,
@@ -150,20 +143,16 @@ fun MyVisitsScreen(
                     )
                 }
             }
-
             Spacer(modifier = Modifier.height(AppSpacing.md))
-
             // Filtres de statut avec animation
             AnimatedStatusFilters(
                 visites = uiState.visites,
                 selectedFilter = selectedStatusFilter,
-                onFilterSelected = { status -> 
+                onFilterSelected = { status ->
                     selectedStatusFilter = if (selectedStatusFilter == status) null else status
                 }
             )
-
             Spacer(modifier = Modifier.height(AppSpacing.md))
-
             // Filtrer les visites
             val filteredVisites = remember(uiState.visites, selectedStatusFilter) {
                 if (selectedStatusFilter == null) {
@@ -171,20 +160,19 @@ fun MyVisitsScreen(
                 } else {
                     uiState.visites.filter { visite ->
                         when (selectedStatusFilter) {
-                            "pending" -> visite.status?.equals("pending", ignoreCase = true) == true || 
-                                        (visite.status == null || visite.status.equals("en attente", ignoreCase = true))
+                            "pending" -> visite.status?.equals("pending", ignoreCase = true) == true ||
+                                    (visite.status == null || visite.status.equals("en attente", ignoreCase = true))
                             "confirmed" -> visite.status?.equals("confirmed", ignoreCase = true) == true ||
-                                           visite.status?.equals("acceptée", ignoreCase = true) == true
+                                    visite.status?.equals("acceptée", ignoreCase = true) == true
                             "refused" -> visite.status?.equals("refused", ignoreCase = true) == true ||
-                                         visite.status?.equals("refusée", ignoreCase = true) == true
+                                    visite.status?.equals("refusée", ignoreCase = true) == true
                             "completed" -> visite.status?.equals("completed", ignoreCase = true) == true ||
-                                          visite.status?.equals("terminée", ignoreCase = true) == true
+                                    visite.status?.equals("terminée", ignoreCase = true) == true
                             else -> true
                         }
                     }
                 }
             }
-
             // Content avec animations
             when {
                 uiState.isLoadingList && filteredVisites.isEmpty() -> {
@@ -254,6 +242,12 @@ fun MyVisitsScreen(
                                             android.util.Log.e("MyVisitsScreen", "Erreur de navigation", e)
                                             Toast.makeText(context, "Erreur de navigation: ${e.message}", Toast.LENGTH_SHORT).show()
                                         }
+                                    },
+                                    onViewReview = { visite ->
+                                        visite.id?.let { id ->
+                                            viewModel.loadVisiteReviews(id)
+                                            viewingReviewVisite = visite
+                                        }
                                     }
                                 )
                             }
@@ -263,7 +257,6 @@ fun MyVisitsScreen(
             }
         }
     }
-
     // Dialogs
     showCancelConfirmation?.let { id ->
         ConfirmationDialog(
@@ -279,7 +272,6 @@ fun MyVisitsScreen(
             isDestructive = true
         )
     }
-
     showDeleteConfirmation?.let { id ->
         ConfirmationDialog(
             title = "Supprimer la visite",
@@ -294,7 +286,6 @@ fun MyVisitsScreen(
             isDestructive = true
         )
     }
-
     editingVisite?.let { visite ->
         ModificationDialog(
             visite = visite,
@@ -307,7 +298,6 @@ fun MyVisitsScreen(
             }
         )
     }
-
     ratingVisite?.let { visite ->
         RatingDialog(
             visiteTitle = getLogementTitle(visite),
@@ -315,7 +305,7 @@ fun MyVisitsScreen(
             onSubmit = { collector, clean, location, conformity, comment ->
                 val visiteId = visite.id
                 if (visiteId != null && visiteId.isNotBlank()) {
-                    if (visite.validated == true && 
+                    if (visite.validated == true &&
                         visite.status.equals("completed", ignoreCase = true) &&
                         visite.reviewId == null) {
                         viewModel.submitReview(
@@ -346,6 +336,37 @@ fun MyVisitsScreen(
             }
         )
     }
+
+
+viewingReviewVisite?.let { visite ->
+    if (uiState.currentVisiteReviews.isNotEmpty()) {
+        val review = uiState.currentVisiteReviews.first()
+        AlertDialog(
+            onDismissRequest = { viewingReviewVisite = null },
+            title = { Text("Votre avis", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Note globale: ", fontWeight = FontWeight.SemiBold)
+                        Icon(Icons.Default.Star, null, tint = AppColors.primary, modifier = Modifier.size(16.dp))
+                        Text(" ${review.rating}/5")
+                    }
+                    if (!review.comment.isNullOrBlank()) {
+                        Text("Commentaire:", fontWeight = FontWeight.SemiBold)
+                        Text(review.comment, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { viewingReviewVisite = null }) {
+                    Text("Fermer")
+                }
+            }
+        )
+    } else if (!uiState.isLoadingList) {
+        // Loading or empty (should ideally show loading indicator)
+    }
+}
 }
 
 @Composable
@@ -360,7 +381,6 @@ private fun ModernHeader(visitCount: Int) {
         ),
         label = "alpha_animation"
     )
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -382,7 +402,7 @@ private fun ModernHeader(visitCount: Int) {
                     shape = RoundedCornerShape(AppRadius.lg)
                 )
         )
-        
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -418,7 +438,6 @@ private fun ModernHeader(visitCount: Int) {
         }
     }
 }
-
 @Composable
 private fun AnimatedStatusFilters(
     visites: List<VisiteResponse>,
@@ -433,7 +452,6 @@ private fun AnimatedStatusFilters(
             FilterItem("refused", "Refusée", Icons.Default.Cancel, AppColors.danger)
         )
     }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -443,18 +461,18 @@ private fun AnimatedStatusFilters(
         filters.forEach { filter ->
             val count = visites.count { visite ->
                 when (filter.key) {
-                    "pending" -> visite.status?.equals("pending", ignoreCase = true) == true || 
-                                (visite.status == null || visite.status.equals("en attente", ignoreCase = true))
+                    "pending" -> visite.status?.equals("pending", ignoreCase = true) == true ||
+                            (visite.status == null || visite.status.equals("en attente", ignoreCase = true))
                     "confirmed" -> visite.status?.equals("confirmed", ignoreCase = true) == true ||
-                                   visite.status?.equals("acceptée", ignoreCase = true) == true
+                            visite.status?.equals("acceptée", ignoreCase = true) == true
                     "refused" -> visite.status?.equals("refused", ignoreCase = true) == true ||
-                                 visite.status?.equals("refusée", ignoreCase = true) == true
+                            visite.status?.equals("refusée", ignoreCase = true) == true
                     "completed" -> visite.status?.equals("completed", ignoreCase = true) == true ||
-                                  visite.status?.equals("terminée", ignoreCase = true) == true
+                            visite.status?.equals("terminée", ignoreCase = true) == true
                     else -> false
                 }
             }
-            
+
             AnimatedFilterChip(
                 filter = filter,
                 count = count,
@@ -464,7 +482,6 @@ private fun AnimatedStatusFilters(
         }
     }
 }
-
 @Composable
 private fun AnimatedFilterChip(
     filter: FilterItem,
@@ -480,13 +497,11 @@ private fun AnimatedFilterChip(
         ),
         label = "chip_scale"
     )
-
     val backgroundColor by animateColorAsState(
         targetValue = if (isSelected) filter.color.copy(alpha = 0.2f) else AppColors.surface,
         animationSpec = tween(300),
         label = "chip_bg"
     )
-
     Surface(
         modifier = Modifier
             .scale(scale)
@@ -533,7 +548,6 @@ private fun AnimatedFilterChip(
         }
     }
 }
-
 @Composable
 private fun ModernVisitSkeletonList() {
     Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.md)) {
@@ -548,7 +562,7 @@ private fun ModernVisitSkeletonList() {
                 ),
                 label = "skeleton_alpha"
             )
-            
+
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -574,7 +588,6 @@ private fun ModernVisitSkeletonList() {
         }
     }
 }
-
 @Composable
 private fun AnimatedVisitCard(
     visite: VisiteResponse,
@@ -584,25 +597,25 @@ private fun AnimatedVisitCard(
     onDelete: (String) -> Unit,
     onValidate: (String) -> Unit,
     onRate: (VisiteResponse) -> Unit,
-    onChat: (VisiteResponse) -> Unit
+    onChat: (VisiteResponse) -> Unit,
+    onViewReview: (VisiteResponse) -> Unit
 ) {
     var isVisible by remember { mutableStateOf(false) }
-    
+
     LaunchedEffect(Unit) {
         kotlinx.coroutines.delay((index * 100).toLong())
         isVisible = true
     }
-
     AnimatedVisibility(
         visible = isVisible,
-        enter = fadeIn(animationSpec = tween(500)) + 
+        enter = fadeIn(animationSpec = tween(500)) +
                 slideInVertically(
                     initialOffsetY = { it / 2 },
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioMediumBouncy,
                         stiffness = Spring.StiffnessLow
                     )
-                ) + 
+                ) +
                 scaleIn(initialScale = 0.8f, animationSpec = tween(500)),
         exit = fadeOut() + slideOutVertically() + scaleOut()
     ) {
@@ -613,11 +626,11 @@ private fun AnimatedVisitCard(
             onDelete = onDelete,
             onValidate = onValidate,
             onRate = onRate,
-            onChat = onChat
+            onChat = onChat,
+            onViewReview = onViewReview
         )
     }
 }
-
 @Composable
 private fun ModernVisitCard(
     visite: VisiteResponse,
@@ -626,27 +639,32 @@ private fun ModernVisitCard(
     onDelete: (String) -> Unit,
     onValidate: (String) -> Unit,
     onRate: (VisiteResponse) -> Unit,
-    onChat: (VisiteResponse) -> Unit
+    onChat: (VisiteResponse) -> Unit,
+    onViewReview: (VisiteResponse) -> Unit
 ) {
     val statusStyle = mapStatus(visite.status)
-    val isPending = visite.status?.equals("pending", ignoreCase = true) == true || 
-                    (visite.status == null || visite.status.equals("en attente", ignoreCase = true))
+    val isPending = visite.status?.equals("pending", ignoreCase = true) == true ||
+            (visite.status == null || visite.status.equals("en attente", ignoreCase = true))
     val isAccepted = visite.status?.equals("confirmed", ignoreCase = true) == true ||
-                     visite.status?.equals("acceptée", ignoreCase = true) == true
+            visite.status?.equals("acceptée", ignoreCase = true) == true
     val isCompleted = visite.status?.equals("completed", ignoreCase = true) == true ||
-                      visite.status?.equals("terminée", ignoreCase = true) == true
+            visite.status?.equals("terminée", ignoreCase = true) == true
     val isRefused = visite.status?.equals("refused", ignoreCase = true) == true ||
-                    visite.status?.equals("refusée", ignoreCase = true) == true
+            visite.status?.equals("refusée", ignoreCase = true) == true
     val canValidate = isAccepted && (visite.validated != true)
     val canRate = isCompleted &&
             (visite.validated == true) &&
             visite.reviewId == null &&
             visite.id != null
+    val canViewReview = isCompleted &&
+            (visite.validated == true) &&
+            visite.reviewId != null &&
+            visite.id != null
     val canCancel = isAccepted && visite.id != null
     val canDelete = isPending && visite.id != null
 
     var isHovered by remember { mutableStateOf(false) }
-    
+
     val scale by animateFloatAsState(
         targetValue = if (isHovered) 1.02f else 1f,
         animationSpec = spring(
@@ -655,13 +673,12 @@ private fun ModernVisitCard(
         ),
         label = "card_scale"
     )
-
     val elevation by animateDpAsState(
         targetValue = if (isHovered) 8.dp else 4.dp,
         animationSpec = tween(300),
         label = "card_elevation"
     )
-    
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -734,7 +751,7 @@ private fun ModernVisitCard(
                             ),
                             label = "icon_scale"
                         )
-                        
+
                         Surface(
                             modifier = Modifier
                                 .size(48.dp)
@@ -755,7 +772,7 @@ private fun ModernVisitCard(
                                 )
                             }
                         }
-                        
+
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = getLogementTitle(visite),
@@ -765,7 +782,7 @@ private fun ModernVisitCard(
                             )
                         }
                     }
-                    
+
                     // Badge de statut avec animation
                     Surface(
                         shape = RoundedCornerShape(AppRadius.round),
@@ -782,7 +799,6 @@ private fun ModernVisitCard(
                     }
                 }
             }
-
             // Contenu avec animations
             Column(
                 modifier = Modifier
@@ -834,7 +850,6 @@ private fun ModernVisitCard(
                         }
                     }
                 }
-
                 // Contact et notes
                 if (!visite.contactPhone.isNullOrBlank() || !visite.notes.isNullOrBlank()) {
                     Divider(
@@ -843,7 +858,6 @@ private fun ModernVisitCard(
                         modifier = Modifier.padding(vertical = AppSpacing.xs)
                     )
                 }
-
                 if (!visite.contactPhone.isNullOrBlank()) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -863,7 +877,6 @@ private fun ModernVisitCard(
                         )
                     }
                 }
-
                 if (!visite.notes.isNullOrBlank()) {
                     Surface(
                         shape = RoundedCornerShape(AppRadius.sm),
@@ -892,11 +905,10 @@ private fun ModernVisitCard(
                     }
                 }
             }
-
             // Actions avec animations
             if (!isRefused && (canValidate || canRate || canCancel || canDelete || visite.id != null)) {
                 Divider(color = AppColors.divider.copy(alpha = 0.5f), thickness = 1.dp)
-                
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -911,7 +923,7 @@ private fun ModernVisitCard(
                             color = AppColors.primary,
                             modifier = Modifier.weight(1f)
                         )
-                        
+
                         AnimatedIconButton(
                             onClick = { onDelete(visite.id) },
                             icon = Icons.Default.Delete,
@@ -924,14 +936,13 @@ private fun ModernVisitCard(
                             icon = Icons.Default.Chat,
                             color = AppColors.primary
                         )
-                        
+
                         AnimatedIconButton(
                             onClick = { visite.id?.let(onCancel) },
                             icon = Icons.Default.Cancel,
                             color = AppColors.danger
                         )
                     }
-
                     if (canValidate && visite.id != null) {
                         AnimatedActionButton(
                             onClick = { onValidate(visite.id) },
@@ -941,11 +952,10 @@ private fun ModernVisitCard(
                             modifier = Modifier.weight(1f)
                         )
                     }
-
                     if (canRate && visite.id != null) {
                         AnimatedActionButton(
-                            onClick = { 
-                                if (visite.validated == true && 
+                            onClick = {
+                                if (visite.validated == true &&
                                     visite.status.equals("completed", ignoreCase = true) &&
                                     visite.reviewId == null) {
                                     onRate(visite)
@@ -958,12 +968,22 @@ private fun ModernVisitCard(
                             isPrimary = true
                         )
                     }
+
+                    if (canViewReview && visite.id != null) {
+                        AnimatedActionButton(
+                            onClick = { onViewReview(visite) },
+                            icon = Icons.Default.Visibility,
+                            label = "Voir avis",
+                            color = AppColors.primary,
+                            modifier = Modifier.weight(1f),
+                            isPrimary = false
+                        )
+                    }
                 }
             }
         }
     }
 }
-
 @Composable
 private fun AnimatedActionButton(
     onClick: () -> Unit,
@@ -974,7 +994,7 @@ private fun AnimatedActionButton(
     isPrimary: Boolean = false
 ) {
     var isPressed by remember { mutableStateOf(false) }
-    
+
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.95f else 1f,
         animationSpec = spring(
@@ -983,7 +1003,6 @@ private fun AnimatedActionButton(
         ),
         label = "button_scale"
     )
-
     Button(
         onClick = {
             isPressed = true
@@ -1013,7 +1032,6 @@ private fun AnimatedActionButton(
         )
     }
 }
-
 @Composable
 private fun AnimatedIconButton(
     onClick: () -> Unit,
@@ -1021,7 +1039,7 @@ private fun AnimatedIconButton(
     color: Color
 ) {
     var isPressed by remember { mutableStateOf(false) }
-    
+
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.9f else 1f,
         animationSpec = spring(
@@ -1030,7 +1048,6 @@ private fun AnimatedIconButton(
         ),
         label = "icon_button_scale"
     )
-
     Surface(
         modifier = Modifier
             .size(48.dp)
@@ -1057,7 +1074,6 @@ private fun AnimatedIconButton(
         }
     }
 }
-
 @Composable
 private fun RatingRow(label: String, value: Float, onChange: (Float) -> Unit) {
     Text(label, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
@@ -1074,7 +1090,6 @@ private fun RatingRow(label: String, value: Float, onChange: (Float) -> Unit) {
     )
     Spacer(Modifier.height(8.dp))
 }
-
 @Composable
 private fun RatingDialog(
     visiteTitle: String,
@@ -1086,7 +1101,6 @@ private fun RatingDialog(
     var locationRating by remember { mutableStateOf(3f) }
     var conformityRating by remember { mutableStateOf(3f) }
     var comment by remember { mutableStateOf("") }
-
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
@@ -1140,19 +1154,15 @@ private fun RatingDialog(
                         }
                     }
                 }
-
                 Spacer(modifier = Modifier.height(AppSpacing.lg))
                 Divider(color = AppColors.divider)
                 Spacer(modifier = Modifier.height(AppSpacing.lg))
-
                 // Ratings
                 RatingRow("Colocateur", collectorRating) { collectorRating = it }
                 RatingRow("Propreté", cleanlinessRating) { cleanlinessRating = it }
                 RatingRow("Localisation", locationRating) { locationRating = it }
                 RatingRow("Conformité", conformityRating) { conformityRating = it }
-
                 Spacer(modifier = Modifier.height(AppSpacing.md))
-
                 // Comment
                 OutlinedTextField(
                     value = comment,
@@ -1163,9 +1173,7 @@ private fun RatingDialog(
                     maxLines = 5,
                     shape = RoundedCornerShape(AppRadius.md)
                 )
-
                 Spacer(modifier = Modifier.height(AppSpacing.lg))
-
                 // Actions
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1207,7 +1215,6 @@ private fun RatingDialog(
         }
     }
 }
-
 @Composable
 private fun ModificationDialog(
     visite: VisiteResponse,
@@ -1216,19 +1223,17 @@ private fun ModificationDialog(
 ) {
     val context = LocalContext.current
     val calendar = Calendar.getInstance()
-    
+
     // Initialiser avec la date existante
     val existingMillis = parseIsoToMillis(visite.dateVisite)
     if (existingMillis > 0) {
         calendar.timeInMillis = existingMillis
     }
-
     var selectedDate by remember { mutableStateOf(calendar.timeInMillis) }
     var selectedHour by remember { mutableStateOf(calendar.get(Calendar.HOUR_OF_DAY)) }
     var selectedMinute by remember { mutableStateOf(calendar.get(Calendar.MINUTE)) }
     var notes by remember { mutableStateOf(visite.notes ?: "") }
     var contactPhone by remember { mutableStateOf(visite.contactPhone ?: "") }
-
     val datePickerDialog = DatePickerDialog(
         context,
         { _, year, month, day ->
@@ -1241,10 +1246,9 @@ private fun ModificationDialog(
         calendar.get(Calendar.MONTH),
         calendar.get(Calendar.DAY_OF_MONTH)
     )
-    
+
     // Limiter la date min à aujourd'hui
     datePickerDialog.datePicker.minDate = System.currentTimeMillis()
-
     val timePickerDialog = TimePickerDialog(
         context,
         { _, hour, minute ->
@@ -1255,7 +1259,6 @@ private fun ModificationDialog(
         selectedMinute,
         true
     )
-
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
@@ -1277,15 +1280,15 @@ private fun ModificationDialog(
                     fontWeight = FontWeight.Bold,
                     color = AppColors.textPrimary
                 )
-                
+
                 Text(
                     text = getLogementTitle(visite),
                     fontSize = 14.sp,
                     color = AppColors.textSecondary
                 )
-                
+
                 Divider(color = AppColors.divider)
-                
+
                 // Sélection Date
                 OutlinedButton(
                     onClick = { datePickerDialog.show() },
@@ -1298,7 +1301,7 @@ private fun ModificationDialog(
                     val dateFormat = SimpleDateFormat("dd MMMM yyyy", Locale.FRENCH)
                     Text(dateFormat.format(dateParams.time))
                 }
-                
+
                 // Sélection Heure
                 OutlinedButton(
                     onClick = { timePickerDialog.show() },
@@ -1309,7 +1312,7 @@ private fun ModificationDialog(
                     Spacer(Modifier.width(8.dp))
                     Text(String.format(Locale.FRENCH, "%02d:%02d", selectedHour, selectedMinute))
                 }
-                
+
                 // Notes
                 OutlinedTextField(
                     value = notes,
@@ -1320,7 +1323,6 @@ private fun ModificationDialog(
                     maxLines = 4,
                     shape = RoundedCornerShape(AppRadius.md)
                 )
-
                 // Contact Phone
                 OutlinedTextField(
                     value = contactPhone,
@@ -1331,9 +1333,9 @@ private fun ModificationDialog(
                     shape = RoundedCornerShape(AppRadius.md),
                     leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) }
                 )
-                
+
                 Spacer(modifier = Modifier.height(AppSpacing.sm))
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
@@ -1358,7 +1360,6 @@ private fun ModificationDialog(
         }
     }
 }
-
 // Data classes
 private data class FilterItem(
     val key: String,
@@ -1366,13 +1367,11 @@ private data class FilterItem(
     val icon: ImageVector,
     val color: Color
 )
-
 data class VisitStatusStyle(
     val label: String,
     val color: Color,
     val icon: ImageVector
 )
-
 // Mock data
 internal val mockLogementsMap = mapOf(
     "mock-1" to "Appartement 3 pièces - Centre Ville",
@@ -1384,14 +1383,12 @@ internal val mockLogementsMap = mapOf(
     "studio-meuble-lyon-2" to "Studio meublé - Lyon",
     "chambre-t4-marseille-8e" to "Chambre dans T4 - Marseille 8e"
 )
-
 private fun getLogementTitle(visite: VisiteResponse): String {
-    return visite.logementTitle 
+    return visite.logementTitle
         ?: visite.logementId?.let { mockLogementsMap[it] }
         ?: visite.logementId
         ?: "Logement inconnu"
 }
-
 private fun mapStatus(status: String?): VisitStatusStyle {
     return when (status?.lowercase()) {
         "pending", "en attente", null -> VisitStatusStyle("En attente", AppColors.warning, Icons.Default.Schedule)
@@ -1401,7 +1398,6 @@ private fun mapStatus(status: String?): VisitStatusStyle {
         else -> VisitStatusStyle(status ?: "Inconnu", AppColors.textSecondary, Icons.Default.EventNote)
     }
 }
-
 private fun parseIsoToMillis(dateString: String?): Long {
     if (dateString == null) return 0L
     return try {
@@ -1412,7 +1408,6 @@ private fun parseIsoToMillis(dateString: String?): Long {
         0L
     }
 }
-
 private fun formatVisitDate(dateString: String?): String {
     if (dateString == null) return "Date inconnue"
     return try {
@@ -1425,39 +1420,37 @@ private fun formatVisitDate(dateString: String?): String {
         dateString
     }
 }
-
 private fun formatVisitTime(dateString: String?): String {
     if (dateString == null) return "Heure inconnue"
     return try {
         val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
         inputFormat.timeZone = TimeZone.getTimeZone("UTC")
         val date = inputFormat.parse(dateString)
-        
+
         val calendar = Calendar.getInstance()
         calendar.time = date ?: return dateString
-        
+
         val hour = calendar.get(Calendar.HOUR_OF_DAY)
         val minute = calendar.get(Calendar.MINUTE)
-        
+
         String.format(Locale.FRENCH, "%02d:%02d", hour, minute)
     } catch (e: Exception) {
         dateString
     }
 }
-
 private fun extractHourMinute(dateString: String?): Pair<Int, Int> {
     if (dateString == null) return Pair(0, 0)
     return try {
         val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
         inputFormat.timeZone = TimeZone.getTimeZone("UTC")
         val date = inputFormat.parse(dateString)
-        
+
         val calendar = Calendar.getInstance()
         calendar.time = date ?: return Pair(0, 0)
-        
+
         val hour = calendar.get(Calendar.HOUR_OF_DAY)
         val minute = calendar.get(Calendar.MINUTE)
-        
+
         Pair(hour, minute)
     } catch (e: Exception) {
         Pair(0, 0)

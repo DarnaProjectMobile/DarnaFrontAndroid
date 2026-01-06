@@ -1,7 +1,10 @@
 package com.sim.darna.screens
 
 import android.content.Context
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -18,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -26,7 +30,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.sim.darna.viewmodel.UpdateProfileViewModel
+import com.sim.darna.utils.ImageUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -56,13 +62,25 @@ fun UpdateProfileScreen(
     var phone by remember { mutableStateOf(prefs.getString("numTel", "") ?: "") }
     var birthday by remember { mutableStateOf(prefs.getString("dateDeNaissance", "") ?: "") }
     var gender by remember { mutableStateOf(prefs.getString("gender", "") ?: "") }
+    var currentImageUrl by remember { mutableStateOf(prefs.getString("image", null)) }
 
     val isLoading by viewModel.isLoading.collectAsState()
     val isSuccess by viewModel.isSuccess.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val imageUploadSuccess by viewModel.imageUploadSuccess.collectAsState()
 
     var showSuccessDialog by remember { mutableStateOf(false) }
     var showErrorDialog by remember { mutableStateOf(false) }
+    
+    // Add image picker launcher
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            selectedImageUri = it
+        }
+    }
 
     LaunchedEffect(isSuccess) {
         if (isSuccess) {
@@ -71,6 +89,14 @@ fun UpdateProfileScreen(
             showSuccessDialog = false
             viewModel.resetState()
             onNavigateBack()
+        }
+    }
+
+    LaunchedEffect(imageUploadSuccess) {
+        if (imageUploadSuccess) {
+            // Update the current image URL from shared preferences
+            currentImageUrl = prefs.getString("image", null)
+            viewModel.resetState()
         }
     }
 
@@ -117,7 +143,7 @@ fun UpdateProfileScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Profile Header Section
+            // Profile Header Section with Image Upload
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = SurfaceColor,
@@ -129,7 +155,7 @@ fun UpdateProfileScreen(
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Avatar
+                    // Avatar with image upload capability
                     Box(
                         modifier = Modifier
                             .size(100.dp)
@@ -142,25 +168,63 @@ fun UpdateProfileScreen(
                                     )
                                 )
                             )
-                            .border(3.dp, PrimaryColor.copy(alpha = 0.3f), CircleShape),
+                            .border(3.dp, PrimaryColor.copy(alpha = 0.3f), CircleShape)
+                            .clickable {
+                                imagePickerLauncher.launch("image/*")
+                            },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            username.firstOrNull()?.uppercase() ?: "U",
-                            color = PrimaryColor,
-                            fontSize = 40.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        if (selectedImageUri != null) {
+                            // Display selected image
+                            AsyncImage(
+                                model = selectedImageUri,
+                                contentDescription = "Profile Image",
+                                modifier = Modifier
+                                    .size(100.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else if (!currentImageUrl.isNullOrBlank()) {
+                            // Display current profile image
+                            AsyncImage(
+                                model = ImageUtils.buildFullImageUrl(currentImageUrl),
+                                contentDescription = "Profile Image",
+                                modifier = Modifier
+                                    .size(100.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            // Display initial letter as fallback
+                            Text(
+                                username.firstOrNull()?.uppercase() ?: "U",
+                                color = PrimaryColor,
+                                fontSize = 40.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
 
                     Spacer(Modifier.height(16.dp))
 
                     Text(
-                        "Modifiez vos informations personnelles",
+                        "Sélectionnez une image pour votre profil",
                         fontSize = 14.sp,
                         color = TextSecondary,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
+                    
+                    TextButton(
+                        onClick = { imagePickerLauncher.launch("image/*") },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = PrimaryColor
+                        )
+                    ) {
+                        Text(
+                            if (selectedImageUri != null) "Changer l'image" else "Sélectionner une image",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
 
@@ -208,7 +272,6 @@ fun UpdateProfileScreen(
                 )
 
 
-
                 // Gender Selection
                 Column {
                     Text(
@@ -251,6 +314,12 @@ fun UpdateProfileScreen(
 
                 Button(
                     onClick = {
+                        // If there's a selected image, upload it first
+                        if (selectedImageUri != null) {
+                            viewModel.updateProfileImage(context, selectedImageUri!!)
+                        }
+                        
+                        // Update profile information
                         viewModel.updateProfile(
                             username = username,
                             email = email,

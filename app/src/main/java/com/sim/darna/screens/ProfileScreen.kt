@@ -1,5 +1,4 @@
 package com.sim.darna.screens
-
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -37,7 +36,6 @@ import java.util.concurrent.Executor
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.sim.darna.utils.ApiConfig
-
 // Modern Color Palette
 object ProfileColors {
     val Primary = Color(0xFF1382B3)
@@ -51,12 +49,10 @@ object ProfileColors {
     val Success = Color(0xFF10B981)
     val Warning = Color(0xFFF59E0B)
 }
-
 @Composable
 fun ProfileScreen(navController: NavHostController) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("APP_PREFS", Context.MODE_PRIVATE)
-
     var refreshTrigger by remember { mutableStateOf(0) }
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -67,7 +63,6 @@ fun ProfileScreen(navController: NavHostController) {
     var createdAt by remember { mutableStateOf("") }
     var isVerified by remember { mutableStateOf(false) }
     var image by remember { mutableStateOf("") }
-
     LaunchedEffect(refreshTrigger) {
         username = prefs.getString("username", "") ?: ""
         email = prefs.getString("email", "") ?: ""
@@ -79,16 +74,13 @@ fun ProfileScreen(navController: NavHostController) {
         isVerified = prefs.getBoolean("isVerified", false)
         image = prefs.getString("image", "") ?: ""
     }
-
     // Refresh when returning from verification
     LaunchedEffect(navController.currentBackStackEntry) {
         refreshTrigger++
     }
-
     DisposableEffect(Unit) {
         onDispose { refreshTrigger++ }
     }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -101,7 +93,6 @@ fun ProfileScreen(navController: NavHostController) {
         ) {
             // Header Section
             ProfileHeader(username, email, role, isVerified, image)
-
             // Content Section
             Column(
                 modifier = Modifier.padding(20.dp),
@@ -114,13 +105,11 @@ fun ProfileScreen(navController: NavHostController) {
                     onFeedback = { navController.navigate("feedback") },
                     onReservations = { navController.navigate(Routes.Reservations) }
                 )
-
                 Spacer(Modifier.height(20.dp))
-
                 // Verify Email Button (only if not verified)
                 if (!isVerified) {
                     var isLoading by remember { mutableStateOf(false) }
-                    
+
                     ModernButton(
                         text = if (isLoading) "Envoi en cours..." else "Vérifier mon email",
                         icon = Icons.Outlined.MarkEmailRead,
@@ -145,7 +134,6 @@ fun ProfileScreen(navController: NavHostController) {
                                             Toast.makeText(context, "Erreur lors de l'envoi", Toast.LENGTH_SHORT).show()
                                         }
                                     }
-
                                     override fun onFailure(call: retrofit2.Call<com.sim.darna.auth.AuthApi.VerifyEmailResponse>, t: Throwable) {
                                         isLoading = false
                                         Toast.makeText(context, "Erreur: ${t.message}", Toast.LENGTH_SHORT).show()
@@ -159,7 +147,6 @@ fun ProfileScreen(navController: NavHostController) {
                     )
                     Spacer(Modifier.height(20.dp))
                 }
-
                 // Contact Information
                 ModernInfoCard(
                     title = "Contact",
@@ -184,8 +171,6 @@ fun ProfileScreen(navController: NavHostController) {
                         )
                     }
                 }
-
-
                 // Personal Information
                 ModernInfoCard(
                     title = "Informations personnelles",
@@ -221,16 +206,64 @@ fun ProfileScreen(navController: NavHostController) {
                 }
 
                 // Reservation Management
+                // Collocator Dashboard Access
+                if (role == "collocator") {
+                    ModernInfoCard(
+                        title = "Espace Propriétaire",
+                        icon = Icons.Outlined.Dashboard,
+                        iconColor = ProfileColors.Accent
+                    ) {
+                        Text(
+                            text = "Gérez vos annonces et suivez vos statistiques.",
+                            color = ProfileColors.TextSecondary,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+
+                        ModernButton(
+                            text = "Accéder au Tableau de Bord",
+                            icon = Icons.Default.BarChart,
+                            backgroundColor = ProfileColors.Primary,
+                            textColor = Color.White,
+                            onClick = { navController.navigate(Routes.Dashboard) }
+                        )
+                    }
+                }
+
+                // Reservation Management (Announces)
                 ReservationManagementCard(
                     onPendingClick = { navController.navigate(Routes.Reservations) },
                     onAcceptedClick = { navController.navigate(Routes.AcceptedClients) }
                 )
 
+                // Visit Management (Visits) - Specific for Collocator
+                if (role == "collocator") {
+                    ModernInfoCard(
+                        title = "Gestion des Visites",
+                        icon = Icons.Outlined.EventRepeat,
+                        iconColor = ProfileColors.Primary
+                    ) {
+                        Text(
+                            text = "Gérez les demandes de visites de vos futurs colocataires.",
+                            color = ProfileColors.TextSecondary,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+
+                        ModernButton(
+                            text = "Demandes de Visites",
+                            icon = Icons.Default.FactCheck,
+                            backgroundColor = ProfileColors.Secondary,
+                            textColor = Color.White,
+                            onClick = { navController.navigate(Routes.VisitRequests) }
+                        )
+                    }
+                }
+
                 // Fingerprint Settings
                 FingerprintSettingsCard(context = context)
 
                 Spacer(Modifier.height(8.dp))
-
                 // Logout Button
                 ModernButton(
                     text = "Se déconnecter",
@@ -246,13 +279,11 @@ fun ProfileScreen(navController: NavHostController) {
                         popUpTo(Routes.Main) { inclusive = true }
                     }
                 }
-
                 Spacer(Modifier.height(32.dp))
             }
         }
     }
 }
-
 @Composable
 fun ProfileHeader(username: String, email: String, role: String, isVerified: Boolean, image: String) {
     Box(
@@ -296,7 +327,6 @@ fun ProfileHeader(username: String, email: String, role: String, isVerified: Boo
                             image.contains("uploads") -> "${ApiConfig.BASE_URL}${image.removePrefix("/")}"
                             else -> "${ApiConfig.BASE_URL}uploads/users/$image"
                         }
-
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
                                 .data(fullImageUrl)
@@ -321,9 +351,7 @@ fun ProfileHeader(username: String, email: String, role: String, isVerified: Boo
                     }
                 }
             }
-
             Spacer(Modifier.height(16.dp))
-
             // Username with Verified Badge
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -335,9 +363,7 @@ fun ProfileHeader(username: String, email: String, role: String, isVerified: Boo
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
-
                 Spacer(modifier = Modifier.width(8.dp))
-
                 if (isVerified) {
                     Icon(
                         imageVector = Icons.Filled.Verified,
@@ -354,9 +380,7 @@ fun ProfileHeader(username: String, email: String, role: String, isVerified: Boo
                     )
                 }
             }
-
             Spacer(Modifier.height(6.dp))
-
             // Email
             if (email.isNotEmpty()) {
                 Text(
@@ -366,7 +390,6 @@ fun ProfileHeader(username: String, email: String, role: String, isVerified: Boo
                 )
                 Spacer(Modifier.height(12.dp))
             }
-
             // Role Badge
             if (role.isNotEmpty()) {
                 Surface(
@@ -385,7 +408,6 @@ fun ProfileHeader(username: String, email: String, role: String, isVerified: Boo
         }
     }
 }
-
 @Composable
 fun QuickActionsGrid(
     onEditProfile: () -> Unit,
@@ -427,7 +449,6 @@ fun QuickActionsGrid(
         )
     }
 }
-
 @Composable
 fun QuickActionCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -475,7 +496,6 @@ fun QuickActionCard(
         }
     }
 }
-
 @Composable
 fun ModernInfoCard(
     title: String,
@@ -520,7 +540,6 @@ fun ModernInfoCard(
         }
     }
 }
-
 @Composable
 fun InfoRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -564,7 +583,6 @@ fun InfoRow(
         }
     }
 }
-
 @Composable
 fun ReservationManagementCard(
     onPendingClick: () -> Unit,
@@ -602,9 +620,7 @@ fun ReservationManagementCard(
                     color = ProfileColors.TextPrimary
                 )
             }
-
             Spacer(Modifier.height(20.dp))
-
             ReservationOptionRow(
                 icon = Icons.Outlined.Schedule,
                 iconColor = ProfileColors.Warning,
@@ -612,11 +628,9 @@ fun ReservationManagementCard(
                 subtitle = "Examiner les nouvelles demandes",
                 onClick = onPendingClick
             )
-
             Spacer(Modifier.height(12.dp))
             Divider(color = ProfileColors.Border)
             Spacer(Modifier.height(12.dp))
-
             ReservationOptionRow(
                 icon = Icons.Outlined.CheckCircle,
                 iconColor = ProfileColors.Success,
@@ -627,7 +641,6 @@ fun ReservationManagementCard(
         }
     }
 }
-
 @Composable
 fun ReservationOptionRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -658,9 +671,7 @@ fun ReservationOptionRow(
                 tint = iconColor
             )
         }
-
         Spacer(Modifier.width(16.dp))
-
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
@@ -675,7 +686,6 @@ fun ReservationOptionRow(
                 color = ProfileColors.TextSecondary
             )
         }
-
         Icon(
             imageVector = Icons.Outlined.ChevronRight,
             contentDescription = null,
@@ -683,7 +693,6 @@ fun ReservationOptionRow(
         )
     }
 }
-
 @Composable
 fun ModernButton(
     text: String,
@@ -724,33 +733,29 @@ fun ModernButton(
         }
     }
 }
-
 @Composable
 fun FingerprintSettingsCard(context: Context) {
-    var isEnabled by remember { 
-        mutableStateOf(FingerprintManager.isFingerprintEnabled(context)) 
+    var isEnabled by remember {
+        mutableStateOf(FingerprintManager.isFingerprintEnabled(context))
     }
-    var isRegistered by remember { 
-        mutableStateOf(FingerprintManager.isFingerprintRegistered(context)) 
+    var isRegistered by remember {
+        mutableStateOf(FingerprintManager.isFingerprintRegistered(context))
     }
-    
+
     val biometricManager = BiometricManager.from(context)
     val canAuthenticate = when (biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)) {
         BiometricManager.BIOMETRIC_SUCCESS -> true
         else -> false
     }
-
     fun registerFingerprint() {
         if (!canAuthenticate) {
             Toast.makeText(context, "L'authentification biométrique n'est pas disponible", Toast.LENGTH_SHORT).show()
             return
         }
-
         if (context !is FragmentActivity) {
             Toast.makeText(context, "Erreur: Activity non supportée", Toast.LENGTH_SHORT).show()
             return
         }
-
         val executor: Executor = ContextCompat.getMainExecutor(context)
         val biometricPrompt = BiometricPrompt(
             context,
@@ -764,7 +769,6 @@ fun FingerprintSettingsCard(context: Context) {
                     isEnabled = true
                     Toast.makeText(context, "Empreinte enregistrée avec succès!", Toast.LENGTH_SHORT).show()
                 }
-
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                     super.onAuthenticationError(errorCode, errString)
                     when (errorCode) {
@@ -777,23 +781,19 @@ fun FingerprintSettingsCard(context: Context) {
                         }
                     }
                 }
-
                 override fun onAuthenticationFailed() {
                     super.onAuthenticationFailed()
                     Toast.makeText(context, "Authentification échouée", Toast.LENGTH_SHORT).show()
                 }
             }
         )
-
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle("Enregistrer l'empreinte digitale")
             .setSubtitle("Placez votre doigt sur le capteur")
             .setNegativeButtonText("Annuler")
             .build()
-
         biometricPrompt.authenticate(promptInfo)
     }
-
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -838,7 +838,6 @@ fun FingerprintSettingsCard(context: Context) {
                         )
                     }
                 }
-
                 Switch(
                     checked = isEnabled && isRegistered,
                     onCheckedChange = { checked ->
@@ -864,7 +863,6 @@ fun FingerprintSettingsCard(context: Context) {
                     )
                 )
             }
-
             if (!isRegistered && canAuthenticate) {
                 Spacer(Modifier.height(12.dp))
                 Button(
@@ -884,7 +882,6 @@ fun FingerprintSettingsCard(context: Context) {
                     Text("Enregistrer l'empreinte")
                 }
             }
-
             if (!canAuthenticate) {
                 Spacer(Modifier.height(12.dp))
                 Text(
