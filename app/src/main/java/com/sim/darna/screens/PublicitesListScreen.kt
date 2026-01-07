@@ -1,5 +1,6 @@
 package com.sim.darna.screens
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,6 +19,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -102,12 +106,14 @@ fun PublicitesListScreen(
                         } else {
                             "Toutes les Publicités"
                         },
-                        color = Color(0xFF2196F3),
-                        fontWeight = FontWeight.Medium
+                        color = Color(0xFF1A1A1A),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White
+                    containerColor = Color.White,
+                    titleContentColor = Color(0xFF1A1A1A)
                 )
             )
         },
@@ -115,14 +121,24 @@ fun PublicitesListScreen(
             if (isSponsor) {
                 FloatingActionButton(
                     onClick = onAddClick,
+                    modifier = Modifier
+                        .shadow(
+                            elevation = 8.dp,
+                            shape = CircleShape,
+                            spotColor = Color(0xFF2196F3).copy(alpha = 0.4f)
+                        ),
                     containerColor = Color(0xFF2196F3),
                     contentColor = Color.White
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Ajouter")
+                    Icon(
+                        Icons.Default.Add, 
+                        contentDescription = "Ajouter",
+                        modifier = Modifier.size(28.dp)
+                    )
                 }
             }
         },
-        containerColor = Color(0xFFF5F5F5)
+        containerColor = Color(0xFFF5F7FA)
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -131,84 +147,103 @@ fun PublicitesListScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Column(
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // Barre de recherche
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = { 
-                            Text("Rechercher une publicité...", fontSize = 14.sp, color = Color.Gray) 
-                        },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = null,
-                                tint = Color.Gray
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFE0E0E0),
-                            unfocusedBorderColor = Color(0xFFE0E0E0),
-                            unfocusedContainerColor = Color(0xFFFAFAFA),
-                            focusedContainerColor = Color(0xFFFAFAFA)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .shadow(
+                            elevation = 4.dp,
+                            shape = RoundedCornerShape(20.dp),
+                            spotColor = Color.Black.copy(alpha = 0.08f)
                         ),
-                        singleLine = true
-                    )
-                    
-                    // Filtres de catégories
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Icon(
-                            Icons.Default.ChevronLeft,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(32.dp)
-                                .align(Alignment.CenterVertically),
-                            tint = Color.Gray
+                        // Barre de recherche
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = { 
+                                Text(
+                                    "Rechercher une publicité...", 
+                                    fontSize = 14.sp, 
+                                    color = Color(0xFF999999)
+                                ) 
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = Color(0xFF2196F3)
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF2196F3),
+                                unfocusedBorderColor = Color(0xFFE0E0E0),
+                                unfocusedContainerColor = Color(0xFFFAFAFA),
+                                focusedContainerColor = Color.White,
+                                focusedTextColor = Color(0xFF1A1A1A),
+                                unfocusedTextColor = Color(0xFF1A1A1A)
+                            ),
+                            singleLine = true
                         )
-                        
-                        categories.forEach { categorie ->
-                            FilterChip(
-                                selected = selectedCategorie == categorie,
-                                onClick = { selectedCategorie = categorie },
-                                label = { Text(categorie, fontSize = 13.sp) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFF2196F3),
-                                    selectedLabelColor = Color.White,
-                                    containerColor = Color.White,
-                                    labelColor = Color(0xFF666666)
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    enabled = true,
+                    
+                        // Filtres de catégories
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            categories.forEach { categorie ->
+                                var scale by remember { mutableStateOf(1f) }
+                                val animatedScale by animateFloatAsState(
+                                    targetValue = scale,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessLow
+                                    ),
+                                    label = "scale"
+                                )
+                                
+                                FilterChip(
                                     selected = selectedCategorie == categorie,
-                                    borderColor = Color(0xFFE0E0E0),
-                                    selectedBorderColor = Color(0xFF2196F3),
-                                    borderWidth = 1.dp
-                                ),
-                                shape = RoundedCornerShape(20.dp)
-                            )
+                                    onClick = {
+                                        scale = 0.95f
+                                        selectedCategorie = categorie
+                                        scale = 1f
+                                    },
+                                    modifier = Modifier.scale(animatedScale),
+                                    label = { 
+                                        Text(
+                                            categorie, 
+                                            fontSize = 14.sp,
+                                            fontWeight = if (selectedCategorie == categorie) FontWeight.SemiBold else FontWeight.Medium
+                                        ) 
+                                    },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = Color(0xFF2196F3),
+                                        selectedLabelColor = Color.White,
+                                        containerColor = Color(0xFFFAFAFA),
+                                        labelColor = Color(0xFF666666)
+                                    ),
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = selectedCategorie == categorie,
+                                        borderColor = Color(0xFFE0E0E0),
+                                        selectedBorderColor = Color(0xFF2196F3),
+                                        borderWidth = if (selectedCategorie == categorie) 2.dp else 1.dp
+                                    ),
+                                    shape = RoundedCornerShape(20.dp)
+                                )
+                            }
                         }
-                        
-                        Icon(
-                            Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(32.dp)
-                                .align(Alignment.CenterVertically),
-                            tint = Color.Gray
-                        )
                     }
                 }
             }
@@ -219,15 +254,26 @@ fun PublicitesListScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Text(
-                            "User Sponsors",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF2196F3)
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Person,
+                                contentDescription = null,
+                                tint = Color(0xFF2196F3),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                "User Sponsors",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1A1A1A)
+                            )
+                        }
                         
                         Row(
                             modifier = Modifier
@@ -235,15 +281,6 @@ fun PublicitesListScreen(
                                 .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            Icon(
-                                Icons.Default.ChevronLeft,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .align(Alignment.CenterVertically),
-                                tint = Color.Gray
-                            )
-                            
                             sponsors.forEach { sponsor ->
                                 SponsorItem(
                                     sponsor = sponsor,
@@ -254,15 +291,6 @@ fun PublicitesListScreen(
                                     }
                                 )
                             }
-                            
-                            Icon(
-                                Icons.Default.ChevronRight,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .align(Alignment.CenterVertically),
-                                tint = Color.Gray
-                            )
                         }
                     }
                 }
@@ -270,13 +298,26 @@ fun PublicitesListScreen(
             
             // Section Promotions
             item {
-                Text(
-                    "Toutes les Promotions",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2196F3),
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        Icons.Outlined.LocalOffer,
+                        contentDescription = null,
+                        tint = Color(0xFF2196F3),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        "Toutes les Promotions",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1A1A1A)
+                    )
+                }
             }
             
             // Liste des publicités
@@ -286,10 +327,25 @@ fun PublicitesListScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(32.dp),
+                                .padding(48.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = Color(0xFF2196F3))
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    color = Color(0xFF2196F3),
+                                    modifier = Modifier.size(48.dp),
+                                    strokeWidth = 4.dp
+                                )
+                                Text(
+                                    "Chargement...",
+                                    fontSize = 16.sp,
+                                    color = Color(0xFF666666),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
                 }
@@ -323,22 +379,42 @@ fun PublicitesListScreen(
                     
                     if (sortedPublicites.isEmpty()) {
                         item {
-                            Box(
+                            Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(32.dp),
-                                contentAlignment = Alignment.Center
+                                    .padding(32.dp)
+                                    .shadow(
+                                        elevation = 4.dp,
+                                        shape = RoundedCornerShape(20.dp),
+                                        spotColor = Color.Black.copy(alpha = 0.08f)
+                                    ),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                shape = RoundedCornerShape(20.dp)
                             ) {
-                                Text(
-                                    if (selectedSponsorId != null) {
-                                        val selectedSponsor = sponsors.find { it._id == selectedSponsorId }
-                                        "Aucune publicité trouvée pour ${selectedSponsor?.username ?: "ce sponsor"}"
-                                    } else {
-                                        "Aucune publicité trouvée"
-                                    },
-                                    color = Color.Gray,
-                                    fontSize = 14.sp
-                                )
+                                Column(
+                                    modifier = Modifier.padding(32.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.SearchOff,
+                                        contentDescription = null,
+                                        tint = Color(0xFF999999),
+                                        modifier = Modifier.size(64.dp)
+                                    )
+                                    Text(
+                                        if (selectedSponsorId != null) {
+                                            val selectedSponsor = sponsors.find { it._id == selectedSponsorId }
+                                            "Aucune publicité trouvée pour ${selectedSponsor?.username ?: "ce sponsor"}"
+                                        } else {
+                                            "Aucune publicité trouvée"
+                                        },
+                                        color = Color(0xFF666666),
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                }
                             }
                         }
                     } else {
@@ -369,23 +445,44 @@ fun PublicitesListScreen(
                 }
                 is UiState.Error -> {
                     item {
-                        Box(
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
+                                .padding(32.dp)
+                                .shadow(
+                                    elevation = 4.dp,
+                                    shape = RoundedCornerShape(20.dp),
+                                    spotColor = Color(0xFFF44336).copy(alpha = 0.2f)
+                                ),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+                            shape = RoundedCornerShape(20.dp)
                         ) {
                             Column(
+                                modifier = Modifier.padding(32.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
+                                Icon(
+                                    Icons.Default.ErrorOutline,
+                                    contentDescription = null,
+                                    tint = Color(0xFFF44336),
+                                    modifier = Modifier.size(64.dp)
+                                )
                                 Text(
                                     state.message ?: "Erreur de chargement",
-                                    color = Color.Red,
-                                    fontSize = 14.sp
+                                    color = Color(0xFFC62828),
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
-                                TextButton(onClick = { viewModel.loadPublicites() }) {
-                                    Text("Réessayer")
+                                Button(
+                                    onClick = { viewModel.loadPublicites() },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF2196F3)
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text("Réessayer", color = Color.White)
                                 }
                             }
                         }
@@ -452,16 +549,53 @@ fun SponsorItem(
     isSelected: Boolean = false,
     onClick: () -> Unit = {}
 ) {
+    var scale by remember { mutableStateOf(1f) }
+    val animatedScale by animateFloatAsState(
+        targetValue = scale,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "scale"
+    )
+    
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.clickable(onClick = onClick)
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier
+            .clickable {
+                scale = 0.9f
+                onClick()
+                scale = 1f
+            }
     ) {
         Box(
             modifier = Modifier
-                .size(64.dp)
+                .size(72.dp)
+                .scale(animatedScale)
+                .shadow(
+                    elevation = if (isSelected) 8.dp else 4.dp,
+                    shape = CircleShape,
+                    spotColor = if (isSelected) Color(0xFF2196F3).copy(alpha = 0.4f) else Color.Black.copy(alpha = 0.2f)
+                )
                 .clip(CircleShape)
-                .background(if (isSelected) Color(0xFF1976D2) else Color(0xFF2196F3))
+                .background(
+                    brush = if (isSelected) {
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF1976D2),
+                                Color(0xFF2196F3)
+                            )
+                        )
+                    } else {
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF2196F3),
+                                Color(0xFF42A5F5)
+                            )
+                        )
+                    }
+                )
                 .then(
                     if (isSelected) {
                         Modifier.border(3.dp, Color(0xFF0D47A1), CircleShape)
@@ -490,12 +624,12 @@ fun SponsorItem(
         }
         Text(
             sponsor.username ?: "Sponsor",
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             color = if (isSelected) Color(0xFF1976D2) else Color(0xFF666666),
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 80.dp)
+            modifier = Modifier.widthIn(max = 90.dp)
         )
     }
 }
@@ -508,27 +642,64 @@ fun PubliciteCard(
     onDelete: () -> Unit,
     canManage: Boolean = false
 ) {
+    var scale by remember { mutableStateOf(1f) }
+    val animatedScale by animateFloatAsState(
+        targetValue = scale,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "scale"
+    )
+    
     Card(
-        onClick = onClick,
+        onClick = {
+            scale = 0.98f
+            onClick()
+            scale = 1f
+        },
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .scale(animatedScale)
+            .shadow(
+                elevation = 6.dp,
+                shape = RoundedCornerShape(20.dp),
+                spotColor = Color.Black.copy(alpha = 0.1f)
+            ),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(20.dp)
     ) {
         Column {
             // Image
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
+                    .height(220.dp)
             ) {
                 AsyncImage(
                     model = publicite.image ?: publicite.imageUrl,
                     contentDescription = publicite.titre,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)),
                     contentScale = ContentScale.Crop
+                )
+                
+                // Overlay gradient en bas
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.2f)
+                                ),
+                                startY = 150f
+                            )
+                        )
                 )
                 
                 // Tag de type de publicité en overlay (coin supérieur droit)
@@ -536,17 +707,22 @@ fun PubliciteCard(
                     Card(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(12.dp),
+                            .padding(16.dp)
+                            .shadow(
+                                elevation = 6.dp,
+                                shape = RoundedCornerShape(20.dp),
+                                spotColor = Color(0xFF2196F3).copy(alpha = 0.4f)
+                            ),
                         colors = CardDefaults.cardColors(
                             containerColor = Color(0xFF2196F3)
                         ),
-                        shape = RoundedCornerShape(16.dp)
+                        shape = RoundedCornerShape(20.dp)
                     ) {
                         Text(
                             text = publicite.type.uppercase(),
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                             color = Color.White,
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -555,63 +731,83 @@ fun PubliciteCard(
             
             // Contenu
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
                     publicite.titre,
-                    fontSize = 16.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF333333)
+                    color = Color(0xFF1A1A1A)
                 )
                 Text(
                     publicite.description,
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     color = Color(0xFF666666),
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 20.sp
                 )
                 
                 // Date d'expiration
                 publicite.dateExpiration?.let { date ->
-                    Text(
-                        "Expire le $date",
-                        fontSize = 11.sp,
-                        color = Color(0xFF999999)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            Icons.Outlined.Schedule,
+                            contentDescription = null,
+                            tint = Color(0xFF999999),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            "Expire le $date",
+                            fontSize = 12.sp,
+                            color = Color(0xFF999999),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
                 
                 // Boutons Modifier et Supprimer (seulement si canManage)
                 if (canManage) {
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         // Bouton Modifier (bleu)
                         OutlinedButton(
                             onClick = onEdit,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                                .shadow(
+                                    elevation = 2.dp,
+                                    shape = RoundedCornerShape(12.dp),
+                                    spotColor = Color(0xFF2196F3).copy(alpha = 0.2f)
+                                ),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = Color(0xFF2196F3)
                             ),
                             border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
+                                2.dp,
                                 Color(0xFF2196F3)
                             ),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(
                                 Icons.Outlined.Edit,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp),
+                                modifier = Modifier.size(20.dp),
                                 tint = Color(0xFF2196F3)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Modifier",
                                 color = Color(0xFF2196F3),
-                                fontWeight = FontWeight.Medium,
+                                fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp
                             )
                         }
@@ -619,27 +815,34 @@ fun PubliciteCard(
                         // Bouton Supprimer (rouge)
                         OutlinedButton(
                             onClick = onDelete,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                                .shadow(
+                                    elevation = 2.dp,
+                                    shape = RoundedCornerShape(12.dp),
+                                    spotColor = Color(0xFFE53935).copy(alpha = 0.2f)
+                                ),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = Color(0xFFE53935)
                             ),
                             border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
+                                2.dp,
                                 Color(0xFFE53935)
                             ),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(
                                 Icons.Outlined.Delete,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp),
+                                modifier = Modifier.size(20.dp),
                                 tint = Color(0xFFE53935)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Supprimer",
                                 color = Color(0xFFE53935),
-                                fontWeight = FontWeight.Medium,
+                                fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp
                             )
                         }

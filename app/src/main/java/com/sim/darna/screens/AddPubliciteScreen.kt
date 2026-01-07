@@ -7,12 +7,14 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -24,7 +26,11 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -222,9 +228,10 @@ fun AddPubliciteScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        "Ajouter une publicité",
-                        color = Color(0xFF2196F3),
-                        fontWeight = FontWeight.Medium
+                        if (publiciteId != null) "Modifier la publicité" else "Nouvelle publicité",
+                        color = Color(0xFF1A1A1A),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
                     ) 
                 },
                 navigationIcon = {
@@ -237,11 +244,12 @@ fun AddPubliciteScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White
+                    containerColor = Color.White,
+                    titleContentColor = Color(0xFF1A1A1A)
                 )
             )
         },
-        containerColor = Color(0xFFF5F5F5)
+        containerColor = Color(0xFFF5F7FA)
     ) { padding ->
     Column(
         modifier = Modifier
@@ -250,79 +258,168 @@ fun AddPubliciteScreen(
             .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             
-            // Card pour les champs de base
+            // Card pour les champs de base avec design amélioré
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 20.dp)
+                    .shadow(
+                        elevation = 4.dp,
+                        shape = RoundedCornerShape(20.dp),
+                        spotColor = Color.Black.copy(alpha = 0.08f)
+                    ),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                shape = RoundedCornerShape(12.dp)
-    ) {
+                shape = RoundedCornerShape(20.dp)
+            ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
-                    // Titre
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-                            "Titre",
-                            fontSize = 14.sp,
-                            color = Color(0xFF333333),
-                            fontWeight = FontWeight.Medium
+                    // En-tête de section
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(
+                                            Color(0xFF2196F3).copy(alpha = 0.2f),
+                                            Color(0xFF2196F3).copy(alpha = 0.1f)
+                                        )
+                                    ),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Outlined.Info,
+                                contentDescription = null,
+                                tint = Color(0xFF2196F3),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Text(
+                            "Informations générales",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1A1A1A)
                         )
-        OutlinedTextField(
-            value = titre,
-            onValueChange = { titre = it },
-                            placeholder = { Text("Entrez le titre de la publicité", fontSize = 14.sp) },
-            modifier = Modifier.fillMaxWidth(),
+                    }
+                    
+                    Divider(color = Color(0xFFE0E0E0), thickness = 1.dp)
+                    
+                    // Titre
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Title,
+                                contentDescription = null,
+                                tint = Color(0xFF2196F3),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                "Titre",
+                                fontSize = 15.sp,
+                                color = Color(0xFF1A1A1A),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        OutlinedTextField(
+                            value = titre,
+                            onValueChange = { titre = it },
+                            placeholder = { 
+                                Text(
+                                    "Entrez le titre de la publicité", 
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF999999)
+                                ) 
+                            },
+                            modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFF2196F3),
                                 unfocusedBorderColor = Color(0xFFE0E0E0),
                                 unfocusedContainerColor = Color(0xFFFAFAFA),
-                                focusedContainerColor = Color.White
+                                focusedContainerColor = Color.White,
+                                focusedTextColor = Color(0xFF1A1A1A),
+                                unfocusedTextColor = Color(0xFF1A1A1A)
                             )
                         )
                     }
                     
                     // Description
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            "Description",
-                            fontSize = 14.sp,
-                            color = Color(0xFF333333),
-                            fontWeight = FontWeight.Medium
-                        )
-        OutlinedTextField(
-            value = description,
-            onValueChange = { description = it },
-                            placeholder = { Text("Écrire une description", fontSize = 14.sp) },
-            modifier = Modifier.fillMaxWidth(),
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Description,
+                                contentDescription = null,
+                                tint = Color(0xFF2196F3),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                "Description",
+                                fontSize = 15.sp,
+                                color = Color(0xFF1A1A1A),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        OutlinedTextField(
+                            value = description,
+                            onValueChange = { description = it },
+                            placeholder = { 
+                                Text(
+                                    "Écrire une description", 
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF999999)
+                                ) 
+                            },
+                            modifier = Modifier.fillMaxWidth(),
                             minLines = 3,
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFF2196F3),
                                 unfocusedBorderColor = Color(0xFFE0E0E0),
                                 unfocusedContainerColor = Color(0xFFFAFAFA),
-                                focusedContainerColor = Color.White
+                                focusedContainerColor = Color.White,
+                                focusedTextColor = Color(0xFF1A1A1A),
+                                unfocusedTextColor = Color(0xFF1A1A1A)
                             )
                         )
                     }
                     
                     // Type de publicité
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            "Type de publicité",
-                            fontSize = 14.sp,
-                            color = Color(0xFF333333),
-                            fontWeight = FontWeight.Medium
-                        )
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(
-            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Category,
+                                contentDescription = null,
+                                tint = Color(0xFF2196F3),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                "Type de publicité",
+                                fontSize = 15.sp,
+                                color = Color(0xFF1A1A1A),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             // Réduction
@@ -379,13 +476,24 @@ fun AddPubliciteScreen(
                     }
                     
                     // Catégorie de publicité
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            "Catégorie de publicité",
-                            fontSize = 14.sp,
-                            color = Color(0xFF333333),
-                            fontWeight = FontWeight.Medium
-                        )
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Label,
+                                contentDescription = null,
+                                tint = Color(0xFF2196F3),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                "Catégorie de publicité",
+                                fontSize = 15.sp,
+                                color = Color(0xFF1A1A1A),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                         
                         // Grille de catégories
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -624,7 +732,6 @@ fun AddPubliciteScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Column(
@@ -718,7 +825,6 @@ fun AddPubliciteScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Column(
@@ -939,18 +1045,43 @@ fun CategorieChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var scale by remember { mutableStateOf(1f) }
+    val animatedScale by animateFloatAsState(
+        targetValue = scale,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "scale"
+    )
+    
     Card(
-        onClick = onClick,
-        modifier = modifier.height(44.dp),
+        onClick = {
+            scale = 0.95f
+            onClick()
+            scale = 1f
+        },
+        modifier = modifier
+            .height(48.dp)
+            .scale(animatedScale)
+            .shadow(
+                elevation = if (isSelected) 6.dp else 2.dp,
+                shape = RoundedCornerShape(12.dp),
+                spotColor = if (isSelected) Color(0xFF2196F3).copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.05f)
+            ),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) Color(0xFF2196F3) else Color(0xFFFAFAFA)
+            containerColor = if (isSelected) {
+                Color(0xFF2196F3)
+            } else {
+                Color(0xFFFAFAFA)
+            }
         ),
         border = if (isSelected) {
             null
         } else {
             androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0E0E0))
         },
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(12.dp)
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -958,9 +1089,9 @@ fun CategorieChip(
         ) {
             Text(
                 label,
-                fontSize = 13.sp,
+                fontSize = 14.sp,
                 color = if (isSelected) Color.White else Color(0xFF666666),
-                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
             )
         }
     }
@@ -974,18 +1105,46 @@ fun TypeButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var scale by remember { mutableStateOf(1f) }
+    val animatedScale by animateFloatAsState(
+        targetValue = scale,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "scale"
+    )
+    
     Card(
-        onClick = onClick,
-        modifier = modifier.height(90.dp),
+        onClick = {
+            scale = 0.95f
+            onClick()
+            scale = 1f
+        },
+        modifier = modifier
+            .height(100.dp)
+            .scale(animatedScale)
+            .shadow(
+                elevation = if (isSelected) 8.dp else 2.dp,
+                shape = RoundedCornerShape(16.dp),
+                spotColor = if (isSelected) Color(0xFF2196F3).copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.1f)
+            ),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) Color(0xFFE3F2FD) else Color.White
+            containerColor = if (isSelected) {
+                Color(0xFFE3F2FD)
+            } else {
+                Color.White
+            }
         ),
         border = if (isSelected) {
-            androidx.compose.foundation.BorderStroke(2.dp, Color(0xFF2196F3))
+            androidx.compose.foundation.BorderStroke(
+                2.5.dp,
+                Color(0xFF2196F3)
+            )
         } else {
             androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0E0E0))
         },
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(
             modifier = Modifier
@@ -994,17 +1153,42 @@ fun TypeButton(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(28.dp),
-                tint = if (isSelected) Color(0xFF2196F3) else Color(0xFF666666)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        brush = if (isSelected) {
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    Color(0xFF2196F3).copy(alpha = 0.2f),
+                                    Color(0xFF2196F3).copy(alpha = 0.1f)
+                                )
+                            )
+                        } else {
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    Color(0xFFE0E0E0).copy(alpha = 0.3f),
+                                    Color(0xFFE0E0E0).copy(alpha = 0.1f)
+                                )
+                            )
+                        },
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    tint = if (isSelected) Color(0xFF2196F3) else Color(0xFF666666)
+                )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 label,
-                fontSize = 12.sp,
+                fontSize = 13.sp,
                 color = if (isSelected) Color(0xFF2196F3) else Color(0xFF666666),
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                 textAlign = TextAlign.Center
             )
         }

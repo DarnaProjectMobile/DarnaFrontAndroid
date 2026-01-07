@@ -1,7 +1,9 @@
 package com.sim.darna.screens
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.rememberScrollState
@@ -13,7 +15,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.QrCodeScanner
-import androidx.compose.material.icons.outlined.QrCodeScanner
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,7 +35,6 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.sim.darna.auth.TokenStorage
 import com.sim.darna.auth.UserSessionManager
-import com.sim.darna.components.QRCodeDisplay
 import com.sim.darna.components.RouletteWheel
 import com.sim.darna.components.WinAnimationLottie
 import com.sim.darna.data.model.Publicite
@@ -77,25 +81,55 @@ fun PubliciteDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Détails de la publicité") },
+                title = { 
+                    Text(
+                        "Détails de la publicité",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        Icon(
+                            Icons.Default.ArrowBack, 
+                            contentDescription = "Retour",
+                            tint = Color(0xFF2196F3)
+                        )
                     }
                 },
-                actions = {}
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.White,
+                    titleContentColor = Color(0xFF1A1A1A)
+                )
             )
-        }
+        },
+        containerColor = Color(0xFFF5F7FA)
     ) { padding ->
         when {
             detailState is UiState.Loading -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding),
+                        .padding(padding)
+                        .background(Color(0xFFF5F7FA)),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(48.dp),
+                            color = Color(0xFF2196F3),
+                            strokeWidth = 4.dp
+                        )
+                        Text(
+                            "Chargement...",
+                            fontSize = 16.sp,
+                            color = Color(0xFF666666),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
             
@@ -103,10 +137,44 @@ fun PubliciteDetailScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding),
+                        .padding(padding)
+                        .background(Color(0xFFF5F7FA)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Publicité non trouvée")
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.ErrorOutline,
+                                contentDescription = null,
+                                tint = Color(0xFFF44336),
+                                modifier = Modifier.size(64.dp)
+                            )
+                            Text(
+                                "Publicité non trouvée",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1A1A1A)
+                            )
+                            Text(
+                                "La publicité demandée n'existe pas ou a été supprimée",
+                                fontSize = 14.sp,
+                                color = Color(0xFF666666),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
                 }
             }
             
@@ -119,7 +187,15 @@ fun PubliciteDetailScreen(
                 ) {
                     // Image bannière avec badge de réduction pour type REDUCTION
                     if (!publicite.image.isNullOrEmpty() || !publicite.imageUrl.isNullOrEmpty()) {
-                        Box(modifier = Modifier.fillMaxWidth()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .shadow(
+                                    elevation = 8.dp,
+                                    shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                                    spotColor = Color.Black.copy(alpha = 0.2f)
+                                )
+                        ) {
                             AsyncImage(
                                 model = ImageRequest.Builder(context)
                                     .data(publicite.image ?: publicite.imageUrl)
@@ -128,36 +204,59 @@ fun PubliciteDetailScreen(
                                 contentDescription = publicite.titre,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(250.dp),
+                                    .height(280.dp)
+                                    .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)),
                                 contentScale = ContentScale.Crop
                             )
+                            
+                            // Overlay gradient en bas pour meilleure lisibilité
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(280.dp)
+                                    .background(
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color.Transparent,
+                                                Color.Black.copy(alpha = 0.3f)
+                                            ),
+                                            startY = 200f
+                                        )
+                                    )
+                            )
+                            
                             // Badge de réduction en haut à droite pour REDUCTION
                             if (publicite.type?.uppercase()?.trim() == "REDUCTION") {
                                 publicite.detailReduction?.pourcentage?.let { pourcentage ->
                                     Card(
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
-                                            .padding(12.dp),
+                                            .padding(16.dp)
+                                            .shadow(
+                                                elevation = 8.dp,
+                                                shape = RoundedCornerShape(24.dp),
+                                                spotColor = Color(0xFF2196F3).copy(alpha = 0.4f)
+                                            ),
                                         colors = CardDefaults.cardColors(
                                             containerColor = Color(0xFF2196F3)
                                         ),
-                                        shape = RoundedCornerShape(20.dp)
+                                        shape = RoundedCornerShape(24.dp)
                                     ) {
                                         Row(
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                                             verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
                                             Icon(
                                                 Icons.Default.LocalOffer,
                                                 contentDescription = null,
                                                 tint = Color.White,
-                                                modifier = Modifier.size(16.dp)
+                                                modifier = Modifier.size(20.dp)
                                             )
                                             Text(
                                                 text = "-$pourcentage%",
                                                 color = Color.White,
-                                                fontSize = 14.sp,
+                                                fontSize = 16.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
@@ -169,17 +268,22 @@ fun PubliciteDetailScreen(
                                 Card(
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
-                                        .padding(12.dp),
+                                        .padding(16.dp)
+                                        .shadow(
+                                            elevation = 8.dp,
+                                            shape = RoundedCornerShape(20.dp),
+                                            spotColor = Color(0xFF2196F3).copy(alpha = 0.4f)
+                                        ),
                                     colors = CardDefaults.cardColors(
                                         containerColor = Color(0xFF2196F3)
                                     ),
-                                    shape = RoundedCornerShape(16.dp)
+                                    shape = RoundedCornerShape(20.dp)
                                 ) {
                                     Text(
-                                        text = "Jeu",
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                        text = "🎮 Jeu",
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                         color = Color.White,
-                                        fontSize = 12.sp,
+                                        fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -188,32 +292,49 @@ fun PubliciteDetailScreen(
                     }
                     
                     Column(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
-                        // Sponsor Card
+                        // Sponsor Card avec design amélioré
                         if (publicite.sponsorName != null) {
                             Card(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .shadow(
+                                        elevation = 6.dp,
+                                        shape = RoundedCornerShape(20.dp),
+                                        spotColor = Color.Black.copy(alpha = 0.1f)
+                                    ),
                                 colors = CardDefaults.cardColors(
                                     containerColor = Color.White
                                 ),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(20.dp)
                             ) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp),
+                                        .padding(20.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
-                                    // Icône circulaire du sponsor
+                                    // Icône circulaire du sponsor avec ombre
                                     Box(
                                         modifier = Modifier
-                                            .size(48.dp)
+                                            .size(56.dp)
+                                            .shadow(
+                                                elevation = 4.dp,
+                                                shape = CircleShape,
+                                                spotColor = Color(0xFF2196F3).copy(alpha = 0.3f)
+                                            )
                                             .clip(CircleShape)
-                                            .background(Color(0xFF2196F3)),
+                                            .background(
+                                                brush = Brush.radialGradient(
+                                                    colors = listOf(
+                                                        Color(0xFF2196F3),
+                                                        Color(0xFF1976D2)
+                                                    )
+                                                )
+                                            ),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         if (!publicite.sponsorLogo.isNullOrEmpty()) {
@@ -230,17 +351,29 @@ fun PubliciteDetailScreen(
                                             Text(
                                                 text = publicite.sponsorName?.take(1)?.uppercase() ?: "S",
                                                 color = Color.White,
-                                                fontSize = 20.sp,
+                                                fontSize = 24.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
                                     }
-                                    Text(
-                                        text = publicite.sponsorName ?: "Sponsor",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Medium,
-                                        color = Color(0xFF333333)
-                                    )
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = "Par",
+                                            fontSize = 12.sp,
+                                            color = Color(0xFF999999),
+                                            fontWeight = FontWeight.Normal
+                                        )
+                                        Text(
+                                            text = publicite.sponsorName ?: "Sponsor",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF1A1A1A),
+                                            fontSize = 18.sp
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -256,27 +389,58 @@ fun PubliciteDetailScreen(
                         when (publiciteType) {
                             "REDUCTION" -> {
                                 publicite.detailReduction?.let { detail ->
-                                    // Carte sponsor et description
+                                    // Carte sponsor et description avec design amélioré
                                     Card(
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .shadow(
+                                                elevation = 6.dp,
+                                                shape = RoundedCornerShape(20.dp),
+                                                spotColor = Color.Black.copy(alpha = 0.1f)
+                                            ),
                                         colors = CardDefaults.cardColors(
                                             containerColor = Color.White
                                         ),
-                                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                                        shape = RoundedCornerShape(12.dp)
+                                        shape = RoundedCornerShape(20.dp)
                                     ) {
                                         Column(
-                                            modifier = Modifier.padding(20.dp),
-                                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                                            modifier = Modifier.padding(24.dp),
+                                            verticalArrangement = Arrangement.spacedBy(20.dp)
                                         ) {
-                                            // Titre de la réduction
-                                            Text(
-                                                text = "Profitez de ${detail.pourcentage}% de réduction sur tous nos produits",
-                                                style = MaterialTheme.typography.headlineSmall,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF2196F3),
-                                                fontSize = 20.sp
-                                            )
+                                            // Titre de la réduction avec icône
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(48.dp)
+                                                        .background(
+                                                            brush = Brush.radialGradient(
+                                                                colors = listOf(
+                                                                    Color(0xFF2196F3).copy(alpha = 0.2f),
+                                                                    Color(0xFF2196F3).copy(alpha = 0.1f)
+                                                                )
+                                                            ),
+                                                            shape = CircleShape
+                                                        ),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.LocalOffer,
+                                                        contentDescription = null,
+                                                        tint = Color(0xFF2196F3),
+                                                        modifier = Modifier.size(24.dp)
+                                                    )
+                                                }
+                                                Text(
+                                                    text = "Profitez de ${detail.pourcentage}% de réduction",
+                                                    style = MaterialTheme.typography.headlineSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF1A1A1A),
+                                                    fontSize = 22.sp
+                                                )
+                                            }
                                             
                                             // Date d'expiration (si disponible)
                                             if (!publicite.dateExpiration.isNullOrEmpty()) {
@@ -319,7 +483,6 @@ fun PubliciteDetailScreen(
                                         colors = CardDefaults.cardColors(
                                             containerColor = Color.White
                                         ),
-                                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                                         shape = RoundedCornerShape(12.dp)
                                     ) {
                                         Column(
@@ -355,7 +518,6 @@ fun PubliciteDetailScreen(
                                                 bitmap?.let {
                                                     Card(
                                                         modifier = Modifier.size(280.dp),
-                                                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                                                         shape = RoundedCornerShape(12.dp)
                                                     ) {
                                                         androidx.compose.foundation.Image(
@@ -486,18 +648,38 @@ fun PubliciteDetailScreen(
                                                     onClick = onScanQRCode,
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .height(56.dp),
+                                                        .height(56.dp)
+                                                        .shadow(
+                                                            elevation = 8.dp,
+                                                            shape = RoundedCornerShape(16.dp),
+                                                            spotColor = Color(0xFF2196F3).copy(alpha = 0.4f)
+                                                        ),
                                                     colors = ButtonDefaults.buttonColors(
                                                         containerColor = Color(0xFF2196F3)
                                                     ),
-                                                    shape = RoundedCornerShape(12.dp)
-                                                ) {
-                                                    Text(
-                                                        text = "Utiliser cette offre",
-                                                        color = Color.White,
-                                                        fontSize = 16.sp,
-                                                        fontWeight = FontWeight.Medium
+                                                    shape = RoundedCornerShape(16.dp),
+                                                    elevation = ButtonDefaults.buttonElevation(
+                                                        defaultElevation = 0.dp,
+                                                        pressedElevation = 4.dp
                                                     )
+                                                ) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                                    ) {
+                                                        Icon(
+                                                            Icons.Outlined.QrCodeScanner,
+                                                            contentDescription = null,
+                                                            tint = Color.White,
+                                                            modifier = Modifier.size(22.dp)
+                                                        )
+                                                        Text(
+                                                            text = "Utiliser cette offre",
+                                                            color = Color.White,
+                                                            fontSize = 17.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
@@ -511,7 +693,6 @@ fun PubliciteDetailScreen(
                                     Card(
                                         modifier = Modifier.fillMaxWidth(),
                                         colors = CardDefaults.cardColors(containerColor = Color.White),
-                                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                                         shape = RoundedCornerShape(16.dp)
                                     ) {
                                         Column(
@@ -559,7 +740,6 @@ fun PubliciteDetailScreen(
                                     Card(
                                         modifier = Modifier.fillMaxWidth(),
                                         colors = CardDefaults.cardColors(containerColor = Color.White),
-                                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                                         shape = RoundedCornerShape(16.dp)
                                     ) {
                                         Column(
@@ -641,7 +821,6 @@ fun PubliciteDetailScreen(
                                             colors = CardDefaults.cardColors(
                                                 containerColor = Color.Transparent
                                             ),
-                                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                                         ) {
                                             WinAnimationLottie(
                                                 assetFileName = "win_animation.json",
@@ -671,7 +850,6 @@ fun PubliciteDetailScreen(
                                                 containerColor = Color.White
                                             ),
                                             shape = RoundedCornerShape(20.dp),
-                                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                                         ) {
                                             Column(
                                                 modifier = Modifier.padding(24.dp),
@@ -775,7 +953,6 @@ fun PubliciteDetailScreen(
                                     colors = CardDefaults.cardColors(
                                         containerColor = Color.White
                                     ),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
                                     Column(
@@ -835,7 +1012,6 @@ fun PubliciteDetailScreen(
                                     colors = CardDefaults.cardColors(
                                         containerColor = Color.White
                                     ),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
                                     Column(
@@ -921,39 +1097,74 @@ fun PubliciteDetailScreen(
                                         )
                                         
                                         // Afficher un message si l'utilisateur a déjà joué (seulement pour clients et collocators)
-                                        // Le message ne s'affiche qu'après que l'utilisateur ait joué et vu le résultat
-                                        if (hasPlayed && !isSponsor && gameResult != null) {
+                                        // Le message s'affiche dès que l'utilisateur arrive sur la page s'il a déjà joué
+                                        if (hasPlayed && !isSponsor) {
                                             Spacer(modifier = Modifier.height(16.dp))
                                             Card(
-                                                modifier = Modifier.fillMaxWidth(),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .shadow(
+                                                        elevation = 4.dp,
+                                                        shape = RoundedCornerShape(16.dp),
+                                                        spotColor = Color(0xFFFF9800).copy(alpha = 0.2f)
+                                                    ),
                                                 colors = CardDefaults.cardColors(
                                                     containerColor = Color(0xFFFFF3E0)
                                                 ),
-                                                shape = RoundedCornerShape(12.dp),
+                                                shape = RoundedCornerShape(16.dp),
                                                 border = androidx.compose.foundation.BorderStroke(
-                                                    1.dp,
+                                                    2.dp,
                                                     Color(0xFFFF9800)
                                                 )
                                             ) {
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .padding(16.dp),
-                                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                                        .padding(20.dp),
+                                                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Info,
-                                                        contentDescription = null,
-                                                        tint = Color(0xFFFF9800),
-                                                        modifier = Modifier.size(32.dp)
-                                                    )
-                                                    Text(
-                                                        text = "Vous avez déjà joué à ce jeu. Une seule partie autorisée par utilisateur.",
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = Color(0xFFE65100)
-                                                    )
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(48.dp)
+                                                            .background(
+                                                                brush = Brush.radialGradient(
+                                                                    colors = listOf(
+                                                                        Color(0xFFFF9800).copy(alpha = 0.3f),
+                                                                        Color(0xFFFF9800).copy(alpha = 0.1f)
+                                                                    )
+                                                                ),
+                                                                shape = CircleShape
+                                                            ),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Info,
+                                                            contentDescription = null,
+                                                            tint = Color(0xFFFF9800),
+                                                            modifier = Modifier.size(28.dp)
+                                                        )
+                                                    }
+                                                    Column(
+                                                        modifier = Modifier.weight(1f),
+                                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "Vous avez déjà joué à ce jeu",
+                                                            style = MaterialTheme.typography.titleMedium,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = Color(0xFFE65100),
+                                                            fontSize = 16.sp
+                                                        )
+                                                        Text(
+                                                            text = "Une seule partie est autorisée par utilisateur.",
+                                                            style = MaterialTheme.typography.bodyMedium,
+                                                            fontWeight = FontWeight.Normal,
+                                                            color = Color(0xFFE65100),
+                                                            fontSize = 13.sp,
+                                                            lineHeight = 18.sp
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
@@ -969,4 +1180,3 @@ fun PubliciteDetailScreen(
         }
     }
 }
-

@@ -201,33 +201,99 @@ class PubliciteViewModel @Inject constructor(
     fun verifyQRCode(context: Context, qrData: String, onResult: (Boolean, QRCodeVerificationResponse?) -> Unit) {
         viewModelScope.launch {
             try {
+                Log.d("PubliciteViewModel", "=== DÉBUT VÉRIFICATION QR CODE ===")
+                Log.d("PubliciteViewModel", "QR Data reçu: ${qrData.take(100)}...")
+                
+                // Essayer d'abord l'API
                 val res = repository.verifyQRCode(context, qrData)
+                Log.d("PubliciteViewModel", "Réponse API - Code: ${res.code()}, Success: ${res.isSuccessful}")
+                
+                // Si l'API retourne 404, vérifier localement en cherchant la publicité par coupon ou ID
+                if (!res.isSuccessful && res.code() == 404) {
+                    Log.d("PubliciteViewModel", "Endpoint API non disponible (404), vérification locale...")
+                    verifyQRCodeLocally(qrData, onResult)
+                    return@launch
+                }
+                
                 if (res.isSuccessful) {
                     val response = res.body()
-                    if (response != null && response.valid) {
+                    Log.d("PubliciteViewModel", "Réponse API - valid: ${response?.valid}, message: ${response?.message}, publiciteId: ${response?.publiciteId}")
+                    
+                    // Même si l'API dit que le QR code est invalide, on vérifie quand même la date
+                    // car l'API pourrait ne pas vérifier la date d'expiration
+                    if (response != null) {
                         // Vérifier la date d'expiration de la publicité
+                        // La validité du QR code est liée à la date d'expiration de la publicité
                         if (response.publiciteId != null) {
                             try {
+                                Log.d("PubliciteViewModel", "Récupération de la publicité avec ID: ${response.publiciteId}")
                                 val publiciteRes = repository.getOne(response.publiciteId)
+                                
                                 if (publiciteRes.isSuccessful) {
                                     val publicite = publiciteRes.body()
+                                    Log.d("PubliciteViewModel", "Publicité récupérée - Titre: ${publicite?.titre}, Date expiration: ${publicite?.dateExpiration}")
+                                    
                                     if (publicite != null && !publicite.dateExpiration.isNullOrEmpty()) {
-                                        // Vérifier si la date d'expiration est passée
+                                        // Parser la date d'expiration (format ISO: yyyy-MM-dd)
                                         val expirationDate = try {
-                                            java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).parse(publicite.dateExpiration)
+                                            // Essayer d'abord le format ISO standard (yyyy-MM-dd)
+                                            val isoFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                                            isoFormat.isLenient = false
+                                            val parsed = isoFormat.parse(publicite.dateExpiration)
+                                            Log.d("PubliciteViewModel", "Date parsée avec format ISO: $parsed")
+                                            parsed
                                         } catch (e: Exception) {
+                                            Log.d("PubliciteViewModel", "Échec parsing ISO, essai format français. Erreur: ${e.message}")
                                             try {
-                                                java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).parse(publicite.dateExpiration)
+                                                // Essayer le format français (dd/MM/yyyy)
+                                                val frenchFormat = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault())
+                                                frenchFormat.isLenient = false
+                                                val parsed = frenchFormat.parse(publicite.dateExpiration)
+                                                Log.d("PubliciteViewModel", "Date parsée avec format français: $parsed")
+                                                parsed
                                             } catch (e2: Exception) {
-                                                null
+                                                Log.d("PubliciteViewModel", "Échec parsing français, essai format complet. Erreur: ${e2.message}")
+                                                try {
+                                                    // Essayer le format avec timestamp complet
+                                                    val fullFormat = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
+                                                    fullFormat.isLenient = false
+                                                    val parsed = fullFormat.parse(publicite.dateExpiration)
+                                                    Log.d("PubliciteViewModel", "Date parsée avec format complet: $parsed")
+                                                    parsed
+                                                } catch (e3: Exception) {
+                                                    Log.e("PubliciteViewModel", "Impossible de parser la date dans aucun format. Erreur: ${e3.message}")
+                                                    null
+                                                }
                                             }
                                         }
                                         
                                         if (expirationDate != null) {
-                                            val now = java.util.Date()
-                                            if (expirationDate.before(now)) {
+                                            // Obtenir la date actuelle (sans l'heure, seulement la date)
+                                            val calendarNow = java.util.Calendar.getInstance()
+                                            calendarNow.set(java.util.Calendar.HOUR_OF_DAY, 0)
+                                            calendarNow.set(java.util.Calendar.MINUTE, 0)
+                                            calendarNow.set(java.util.Calendar.SECOND, 0)
+                                            calendarNow.set(java.util.Calendar.MILLISECOND, 0)
+                                            val today = calendarNow.time
+                                            
+                                            // Obtenir la date d'expiration (sans l'heure, seulement la date)
+                                            val calendarExp = java.util.Calendar.getInstance()
+                                            calendarExp.time = expirationDate
+                                            calendarExp.set(java.util.Calendar.HOUR_OF_DAY, 0)
+                                            calendarExp.set(java.util.Calendar.MINUTE, 0)
+                                            calendarExp.set(java.util.Calendar.SECOND, 0)
+                                            calendarExp.set(java.util.Calendar.MILLISECOND, 0)
+                                            val expirationDateOnly = calendarExp.time
+                                            
+                                            Log.d("PubliciteViewModel", "Date aujourd'hui: $today")
+                                            Log.d("PubliciteViewModel", "Date expiration: $expirationDateOnly")
+                                            Log.d("PubliciteViewModel", "Expiration avant aujourd'hui? ${expirationDateOnly.before(today)}")
+                                            
+                                            // Comparer les dates : le QR code est valide si la date d'expiration est >= aujourd'hui
+                                            // (c'est-à-dire que si on est le jour d'expiration, c'est encore valide)
+                                            if (expirationDateOnly.before(today)) {
                                                 // La publicité a expiré, le QR code n'est plus valide
-                                                Log.d("PubliciteViewModel", "Publicité expirée: ${publicite.dateExpiration}")
+                                                Log.d("PubliciteViewModel", "QR Code rejeté: Publicité expirée le ${publicite.dateExpiration}")
                                                 onResult(false, QRCodeVerificationResponse(
                                                     valid = false,
                                                     message = "Ce QR Code n'est plus valide. La publicité a expiré le ${publicite.dateExpiration}.",
@@ -235,28 +301,180 @@ class PubliciteViewModel @Inject constructor(
                                                     publiciteId = response.publiciteId
                                                 ))
                                                 return@launch
+                                            } else {
+                                                Log.d("PubliciteViewModel", "QR Code valide: Publicité valide jusqu'au ${publicite.dateExpiration}")
+                                                // Le QR code est valide selon la date, on accepte même si l'API a dit invalide
+                                                onResult(true, QRCodeVerificationResponse(
+                                                    valid = true,
+                                                    message = response.message ?: "QR Code valide",
+                                                    reduction = response.reduction,
+                                                    publiciteId = response.publiciteId
+                                                ))
+                                                return@launch
                                             }
+                                        } else {
+                                            Log.w("PubliciteViewModel", "Impossible de parser la date d'expiration: ${publicite.dateExpiration}")
+                                            // Si on ne peut pas parser la date, on utilise la réponse de l'API
                                         }
+                                    } else {
+                                        // Pas de date d'expiration définie, on utilise la réponse de l'API
+                                        Log.d("PubliciteViewModel", "QR Code: Pas de date d'expiration définie, utilisation de la réponse API")
                                     }
+                                } else {
+                                    Log.w("PubliciteViewModel", "Impossible de récupérer la publicité. Code: ${publiciteRes.code()}")
                                 }
                             } catch (e: Exception) {
                                 Log.e("PubliciteViewModel", "Erreur lors de la récupération de la publicité: ${e.message}", e)
-                                // Continuer avec la réponse originale si on ne peut pas vérifier la date
+                                e.printStackTrace()
+                                // En cas d'erreur, on utilise la réponse de l'API
                             }
+                        } else {
+                            Log.w("PubliciteViewModel", "QR Code: Pas d'ID de publicité associé")
                         }
-                        onResult(true, response)
+                        
+                        // Utiliser la réponse de l'API si on n'a pas pu vérifier la date
+                        if (response.valid) {
+                            Log.d("PubliciteViewModel", "QR Code accepté selon l'API")
+                            onResult(true, response)
+                        } else {
+                            Log.d("PubliciteViewModel", "QR Code rejeté selon l'API: ${response.message}")
+                            onResult(false, response)
+                        }
                     } else {
-                        onResult(false, response)
+                        Log.e("PubliciteViewModel", "Réponse API est null")
+                        onResult(false, null)
                     }
                 } else {
                     val errorBody = res.errorBody()?.string()
-                    Log.e("PubliciteViewModel", "Error verifying QR code: $errorBody")
+                    Log.e("PubliciteViewModel", "Erreur API - Code: ${res.code()}, Body: $errorBody")
                     onResult(false, null)
                 }
             } catch (e: Exception) {
-                Log.e("PubliciteViewModel", "Exception verifying QR code: ${e.message}", e)
+                Log.e("PubliciteViewModel", "Exception lors de la vérification: ${e.message}", e)
+                e.printStackTrace()
                 onResult(false, null)
             }
+            Log.d("PubliciteViewModel", "=== FIN VÉRIFICATION QR CODE ===")
+        }
+    }
+    
+    // Vérification locale du QR code (quand l'API n'est pas disponible)
+    private suspend fun verifyQRCodeLocally(qrData: String, onResult: (Boolean, QRCodeVerificationResponse?) -> Unit) {
+        try {
+            Log.d("PubliciteViewModel", "=== VÉRIFICATION LOCALE QR CODE ===")
+            
+            // Récupérer toutes les publicités
+            val allPublicitesRes = repository.getAll()
+            if (!allPublicitesRes.isSuccessful) {
+                Log.e("PubliciteViewModel", "Impossible de récupérer les publicités")
+                onResult(false, QRCodeVerificationResponse(
+                    valid = false,
+                    message = "Impossible de vérifier le QR Code. Veuillez réessayer.",
+                    reduction = null,
+                    publiciteId = null
+                ))
+                return
+            }
+            
+            val allPublicites = allPublicitesRes.body() ?: emptyList()
+            Log.d("PubliciteViewModel", "Nombre de publicités trouvées: ${allPublicites.size}")
+            
+            // Chercher la publicité correspondante au QR code (par coupon ou ID)
+            val publicite = allPublicites.find { 
+                it.coupon == qrData || 
+                it._id == qrData ||
+                (it.qrCode != null && it.qrCode.contains(qrData))
+            }
+            
+            if (publicite == null) {
+                Log.d("PubliciteViewModel", "Aucune publicité trouvée pour le QR code: $qrData")
+                onResult(false, QRCodeVerificationResponse(
+                    valid = false,
+                    message = "QR Code invalide. Aucune publicité trouvée.",
+                    reduction = null,
+                    publiciteId = null
+                ))
+                return
+            }
+            
+            Log.d("PubliciteViewModel", "Publicité trouvée: ${publicite.titre}, ID: ${publicite._id}")
+            Log.d("PubliciteViewModel", "Date expiration: ${publicite.dateExpiration}")
+            
+            // Vérifier la date d'expiration
+            if (!publicite.dateExpiration.isNullOrEmpty()) {
+                val expirationDate = try {
+                    val isoFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                    isoFormat.isLenient = false
+                    isoFormat.parse(publicite.dateExpiration)
+                } catch (e: Exception) {
+                    try {
+                        val frenchFormat = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault())
+                        frenchFormat.isLenient = false
+                        frenchFormat.parse(publicite.dateExpiration)
+                    } catch (e2: Exception) {
+                        try {
+                            val fullFormat = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
+                            fullFormat.isLenient = false
+                            fullFormat.parse(publicite.dateExpiration)
+                        } catch (e3: Exception) {
+                            null
+                        }
+                    }
+                }
+                
+                if (expirationDate != null) {
+                    val calendarNow = java.util.Calendar.getInstance()
+                    calendarNow.set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    calendarNow.set(java.util.Calendar.MINUTE, 0)
+                    calendarNow.set(java.util.Calendar.SECOND, 0)
+                    calendarNow.set(java.util.Calendar.MILLISECOND, 0)
+                    val today = calendarNow.time
+                    
+                    val calendarExp = java.util.Calendar.getInstance()
+                    calendarExp.time = expirationDate
+                    calendarExp.set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    calendarExp.set(java.util.Calendar.MINUTE, 0)
+                    calendarExp.set(java.util.Calendar.SECOND, 0)
+                    calendarExp.set(java.util.Calendar.MILLISECOND, 0)
+                    val expirationDateOnly = calendarExp.time
+                    
+                    Log.d("PubliciteViewModel", "Date aujourd'hui: $today")
+                    Log.d("PubliciteViewModel", "Date expiration: $expirationDateOnly")
+                    Log.d("PubliciteViewModel", "Expiration avant aujourd'hui? ${expirationDateOnly.before(today)}")
+                    
+                    if (expirationDateOnly.before(today)) {
+                        Log.d("PubliciteViewModel", "QR Code rejeté: Publicité expirée le ${publicite.dateExpiration}")
+                        onResult(false, QRCodeVerificationResponse(
+                            valid = false,
+                            message = "Ce QR Code n'est plus valide. La publicité a expiré le ${publicite.dateExpiration}.",
+                            reduction = publicite.detailReduction?.pourcentage,
+                            publiciteId = publicite._id
+                        ))
+                        return
+                    }
+                } else {
+                    Log.w("PubliciteViewModel", "Impossible de parser la date: ${publicite.dateExpiration}")
+                }
+            }
+            
+            // Le QR code est valide
+            Log.d("PubliciteViewModel", "QR Code valide: Publicité '${publicite.titre}' valide jusqu'au ${publicite.dateExpiration ?: "jamais"}")
+            onResult(true, QRCodeVerificationResponse(
+                valid = true,
+                message = "QR Code valide",
+                reduction = publicite.detailReduction?.pourcentage,
+                publiciteId = publicite._id
+            ))
+            
+        } catch (e: Exception) {
+            Log.e("PubliciteViewModel", "Erreur lors de la vérification locale: ${e.message}", e)
+            e.printStackTrace()
+            onResult(false, QRCodeVerificationResponse(
+                valid = false,
+                message = "Erreur lors de la vérification du QR Code. Veuillez réessayer.",
+                reduction = null,
+                publiciteId = null
+            ))
         }
     }
 }

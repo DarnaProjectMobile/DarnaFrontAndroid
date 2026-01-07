@@ -39,6 +39,7 @@ object Routes {
     const val VisitRequests = "visit_requests"
     const val MyVisits = "my_visits"
     const val Chat = "chat/{visiteId}/{title}"
+    const val QRCodeScan = "qr_code_scan"
 }
 @Composable
 fun AppNavGraph(navController: NavHostController = rememberNavController()) {
@@ -200,6 +201,9 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                 onNavigateBack = { navController.popBackStack() },
                 onEdit = { id ->
                     navController.navigate(Routes.EditPublicite.replace("{publiciteId}", id))
+                },
+                onScanQRCode = {
+                    navController.navigate(Routes.QRCodeScan)
                 }
             )
         }
@@ -267,6 +271,13 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                 "UTF-8"
             )
             ChatScreen(navController, visiteId, title)
+        }
+
+        // QR Code Scanner
+        composable(Routes.QRCodeScan) {
+            QRCodeScanResultScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }
