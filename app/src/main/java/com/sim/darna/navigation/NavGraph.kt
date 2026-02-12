@@ -21,14 +21,17 @@ object Routes {
     const val PropertyDetailWithId = "property_detail/{propertyId}"
     const val ResetPassword = "reset_password"
     const val Reviews = "reviews"
+    const val ReviewsWithParams = "reviews/{propertyId}/{propertyName}/{userName}"
     const val UpdateProfile = "update_profile"
     const val Favorites = "favorites"
     const val Reservations = "reservations"
     const val AcceptedClients = "accepted_clients"
     const val ConfirmedClients = "confirmed_clients/{propertyId}"
     const val BookProperty = "book_property/{propertyId}"
-    const val PropertyBookings = "property_bookings/{propertyId}"
+    const val PropertyBookings = "property_books/{propertyId}"
     const val Notifications = "notifications"
+    const val Map = "map"
+    const val ReviewSummary = "reviewSummary/{propertyId}/{propertyName}"
 }
 
 @Composable
@@ -78,11 +81,13 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         }
 
         composable(Routes.Fingerprint) {
-            FingerprintScreen {
-                navController.navigate(Routes.Main) {
-                    popUpTo(Routes.Fingerprint) { inclusive = true }
+            FingerprintScreen(
+                onNext = {
+                    navController.navigate(Routes.Main) {
+                        popUpTo(Routes.Fingerprint) { inclusive = true }
+                    }
                 }
-            }
+            )
         }
         composable("feedback") {
             FeedbackScreen(onNavigateBack = { navController.popBackStack() })
@@ -106,7 +111,30 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
             PropertyDetailScreen(navController, propertyId)
         }
-        composable(Routes.Reviews) { ReviewsScreen() }
+        composable(Routes.Reviews) { 
+            ReviewsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            ) 
+        }
+        
+        composable(
+            route = Routes.ReviewsWithParams,
+            arguments = listOf(
+                navArgument("propertyId") { type = androidx.navigation.NavType.StringType },
+                navArgument("propertyName") { type = androidx.navigation.NavType.StringType },
+                navArgument("userName") { type = androidx.navigation.NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
+            val propertyName = backStackEntry.arguments?.getString("propertyName") ?: ""
+            val userName = backStackEntry.arguments?.getString("userName") ?: ""
+            ReviewsScreen(
+                propertyId = propertyId,
+                propertyName = propertyName,
+                userName = userName,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
         composable(Routes.ForgotPassword) { ForgotPasswordScreen(navController) }
         composable(Routes.ResetPassword) { ResetPasswordScreen(navController) }
         composable(Routes.Favorites) { FavoritesScreen(navController) }
@@ -117,6 +145,9 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                 navController = navController,
                 onBack = { navController.popBackStack() },
             )
+        }
+        composable(Routes.Map) {
+            MapScreen(navController)
         }
         composable(
             route = Routes.BookProperty,
@@ -138,6 +169,54 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         ) { backStackEntry ->
             val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
             ConfirmedClientsScreen(navController, propertyId)
+        }
+        
+        // Routes pour les publicités
+        composable(
+            route = Routes.PubliciteDetail,
+            arguments = listOf(navArgument("publiciteId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val publiciteId = backStackEntry.arguments?.getString("publiciteId") ?: ""
+            PubliciteDetailScreen(
+                publiciteId = publiciteId,
+                onNavigateBack = { navController.popBackStack() },
+                onEdit = { id ->
+                    navController.navigate(Routes.EditPublicite.replace("{publiciteId}", id))
+                }
+            )
+        }
+        
+        composable(Routes.AddPublicite) {
+            AddPubliciteScreen(
+                onFinish = { navController.popBackStack() },
+                onCancel = { navController.popBackStack() }
+            )
+        }
+        
+        composable(
+            route = Routes.EditPublicite,
+            arguments = listOf(navArgument("publiciteId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val publiciteId = backStackEntry.arguments?.getString("publiciteId") ?: ""
+            AddPubliciteScreen(
+                publiciteId = publiciteId,
+                onFinish = { navController.popBackStack() },
+                onCancel = { navController.popBackStack() }
+        // Review Summary (AI-Powered)
+        composable(
+            route = Routes.ReviewSummary,
+            arguments = listOf(
+                navArgument("propertyId") { type = NavType.StringType },
+                navArgument("propertyName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val propertyId = backStackEntry.arguments?.getString("propertyId") ?: ""
+            val propertyName = backStackEntry.arguments?.getString("propertyName") ?: ""
+            ReviewSummaryScreen(
+                propertyId = propertyId,
+                propertyName = propertyName,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }

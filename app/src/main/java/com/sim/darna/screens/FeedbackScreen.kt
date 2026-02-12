@@ -2,21 +2,17 @@ package com.sim.darna.screens
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -26,23 +22,31 @@ import com.sim.darna.viewmodel.ReportViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+// Modern Color Palette
+object FeedbackColors {
+    val Primary = Color(0xFFFF4B6E)
+    val Secondary = Color(0xFF4C6FFF)
+    val Accent = Color(0xFFFFC857)
+    val Background = Color(0xFFF7F7F7)
+    val CardBackground = Color.White
+    val TextPrimary = Color(0xFF1A1A2E)
+    val TextSecondary = Color(0xFF6B7280)
+    val Border = Color(0xFFE5E7EB)
+    val Success = Color(0xFF10B981)
+}
 
 @Composable
 fun FeedbackScreen(
     onNavigateBack: () -> Unit = {}
 ) {
     val context = LocalContext.current
-
-    // Load saved username + email
     val prefs = context.getSharedPreferences("APP_PREFS", Context.MODE_PRIVATE)
     val username = prefs.getString("username", "User") ?: "User"
     val email = prefs.getString("email", "") ?: ""
 
-    // ViewModel initialization
     val vm: ReportViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     LaunchedEffect(Unit) { vm.init(context) }
 
-    // UI States
     var selectedCategory by remember { mutableStateOf("") }
     var feedbackText by remember { mutableStateOf("") }
     var showSuccessDialog by remember { mutableStateOf(false) }
@@ -51,154 +55,71 @@ fun FeedbackScreen(
     BackHandler { onNavigateBack() }
 
     val categories = listOf(
-        "🐛 Bug Report" to "Bug Report",
-        "💡 Feature Request" to "Feature Request",
-        "⭐ General Feedback" to "General Feedback",
-        "❓ Help & Support" to "Help & Support"
+        Triple("Bug Report", Icons.Outlined.BugReport, FeedbackColors.Primary),
+        Triple("Feature Request", Icons.Outlined.Lightbulb, FeedbackColors.Secondary),
+        Triple("General Feedback", Icons.Outlined.Reviews, FeedbackColors.Accent),
+        Triple("Help & Support", Icons.Outlined.HelpOutline, Color(0xFF8B5CF6))
     )
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(FeedbackColors.Background)
     ) {
-        Column {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Header
+            FeedbackHeader(
+                username = username,
+                onBackClick = onNavigateBack
+            )
 
-            // HEADER
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shadowElevation = 4.dp,
-                color = Color.White
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(Color(0xFF1A73E8), Color(0xFF0D47A1))
-                            )
-                        )
-                        .padding(20.dp)
-                ) {
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-
-                        IconButton(onClick = onNavigateBack) {
-                            Text("←", color = Color.White, fontSize = 28.sp)
-                        }
-
-                        Spacer(Modifier.width(8.dp))
-
-                        Column {
-                            Text(
-                                "Send Feedback",
-                                color = Color.White,
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                "Help us improve the app",
-                                color = Color.White.copy(0.9f)
-                            )
-                        }
-                    }
-                }
-            }
-
-            // CONTENT
+            // Content
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(20.dp)
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
+                // User Info Card
+                UserInfoCard(username = username, email = email)
 
-                // USER INFO CARD
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(Color.White)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            Modifier
-                                .size(50.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(Color(0xFF1A73E8), Color(0xFF0D47A1))
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                username.first().uppercase(),
-                                color = Color.White,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                // Category Selection
+                Text(
+                    text = "Choisissez une catégorie",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = FeedbackColors.TextPrimary
+                )
 
-                        Spacer(Modifier.width(12.dp))
-
-                        Column {
-                            Text(username, fontWeight = FontWeight.SemiBold)
-                            if (email.isNotEmpty())
-                                Text(email, fontSize = 13.sp, color = Color.Gray)
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(24.dp))
-
-                // CATEGORY SELECTION
-                Text("Select a category", fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(12.dp))
-
-                categories.forEach { (label, realValue) ->
-                    CategoryCard(
+                categories.forEach { (label, icon, color) ->
+                    ModernCategoryCard(
                         label = label,
-                        isSelected = selectedCategory == realValue,
-                        onClick = { selectedCategory = realValue }
-                    )
-                    Spacer(Modifier.height(10.dp))
-                }
-
-                Spacer(Modifier.height(24.dp))
-
-                // FEEDBACK TEXT
-                Text("Your message", fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(12.dp))
-
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(Color.White)
-                ) {
-                    OutlinedTextField(
-                        value = feedbackText,
-                        onValueChange = { feedbackText = it },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(150.dp),
-                        placeholder = { Text("Describe your issue or suggestion...") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedBorderColor = Color.Transparent
-                        ),
-                        textStyle = TextStyle(fontSize = 15.sp)
+                        icon = icon,
+                        color = color,
+                        isSelected = selectedCategory == label,
+                        onClick = { selectedCategory = label }
                     )
                 }
 
-                Spacer(Modifier.height(32.dp))
+                // Feedback Input
+                Text(
+                    text = "Votre message",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = FeedbackColors.TextPrimary
+                )
 
-                // SUBMIT BUTTON
+                FeedbackInputCard(
+                    value = feedbackText,
+                    onValueChange = { feedbackText = it }
+                )
+
+                // Submit Button
                 val enabled = selectedCategory.isNotEmpty() && feedbackText.isNotBlank()
-                val buttonScale by animateFloatAsState(if (enabled) 1f else 0.95f)
 
-                Button(
+                SubmitButton(
+                    enabled = enabled,
                     onClick = {
                         vm.sendReport(
                             reason = selectedCategory,
@@ -213,57 +134,84 @@ fun FeedbackScreen(
                                 }
                             }
                         }
-                    },
-                    enabled = enabled,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .scale(buttonScale),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Send, contentDescription = null, tint = Color.White)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Submit Feedback")
                     }
-                }
+                )
+
+                Spacer(Modifier.height(16.dp))
             }
         }
     }
 
-    // SUCCESS POPUP
+    // Success Dialog
     if (showSuccessDialog) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(0.5f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Card(
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(Color.White),
-                modifier = Modifier.animateContentSize()
-            ) {
-                Column(
-                    modifier = Modifier.padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(
-                        Modifier
-                            .size(80.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFE8F5E9)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("✓", fontSize = 48.sp, color = Color(0xFF4CAF50))
-                    }
+        SuccessDialog()
+    }
+}
 
-                    Spacer(Modifier.height(20.dp))
-                    Text("Thank You!", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+@Composable
+fun FeedbackHeader(
+    username: String,
+    onBackClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = FeedbackColors.CardBackground,
+        shadowElevation = 2.dp
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Back Button
+                Surface(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clickable { onBackClick() },
+                    shape = CircleShape,
+                    color = FeedbackColors.Background
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(10.dp),
+                        tint = FeedbackColors.TextPrimary
+                    )
+                }
+
+                // Title
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "Your feedback has been submitted successfully",
+                        text = "Envoyer un avis",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = FeedbackColors.TextPrimary
+                    )
+                    Text(
+                        text = "Aidez-nous à améliorer l'app",
                         fontSize = 14.sp,
-                        color = Color.Gray
+                        color = FeedbackColors.TextSecondary
+                    )
+                }
+
+                // Icon
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape,
+                    color = FeedbackColors.Primary.copy(alpha = 0.1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.RateReview,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(12.dp),
+                        tint = FeedbackColors.Primary
                     )
                 }
             }
@@ -271,46 +219,294 @@ fun FeedbackScreen(
     }
 }
 
-
 @Composable
-fun CategoryCard(
-    label: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val scale by animateFloatAsState(
-        if (isSelected) 1.02f else 1f,
-        animationSpec = spring()
-    )
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(scale)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            if (isSelected) Color(0xFFE8F0FE) else Color.White
-        ),
-        border = if (isSelected)
-            BorderStroke(2.dp, Color(0xFF1A73E8))
-        else null
+fun UserInfoCard(username: String, email: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = FeedbackColors.CardBackground,
+        shadowElevation = 2.dp
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Avatar
+            Surface(
+                modifier = Modifier.size(56.dp),
+                shape = CircleShape,
+                color = Brush.linearGradient(
+                    colors = listOf(
+                        FeedbackColors.Primary,
+                        FeedbackColors.Secondary
+                    )
+                ).let { FeedbackColors.Primary }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    FeedbackColors.Primary,
+                                    FeedbackColors.Secondary
+                                )
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = username.firstOrNull()?.uppercase() ?: "U",
+                        color = Color.White,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            // User Details
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = username,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = FeedbackColors.TextPrimary
+                )
+                if (email.isNotEmpty()) {
+                    Text(
+                        text = email,
+                        fontSize = 14.sp,
+                        color = FeedbackColors.TextSecondary
+                    )
+                }
+            }
+
+            // Verified Badge
+            Surface(
+                shape = CircleShape,
+                color = FeedbackColors.Success.copy(alpha = 0.15f)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .padding(6.dp),
+                    tint = FeedbackColors.Success
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ModernCategoryCard(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(14.dp),
+        color = if (isSelected) color.copy(alpha = 0.1f) else FeedbackColors.CardBackground,
+        border = BorderStroke(
+            width = 2.dp,
+            color = if (isSelected) color else FeedbackColors.Border
+        ),
+        shadowElevation = if (isSelected) 2.dp else 0.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Icon
+            Surface(
+                modifier = Modifier.size(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = if (isSelected) color.copy(alpha = 0.2f) else color.copy(alpha = 0.1f)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(12.dp),
+                    tint = color
+                )
+            }
+
+            // Label
             Text(
-                label,
-                fontSize = 15.sp,
-                color = if (isSelected) Color(0xFF1A73E8) else Color.Black
+                text = label,
+                fontSize = 16.sp,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (isSelected) color else FeedbackColors.TextPrimary,
+                modifier = Modifier.weight(1f)
             )
+
+            // Check Icon
             if (isSelected) {
                 Icon(
-                    Icons.Default.CheckCircle,
+                    imageVector = Icons.Default.CheckCircle,
                     contentDescription = null,
-                    tint = Color(0xFF1A73E8)
+                    tint = color,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun FeedbackInputCard(
+    value: String,
+    onValueChange: (String) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = FeedbackColors.CardBackground,
+        shadowElevation = 2.dp
+    ) {
+        Column(modifier = Modifier.padding(4.dp)) {
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp),
+                placeholder = {
+                    Text(
+                        text = "Décrivez votre problème ou suggestion en détail...",
+                        color = FeedbackColors.TextSecondary,
+                        fontSize = 15.sp
+                    )
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = FeedbackColors.CardBackground,
+                    unfocusedContainerColor = FeedbackColors.CardBackground,
+                    focusedBorderColor = FeedbackColors.Primary.copy(alpha = 0.3f),
+                    unfocusedBorderColor = Color.Transparent,
+                    cursorColor = FeedbackColors.Primary
+                ),
+                textStyle = TextStyle(
+                    fontSize = 15.sp,
+                    color = FeedbackColors.TextPrimary
+                ),
+                shape = RoundedCornerShape(16.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun SubmitButton(
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .clickable(enabled = enabled) { onClick() },
+        shape = RoundedCornerShape(14.dp),
+        color = if (enabled) FeedbackColors.Primary else FeedbackColors.Border,
+        shadowElevation = if (enabled) 4.dp else 0.dp
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Send,
+                contentDescription = null,
+                tint = if (enabled) Color.White else FeedbackColors.TextSecondary,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = "Envoyer le feedback",
+                color = if (enabled) Color.White else FeedbackColors.TextSecondary,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+@Composable
+fun SuccessDialog() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.6f))
+            .clickable(enabled = false) { },
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            modifier = Modifier
+                .padding(40.dp)
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            color = FeedbackColors.CardBackground,
+            shadowElevation = 16.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Success Icon
+                Surface(
+                    modifier = Modifier.size(80.dp),
+                    shape = CircleShape,
+                    color = FeedbackColors.Success.copy(alpha = 0.15f)
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = FeedbackColors.Success
+                        )
+                    }
+                }
+
+                // Success Text
+                Text(
+                    text = "Merci !",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = FeedbackColors.TextPrimary
+                )
+
+                Text(
+                    text = "Votre feedback a été envoyé avec succès",
+                    fontSize = 15.sp,
+                    color = FeedbackColors.TextSecondary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                // Success Animation Indicator
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth(0.6f)
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp)),
+                    color = FeedbackColors.Success,
+                    trackColor = FeedbackColors.Success.copy(alpha = 0.2f)
                 )
             }
         }

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sim.darna.auth.RetrofitClient
 import com.sim.darna.model.Review
+import com.sim.darna.model.ReviewSummary
 import com.sim.darna.repository.ReviewRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +17,9 @@ class ReviewViewModel : ViewModel() {
 
     private val _reviews = MutableStateFlow<List<Review>>(emptyList())
     val reviews: StateFlow<List<Review>> = _reviews
+
+    private val _reviewSummary = MutableStateFlow<ReviewSummary?>(null)
+    val reviewSummary: StateFlow<ReviewSummary?> = _reviewSummary
 
     // ------------------------------------------------------
     // INIT: MUST be called before any repo usage
@@ -46,17 +50,40 @@ class ReviewViewModel : ViewModel() {
             }
         }
     }
-
+    
     // ------------------------------------------------------
-    // ADD REVIEW
+    // LOAD REVIEWS FOR SPECIFIC PROPERTY
     // ------------------------------------------------------
-    fun addReview(rating: Int, comment: String) {
+    fun loadReviewsForProperty(propertyId: String) {
         viewModelScope.launch {
             try {
-                val created = getRepo().createReview(rating, comment)
-                if (created != null) {
-                    _reviews.value = _reviews.value + created
-                }
+                _reviews.value = getRepo().getReviewsForProperty(propertyId)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    
+    // ------------------------------------------------------
+    // LOAD REVIEWS FOR SPECIFIC USER
+    // ------------------------------------------------------
+    fun loadReviewsForUser(userId: String) {
+        viewModelScope.launch {
+            try {
+                _reviews.value = getRepo().getReviewsForUser(userId)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    
+    // ------------------------------------------------------
+    // LOAD REVIEWS FOR SPECIFIC USER AND PROPERTY
+    // ------------------------------------------------------
+    fun loadReviewsForUserAndProperty(userId: String, propertyId: String) {
+        viewModelScope.launch {
+            try {
+                _reviews.value = getRepo().getReviewsForUserAndProperty(userId, propertyId)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -64,14 +91,37 @@ class ReviewViewModel : ViewModel() {
     }
 
     // ------------------------------------------------------
-    // UPDATE REVIEW
+    // ADD REVIEW
     // ------------------------------------------------------
-    fun updateReview(id: String, rating: Int, comment: String) {
+    fun addReview(rating: Int, comment: String, propertyId: String? = null, userName: String? = null, propertyName: String? = null) {
         viewModelScope.launch {
             try {
-                val updated = getRepo().updateReview(id, rating, comment)
+                val created = getRepo().createReview(rating, comment, propertyId, userName, propertyName)
+                if (created != null) {
+                    _reviews.value = _reviews.value + created
+                } else {
+                    // Handle case where review creation failed
+                    println("Failed to create review - server returned null")
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                println("Error creating review: ${e.message}")
+            }
+        }
+    }
+
+    // ------------------------------------------------------
+    // UPDATE REVIEW
+    // ------------------------------------------------------
+    fun updateReview(id: String, rating: Int, comment: String, userName: String? = null, propertyName: String? = null) {
+        viewModelScope.launch {
+            try {
+                val updated = getRepo().updateReview(id, rating, comment, userName, propertyName)
                 if (updated != null) {
-                    loadReviews()
+                    // Update the local list directly for immediate feedback
+                    _reviews.value = _reviews.value.map { review ->
+                        if (review.id == id) updated else review
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -86,8 +136,24 @@ class ReviewViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 if (getRepo().deleteReview(id)) {
-                    loadReviews()
+                    // Remove the review from the local list directly for immediate feedback
+                    _reviews.value = _reviews.value.filter { review ->
+                        review.id != id
+                    }
                 }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    // ------------------------------------------------------
+    // LOAD REVIEW SUMMARY (AI-POWERED)
+    // ------------------------------------------------------
+    fun loadReviewSummary(propertyId: String) {
+        viewModelScope.launch {
+            try {
+                _reviewSummary.value = getRepo().getReviewSummary(propertyId)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
